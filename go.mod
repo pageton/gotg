@@ -7,7 +7,7 @@ toolchain go1.23.4
 require (
 	github.com/AnimeKaizoku/cacher v1.0.2
 	github.com/go-faster/errors v0.7.1
-	github.com/gotd/td v0.121.0
+	github.com/gotd/td v0.122.0
 	github.com/pkg/errors v0.9.1
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.0
@@ -56,7 +56,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/crypto v0.36.0 // indirect
-	golang.org/x/net v0.37.0 // indirect
+	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sync v0.12.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	gorm.io/driver/sqlite v1.5.5
