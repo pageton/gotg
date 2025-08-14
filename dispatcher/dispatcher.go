@@ -207,7 +207,7 @@ func (dp *NativeDispatcher) handleUpdateRepliedToMessage(u *ext.Update, ctx cont
 func saveUsersPeers(u tg.UserClassArray, p *storage.PeerStorage) {
 	for _, user := range u {
 		c, ok := user.AsNotEmpty()
-		if !ok {
+		if !ok || c.Min {
 			continue
 		}
 		p.AddPeer(c.ID, c.AccessHash, storage.TypeUser, c.Username)
@@ -217,7 +217,7 @@ func saveUsersPeers(u tg.UserClassArray, p *storage.PeerStorage) {
 func saveChatsPeers(u tg.ChatClassArray, p *storage.PeerStorage) {
 	for _, chat := range u {
 		channel, ok := chat.(*tg.Channel)
-		if ok {
+		if ok && !channel.Min {
 			p.AddPeer(channel.ID, channel.AccessHash, storage.TypeChannel, channel.Username)
 			continue
 		}
