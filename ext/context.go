@@ -13,6 +13,7 @@ import (
 	"github.com/celestix/gotgproto/functions"
 	"github.com/celestix/gotgproto/storage"
 	"github.com/celestix/gotgproto/types"
+	"github.com/gotd/td/constant"
 	"github.com/gotd/td/telegram/downloader"
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/telegram/message/entity"
@@ -173,7 +174,7 @@ func (ctx *Context) SendMessage(chatId int64, request *tg.MessagesSendMessageReq
 	}
 	request.RandomID = ctx.generateRandomID()
 	if request.Peer == nil {
-		request.Peer = functions.GetInputPeerClassFromId(ctx.PeerStorage, chatId)
+		request.Peer, _ = ctx.ResolvePeerById(chatId)
 	}
 	var m = &tg.Message{}
 	m.Message = request.Message
@@ -196,7 +197,7 @@ func (ctx *Context) SendMedia(chatId int64, request *tg.MessagesSendMediaRequest
 	}
 	request.RandomID = ctx.generateRandomID()
 	if request.Peer == nil {
-		request.Peer = functions.GetInputPeerClassFromId(ctx.PeerStorage, chatId)
+		request.Peer, _ = ctx.ResolvePeerById(chatId)
 	}
 	var m = &tg.Message{}
 	m.Message = request.Message
@@ -235,7 +236,7 @@ func (ctx *Context) GetInlineBotResults(chatId int64, botUsername string, reques
 			return nil, errors.New("provided username was invalid for a bot")
 		}
 	}
-	request.Peer = ctx.PeerStorage.GetInputPeerById(chatId)
+	request.Peer, _ = ctx.ResolvePeerById(chatId)
 	request.Bot = &tg.InputUser{
 		UserID:     bot.ID,
 		AccessHash: bot.AccessHash,
@@ -252,7 +253,7 @@ func (ctx *Context) SendInlineBotResult(chatId int64, request *tg.MessagesSendIn
 	}
 	request.RandomID = ctx.generateRandomID()
 	if request.Peer == nil {
-		request.Peer = functions.GetInputPeerClassFromId(ctx.PeerStorage, chatId)
+		request.Peer, _ = ctx.ResolvePeerById(chatId)
 	}
 	return ctx.Raw.MessagesSendInlineBotResult(ctx, request)
 }
@@ -263,7 +264,7 @@ func (ctx *Context) SendReaction(chatId int64, request *tg.MessagesSendReactionR
 		request = &tg.MessagesSendReactionRequest{}
 	}
 	if request.Peer == nil {
-		request.Peer = functions.GetInputPeerClassFromId(ctx.PeerStorage, chatId)
+		request.Peer, _ = ctx.ResolvePeerById(chatId)
 	}
 	var m = &tg.Message{}
 	// m.Message = request.Reaction
@@ -285,7 +286,7 @@ func (ctx *Context) SendMultiMedia(chatId int64, request *tg.MessagesSendMultiMe
 		request = &tg.MessagesSendMultiMediaRequest{}
 	}
 	if request.Peer == nil {
-		request.Peer = functions.GetInputPeerClassFromId(ctx.PeerStorage, chatId)
+		request.Peer, _ = ctx.ResolvePeerById(chatId)
 	}
 	u, err := ctx.Raw.MessagesSendMultiMedia(ctx, request)
 	message, err := functions.ReturnNewMessageWithError(&tg.Message{}, u, ctx.PeerStorage, err)
@@ -313,7 +314,7 @@ func (ctx *Context) EditMessage(chatId int64, request *tg.MessagesEditMessageReq
 		request = &tg.MessagesEditMessageRequest{}
 	}
 	if request.Peer == nil {
-		request.Peer = functions.GetInputPeerClassFromId(ctx.PeerStorage, chatId)
+		request.Peer, _ = ctx.ResolvePeerById(chatId)
 	}
 	upds, err := ctx.Raw.MessagesEditMessage(ctx, request)
 	message, err := functions.ReturnEditMessageWithError(ctx.PeerStorage, upds, err)
@@ -600,11 +601,11 @@ func (ctx *Context) ForwardMessage(fromChatId, toChatId int64, request *tg.Messa
 // ForwardMessages shall be used to forward messages in a chat with chatId and messageIDs.
 // Returns updatesclass or an error if failed to delete.
 func (ctx *Context) ForwardMessages(fromChatId, toChatId int64, request *tg.MessagesForwardMessagesRequest) (tg.UpdatesClass, error) {
-	fromPeer := ctx.PeerStorage.GetInputPeerById(fromChatId)
+	fromPeer, _ := ctx.ResolvePeerById(fromChatId)
 	if fromPeer.Zero() {
 		return nil, fmt.Errorf("fromChatId: %w", mtp_errors.ErrPeerNotFound)
 	}
-	toPeer := ctx.PeerStorage.GetInputPeerById(toChatId)
+	toPeer, _ := ctx.ResolvePeerById(toChatId)
 	if toPeer.Zero() {
 		return nil, fmt.Errorf("toChatId: %w", mtp_errors.ErrPeerNotFound)
 	}
@@ -815,7 +816,7 @@ func (ctx *Context) DownloadMedia(media tg.MessageMediaClass, downloadOutput Dow
 // TransferStarGift is used to transfer a star gift to a chat.
 // Returns tg.UpdatesClass and error if any.
 func (ctx *Context) TransferStarGift(chatId int64, starGift tg.InputSavedStarGiftClass) (tg.UpdatesClass, error) {
-	peerUser := ctx.PeerStorage.GetInputPeerById(chatId)
+	peerUser, _ := ctx.ResolvePeerById(chatId)
 	if peerUser == nil {
 		return nil, mtp_errors.ErrPeerNotFound
 	}
@@ -839,4 +840,73 @@ func (ctx *Context) SetPreCheckoutResults(success bool, queryId int64, err strin
 		QueryID: queryId,
 		Error:   err,
 	})
+}
+
+// ResolvePeerById tries to resolve given id to peer.
+// Returns tg.InputPeerClass or error if peer could not be resolved 
+func (ctx *Context) ResolvePeerById(id int64) (tg.InputPeerClass, error) {
+	peerStorage := ctx.PeerStorage
+	peer := peerStorage.GetInputPeerById(id)
+	if _, isEmpty := peer.(*tg.InputPeerEmpty); !isEmpty {
+		return peer, nil
+	}
+	
+	ID := constant.TDLibPeerID(id)
+	if ID.IsChannel() {
+		plainID := ID.ToPlain()
+		chatsClass, err := ctx.Raw.ChannelsGetChannels(ctx, []tg.InputChannelClass{
+			&tg.InputChannel{
+				ChannelID:  plainID,
+				AccessHash: 0,
+			},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch channel: %w", err)
+		}
+		chat, ok := chatsClass.MapChats().First()
+		if ok {
+			if ch, ok := chat.(*tg.Channel); ok {
+				peerStorage.AddPeer(plainID, ch.AccessHash, storage.TypeChannel, ch.Username)
+				return ch.AsInputPeer(), nil
+			}
+		}
+	} else if ID.IsChat() {
+		plainID := ID.ToPlain()
+		peer := &tg.InputPeerChat{
+			ChatID: plainID,
+		}
+		peerStorage.AddPeer(plainID, storage.DefaultAccessHash, storage.TypeChat, storage.DefaultUsername)
+		return peer, nil
+	} else {
+		plainID := ID.ToPlain()
+		users, err := ctx.Raw.UsersGetUsers(ctx, []tg.InputUserClass{
+			&tg.InputUser{
+				UserID:     plainID,
+				AccessHash: 0,
+			},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch user: %w", err)
+		}
+		user, ok := tg.UserClassArray(users).FirstAsNotEmpty()
+		if ok {
+			peerStorage.AddPeer(plainID, user.AccessHash, storage.TypeUser, user.Username)
+			return user.AsInputPeer(), nil
+		}
+		//Try to get from storage again, but this time with bot-api compatible ids
+		if ID.IsUser() {
+			ID.Channel(int64(id))
+			peer := peerStorage.GetInputPeerById(int64(ID))
+			if _, isEmpty := peer.(*tg.InputPeerEmpty); !isEmpty {
+				return peer, nil
+			}
+			ID.Chat(int64(id))
+			peer = peerStorage.GetInputPeerById(int64(ID))
+			if _, isEmpty := peer.(*tg.InputPeerEmpty); !isEmpty {
+				return peer, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("Peer not found for id %d", id)
 }
