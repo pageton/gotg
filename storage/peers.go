@@ -1,7 +1,12 @@
 package storage
 
 import (
+	"context"
+	"fmt"
+
+	"github.com/gotd/td/constant"
 	"github.com/gotd/td/tg"
+	"github.com/gotd/td/telegram/query/dialogs"
 )
 
 type Peer struct {
@@ -29,6 +34,16 @@ const (
 )
 
 func (p *PeerStorage) AddPeer(iD, accessHash int64, peerType EntityType, userName string) {
+	var ID constant.TDLibPeerID
+	switch EntityType(peerType) {
+		case TypeUser:
+			ID.User(iD)
+		case TypeChat:
+			ID.Chat(iD)
+		case TypeChannel:
+			ID.Channel(iD)
+	}
+	iD = int64(ID)
 	peer := &Peer{ID: iD, AccessHash: accessHash, Type: peerType.GetInt(), Username: userName}
 	p.peerCache.Set(iD, peer)
 	if p.inMemory {
@@ -94,6 +109,8 @@ func (p *PeerStorage) cachePeers(id int64) *Peer {
 }
 
 func getInputPeerFromStoragePeer(peer *Peer) tg.InputPeerClass {
+	ID := constant.TDLibPeerID(peer.ID)
+	warning := "DEPRECATION: Fetching PeerID from non-BotAPI IDs is deprecated — Please use Bot API-style IDs (%s<id>) Instead.\n"
 	switch EntityType(peer.Type) {
 	case TypeUser:
 		return &tg.InputPeerUser{
@@ -101,15 +118,37 @@ func getInputPeerFromStoragePeer(peer *Peer) tg.InputPeerClass {
 			AccessHash: peer.AccessHash,
 		}
 	case TypeChat:
+		if !ID.IsChat() {
+			fmt.Printf(warning, "-")
+		}
 		return &tg.InputPeerChat{
-			ChatID: peer.ID,
+			ChatID: ID.ToPlain(),
 		}
 	case TypeChannel:
+		if !ID.IsChannel() {
+			fmt.Printf(warning, "-100")
+		}
 		return &tg.InputPeerChannel{
-			ChannelID:  peer.ID,
+			ChannelID: ID.ToPlain(),
 			AccessHash: peer.AccessHash,
 		}
 	default:
 		return &tg.InputPeerEmpty{}
 	}
+}
+
+
+func AddPeersFromDialogs(ctx context.Context, raw *tg.Client, peerStorage *PeerStorage) {
+	dialogs.NewQueryBuilder(raw).GetDialogs().ForEach(ctx, func(ctx context.Context, e dialogs.Elem) error {
+    for cid, channel := range e.Entities.Channels() {
+      peerStorage.AddPeer(cid, channel.AccessHash, TypeChannel, channel.Username)
+    }
+    for uid, user := range e.Entities.Users() {
+      peerStorage.AddPeer(uid, user.AccessHash, TypeUser, user.Username)
+    }
+    for gid := range e.Entities.Chats() {
+      peerStorage.AddPeer(gid, DefaultAccessHash, TypeChat, DefaultUsername)
+    }
+    return nil
+  })
 }

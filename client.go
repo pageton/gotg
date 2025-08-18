@@ -176,6 +176,13 @@ type ClientOpts struct {
 	NoAutoAuth bool
 	// NoUpdates is a flag to disable updates.
 	NoUpdates bool
+	// Only usable by Users not bots
+	// PeersFromDialogs is a flag to enable adding peers fetched 
+	// from dialogs to memory/database on startup 
+	PeersFromDialogs bool
+	// WaitOnPeersFromDialogs is a flag to enable waiting on
+	// PeersFromDialogs to complete during client start 
+	WaitOnPeersFromDialogs bool
 }
 
 // NewClient creates a new gotgproto client and logs in to telegram.
@@ -426,6 +433,15 @@ func (c *Client) Start(opts *ClientOpts) error {
 
 	// wait till client starts
 	wg.Wait()
+	if c.err == nil {
+		if !c.Self.Bot && opts.PeersFromDialogs {
+			if opts.WaitOnPeersFromDialogs {
+				storage.AddPeersFromDialogs(c.ctx, c.API(), c.PeerStorage)
+			} else {
+				go storage.AddPeersFromDialogs(c.ctx, c.API(), c.PeerStorage)
+			}
+		}
+	}
 	return c.err
 }
 

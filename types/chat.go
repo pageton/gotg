@@ -1,6 +1,9 @@
 package types
 
-import "github.com/gotd/td/tg"
+import (
+	"github.com/gotd/td/constant"
+	"github.com/gotd/td/tg"
+)
 
 // EffectiveChat interface covers the all three types of chats:
 // - tg.User
@@ -142,7 +145,9 @@ type Channel tg.Channel
 
 // Use this method to get chat id.
 func (u *Channel) GetID() int64 {
-	return u.ID
+	var ID constant.TDLibPeerID
+	ID.Channel(u.ID)
+	return int64(ID)
 }
 
 // Use this method to get access hash of the effective chat.
@@ -197,7 +202,9 @@ type Chat tg.Chat
 
 // Use this method to get chat id.
 func (u *Chat) GetID() int64 {
-	return u.ID
+	var ID constant.TDLibPeerID
+	ID.Chat(u.ID)
+	return int64(ID)
 }
 
 // Use this method to get access hash of the effective chat.
