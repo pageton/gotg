@@ -139,7 +139,7 @@ func getInputPeerFromStoragePeer(peer *Peer) tg.InputPeerClass {
 
 
 func AddPeersFromDialogs(ctx context.Context, raw *tg.Client, peerStorage *PeerStorage) {
-	dialogs.NewQueryBuilder(raw).GetDialogs().ForEach(ctx, func(ctx context.Context, e dialogs.Elem) error {
+	_ = dialogs.NewQueryBuilder(raw).GetDialogs().ForEach(ctx, func(ctx context.Context, e dialogs.Elem) error {
     for cid, channel := range e.Entities.Channels() {
       peerStorage.AddPeer(cid, channel.AccessHash, TypeChannel, channel.Username)
     }
