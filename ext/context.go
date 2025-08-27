@@ -935,7 +935,7 @@ func (ctx *Context) ResolveInputPeerById(id int64) (tg.InputPeerClass, error) {
 // ResolvePeerById tries to resolve given id to peer.
 func (ctx *Context) ResolvePeerById(id int64) *storage.Peer {
 	_, _ = ctx.ResolveInputPeerById(id)
-	peer := ctx.ResolvePeerById(id)
+	peer := ctx.PeerStorage.GetPeerById(id)
 	if peer.ID != 0 {
 		return peer
 	}
