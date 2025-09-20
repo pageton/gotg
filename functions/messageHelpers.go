@@ -5,7 +5,6 @@ import (
 
 	"github.com/celestix/gotgproto/errors"
 	"github.com/celestix/gotgproto/storage"
-	"github.com/gotd/td/constant"
 	"github.com/gotd/td/tg"
 )
 
@@ -16,9 +15,8 @@ func GetMessages(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, ch
 	}
 	switch storage.EntityType(peer.Type) {
 	case storage.TypeChannel:
-		ID := constant.TDLibPeerID(peer.ID)
 		return GetChannelMessages(ctx, raw, p, &tg.InputChannel{
-			ChannelID:  ID.ToPlain(),
+			ChannelID:  peer.GetID(),
 			AccessHash: peer.AccessHash,
 		}, mids)
 	default:
