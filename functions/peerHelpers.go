@@ -60,14 +60,12 @@ func GetInputPeerClassFromId(p *storage.PeerStorage, iD int64) tg.InputPeerClass
 			AccessHash: peer.AccessHash,
 		}
 	case storage.TypeChat:
-		ID := constant.TDLibPeerID(peer.ID)
 		return &tg.InputPeerChat{
-			ChatID: ID.ToPlain(),
+			ChatID: peer.GetID(),
 		}
 	case storage.TypeChannel:
-		ID := constant.TDLibPeerID(peer.ID)
 		return &tg.InputPeerChannel{
-			ChannelID:  ID.ToPlain(),
+			ChannelID:  peer.GetID(),
 			AccessHash: peer.AccessHash,
 		}
 	}

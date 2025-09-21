@@ -60,6 +60,16 @@ func (p *PeerStorage) addPeerToDb(peer *Peer) {
 	tx.Commit()
 }
 
+func (p *Peer) GetID() int64 {
+	switch EntityType(p.Type) {
+	case TypeChat, TypeChannel:
+		ID := constant.TDLibPeerID(p.ID)
+		return ID.ToPlain()
+	default:
+		return p.ID
+	}
+}
+
 // GetPeerById finds the provided id in the peer storage and return it if found.
 func (p *PeerStorage) GetPeerById(iD int64) *Peer {
 	peer, ok := p.peerCache.Get(iD)

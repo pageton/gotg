@@ -144,7 +144,7 @@ func PromoteChatMember(ctx context.Context, client *tg.Client, chat, user *stora
 	if chat.AccessHash != 0 {
 		_, err := client.ChannelsEditAdmin(ctx, &tg.ChannelsEditAdminRequest{
 			Channel: &tg.InputChannel{
-				ChannelID:  chat.ID,
+				ChannelID:  chat.GetID(),
 				AccessHash: chat.AccessHash,
 			},
 			UserID: &tg.InputUser{
@@ -157,7 +157,7 @@ func PromoteChatMember(ctx context.Context, client *tg.Client, chat, user *stora
 		return err == nil, err
 	} else {
 		_, err := client.MessagesEditChatAdmin(ctx, &tg.MessagesEditChatAdminRequest{
-			ChatID: chat.ID,
+			ChatID: chat.GetID(),
 			UserID: &tg.InputUser{
 				UserID:     user.ID,
 				AccessHash: user.AccessHash,
@@ -173,7 +173,7 @@ func DemoteChatMember(ctx context.Context, client *tg.Client, chat, user *storag
 	if chat.AccessHash != 0 {
 		_, err := client.ChannelsEditAdmin(ctx, &tg.ChannelsEditAdminRequest{
 			Channel: &tg.InputChannel{
-				ChannelID:  chat.ID,
+				ChannelID:  chat.GetID(),
 				AccessHash: chat.AccessHash,
 			},
 			UserID: &tg.InputUser{
@@ -186,7 +186,7 @@ func DemoteChatMember(ctx context.Context, client *tg.Client, chat, user *storag
 		return err == nil, err
 	} else {
 		_, err := client.MessagesEditChatAdmin(ctx, &tg.MessagesEditChatAdminRequest{
-			ChatID: chat.ID,
+			ChatID: chat.GetID(),
 			UserID: &tg.InputUser{
 				UserID:     user.ID,
 				AccessHash: user.AccessHash,
