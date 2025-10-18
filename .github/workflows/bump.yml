@@ -1,0 +1,22 @@
+name: Bump Dependencies
+on: workflow_dispatch
+jobs:
+  Bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: 'go.mod'
+          cache-dependency-path: 'go.sum'
+      - name: update golang dependencies
+        run: |
+          go get github.com/gotd/td@latest
+
+      # commit changes
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: '[Action]: Bump Dependencies'
+          commit_options: '--no-verify'
+          repository: .
