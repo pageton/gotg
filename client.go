@@ -25,7 +25,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const VERSION = "v1.0.0-beta21"
+const VERSION = "v1.0.0-beta22"
 
 type Client struct {
 	// Dispatcher handlers the incoming updates and execute mapped handlers. It is recommended to use dispatcher.MakeDispatcher function for this field.
@@ -177,11 +177,11 @@ type ClientOpts struct {
 	// NoUpdates is a flag to disable updates.
 	NoUpdates bool
 	// Only usable by Users not bots
-	// PeersFromDialogs is a flag to enable adding peers fetched 
-	// from dialogs to memory/database on startup 
+	// PeersFromDialogs is a flag to enable adding peers fetched
+	// from dialogs to memory/database on startup
 	PeersFromDialogs bool
 	// WaitOnPeersFromDialogs is a flag to enable waiting on
-	// PeersFromDialogs to complete during client start 
+	// PeersFromDialogs to complete during client start
 	WaitOnPeersFromDialogs bool
 }
 
