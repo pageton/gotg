@@ -86,7 +86,10 @@ func authFlow(ctx context.Context, client *auth.Client, conversator AuthConversa
 		for i := 0; i < 3; i++ {
 			var code string
 			if i == 0 {
-				SendAuthStatus(conversator, AuthStatusPhoneCodeAsked)
+				conversator.AuthStatus(AuthStatus{
+					Event:        AuthStatusPhoneCodeAsked,
+					SentCodeType: s.Type,
+				})
 				code, err = f.Auth.Code(ctx, s)
 			} else {
 				SendAuthStatusWithRetrials(conversator, AuthStatusPhoneCodeRetrial, 3-i)
