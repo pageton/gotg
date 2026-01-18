@@ -56,7 +56,7 @@ func (c FlowClient) SendCode(ctx context.Context, phone string, opts auth.SendCo
 	packageID := ""
 	if obj, ok := c.params.(*tg.JSONObject); ok {
 		for _, item := range obj.Value {
-			if item.Key == "package_id" {
+			if item.Key == "package_id" || item.Key == "bundleId" {
 				if v, ok := item.Value.(*tg.JSONString); ok {
 					packageID = v.Value
 				}
