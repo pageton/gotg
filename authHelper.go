@@ -30,11 +30,10 @@ func (f Flow) handleSignUp(ctx context.Context, client auth.FlowClient, phone, h
 	return nil
 }
 
-func authFlow(ctx context.Context, client *auth.Client, conversator AuthConversator, phone string, sendOpts auth.SendCodeOptions) error {
+func authFlow(ctx context.Context, client auth.FlowClient, conversator AuthConversator, phone string, sendOpts auth.SendCodeOptions) error {
 	f := Flow(auth.NewFlow(
 		termAuth{
 			phone:       phone,
-			client:      client,
 			conversator: conversator,
 		},
 		sendOpts,

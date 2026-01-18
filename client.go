@@ -302,8 +302,19 @@ func (c *Client) login() error {
 		if c.NoAutoAuth {
 			return intErrors.ErrSessionUnauthorized
 		}
+		var flowClient auth.FlowClient = authClient
+		if solver, ok := c.authConversator.(RecaptchaSolver); ok {
+			flowClient = FlowClient{
+				FlowClient: authClient,
+				api:        c.API(),
+				appID:      c.appId,
+				apiHash:    c.apiHash,
+				solver:     solver,
+			}
+		}
 		err = authFlow(
-			c.ctx, authClient,
+			c.ctx,
+			flowClient,
 			c.authConversator,
 			c.clientType.getValue(),
 			c.sendCodeOptions,
