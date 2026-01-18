@@ -4,5 +4,5 @@ version = 1
 name = "go"
 enabled = true
 
-  [analyzers.meta]
-  import_root = "github.com/celestix/gotgproto"
+[analyzers.meta]
+import_root = "github.com/pageton/gotg"

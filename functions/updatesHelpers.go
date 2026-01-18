@@ -1,8 +1,8 @@
 package functions
 
 import (
-	"github.com/celestix/gotgproto/storage"
 	"github.com/gotd/td/tg"
+	"github.com/pageton/gotg/storage"
 )
 
 func GetNewMessageUpdate(msgData *tg.Message, upds tg.UpdatesClass, p *storage.PeerStorage) *tg.Message {

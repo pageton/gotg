@@ -3,9 +3,9 @@ package functions
 import (
 	"context"
 
-	"github.com/celestix/gotgproto/storage"
 	"github.com/gotd/td/constant"
 	"github.com/gotd/td/tg"
+	"github.com/pageton/gotg/storage"
 )
 
 // GetChatIdFromPeer returns the chat/user id from the provided tg.PeerClass.

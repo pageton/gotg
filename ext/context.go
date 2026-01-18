@@ -9,16 +9,16 @@ import (
 	"strings"
 	"time"
 
-	mtp_errors "github.com/celestix/gotgproto/errors"
-	"github.com/celestix/gotgproto/functions"
-	"github.com/celestix/gotgproto/storage"
-	"github.com/celestix/gotgproto/types"
 	"github.com/gotd/td/constant"
 	"github.com/gotd/td/telegram/downloader"
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/telegram/message/entity"
 	"github.com/gotd/td/telegram/message/styling"
 	"github.com/gotd/td/tg"
+	mtp_errors "github.com/pageton/gotg/errors"
+	"github.com/pageton/gotg/functions"
+	"github.com/pageton/gotg/storage"
+	"github.com/pageton/gotg/types"
 )
 
 // Context consists of context.Context, tg.Client, Self etc.
@@ -351,36 +351,36 @@ func (ctx *Context) EditMessage(chatID int64, request *tg.MessagesEditMessageReq
 // GetChat returns tg.ChatFullClass of the provided chat id.
 func (ctx *Context) GetChat(chatID int64) (tg.ChatFullClass, error) {
 	inputPeer, err := ctx.ResolveInputPeerById(chatID)
-	if err != nil  {
+	if err != nil {
 		return nil, err
 	}
 	switch p := inputPeer.(type) {
-    case *tg.InputPeerChannel:
-        channel, err := ctx.Raw.ChannelsGetFullChannel(ctx, &tg.InputChannel{
-            ChannelID:  p.ChannelID,
-            AccessHash: p.AccessHash,
-        })
-        if err != nil {
-            return nil, err
-        }
-        return channel.FullChat, nil
-    case *tg.InputPeerChat:
-        chat, err := ctx.Raw.MessagesGetFullChat(ctx, chatID)
-        if err != nil {
-            return nil, err
-        }
-        return chat.FullChat, nil
-    case *tg.InputPeerEmpty:
-        return nil, mtp_errors.ErrPeerNotFound
-    default:
-        return nil, mtp_errors.ErrNotChat
-    }
+	case *tg.InputPeerChannel:
+		channel, err := ctx.Raw.ChannelsGetFullChannel(ctx, &tg.InputChannel{
+			ChannelID:  p.ChannelID,
+			AccessHash: p.AccessHash,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return channel.FullChat, nil
+	case *tg.InputPeerChat:
+		chat, err := ctx.Raw.MessagesGetFullChat(ctx, chatID)
+		if err != nil {
+			return nil, err
+		}
+		return chat.FullChat, nil
+	case *tg.InputPeerEmpty:
+		return nil, mtp_errors.ErrPeerNotFound
+	default:
+		return nil, mtp_errors.ErrNotChat
+	}
 }
 
 // GetUser returns tg.UserFull of the provided user id.
 func (ctx *Context) GetUser(userID int64) (*tg.UserFull, error) {
 	inputPeer, err := ctx.ResolveInputPeerById(userID)
-	if err != nil  {
+	if err != nil {
 		return nil, err
 	}
 	switch p := inputPeer.(type) {
@@ -405,21 +405,21 @@ func (ctx *Context) GetMessages(chatID int64, messageIDs []tg.InputMessageClass)
 
 // BanChatMember is used to ban a user from a chat.
 func (ctx *Context) BanChatMember(chatID, userID int64, untilDate int) (tg.UpdatesClass, error) {
-	inputPeerChat, err :=  ctx.ResolveInputPeerById(chatID)
-	if err != nil  {
+	inputPeerChat, err := ctx.ResolveInputPeerById(chatID)
+	if err != nil {
 		return nil, err
 	}
 	switch inputPeerChat.(type) {
-    case *tg.InputPeerChannel:
-    case *tg.InputPeerChat:
-    case *tg.InputPeerEmpty:
-			return nil, mtp_errors.ErrPeerNotFound
-    default:
-			return nil, mtp_errors.ErrNotChat
-    }
+	case *tg.InputPeerChannel:
+	case *tg.InputPeerChat:
+	case *tg.InputPeerEmpty:
+		return nil, mtp_errors.ErrPeerNotFound
+	default:
+		return nil, mtp_errors.ErrNotChat
+	}
 	var inputPeerUser *tg.InputPeerUser
 	inputPeer, err := ctx.ResolveInputPeerById(userID)
-	if err != nil  {
+	if err != nil {
 		return nil, err
 	}
 	switch p := inputPeer.(type) {
@@ -436,29 +436,29 @@ func (ctx *Context) BanChatMember(chatID, userID int64, untilDate int) (tg.Updat
 // UnbanChatMember is used to unban a user from a chat.
 func (ctx *Context) UnbanChatMember(chatID, userID int64) (bool, error) {
 	var inputPeerChat *tg.InputPeerChannel
-	inputPeer, err :=  ctx.ResolveInputPeerById(chatID)
-	if err != nil  {
+	inputPeer, err := ctx.ResolveInputPeerById(chatID)
+	if err != nil {
 		return false, err
 	}
 	switch p := inputPeer.(type) {
-    case *tg.InputPeerChannel:
-			inputPeerChat = p
-    case *tg.InputPeerEmpty:
-			return false, mtp_errors.ErrPeerNotFound
-    default:
-			return false, mtp_errors.ErrNotChannel
-    }
+	case *tg.InputPeerChannel:
+		inputPeerChat = p
+	case *tg.InputPeerEmpty:
+		return false, mtp_errors.ErrPeerNotFound
+	default:
+		return false, mtp_errors.ErrNotChannel
+	}
 	var inputPeerUser *tg.InputPeerUser
 	inputPeer, err = ctx.ResolveInputPeerById(userID)
-	if err != nil  {
+	if err != nil {
 		return false, err
 	}
 	switch p := inputPeer.(type) {
-	
+
 	case *tg.InputPeerUser:
-		inputPeerUser= p
+		inputPeerUser = p
 	case *tg.InputPeerEmpty:
-    return false, mtp_errors.ErrPeerNotFound
+		return false, mtp_errors.ErrPeerNotFound
 	default:
 		return false, mtp_errors.ErrNotUser
 	}
@@ -467,22 +467,22 @@ func (ctx *Context) UnbanChatMember(chatID, userID int64) (bool, error) {
 
 // AddChatMembers is used to add members to a chat
 func (ctx *Context) AddChatMembers(chatID int64, userIDs []int64, forwardLimit int) (bool, error) {
-	inputPeerChat, err :=  ctx.ResolveInputPeerById(chatID)
-	if err != nil  {
+	inputPeerChat, err := ctx.ResolveInputPeerById(chatID)
+	if err != nil {
 		return false, err
 	}
 	switch inputPeerChat.(type) {
-    case *tg.InputPeerChannel:
-    case *tg.InputPeerChat:
-    case *tg.InputPeerEmpty:
-        return false, mtp_errors.ErrPeerNotFound
-    default:
-        return false, mtp_errors.ErrNotChat
-    }
+	case *tg.InputPeerChannel:
+	case *tg.InputPeerChat:
+	case *tg.InputPeerEmpty:
+		return false, mtp_errors.ErrPeerNotFound
+	default:
+		return false, mtp_errors.ErrNotChat
+	}
 	userPeers := make([]tg.InputUserClass, len(userIDs))
 	for i, uID := range userIDs {
 		inputPeerUser, err := ctx.ResolveInputPeerById(uID)
-		if err != nil  {
+		if err != nil {
 			return false, err
 		}
 		switch p := inputPeerUser.(type) {
@@ -492,7 +492,7 @@ func (ctx *Context) AddChatMembers(chatID int64, userIDs []int64, forwardLimit i
 				AccessHash: p.AccessHash,
 			}
 		case *tg.InputPeerEmpty:
-	        return false, mtp_errors.ErrPeerNotFound
+			return false, mtp_errors.ErrPeerNotFound
 		default:
 			return false, mtp_errors.ErrNotUser
 		}
@@ -509,18 +509,18 @@ func (ctx *Context) ArchiveChats(chatIDs []int64) (bool, error) {
 	chatPeers := make([]tg.InputPeerClass, len(chatIDs))
 	for i, chatID := range chatIDs {
 		inputPeer, err := ctx.ResolveInputPeerById(chatID)
-		if err != nil  {
+		if err != nil {
 			return false, err
 		}
 		switch inputPeer.(type) {
-	    case *tg.InputPeerChannel:
-	    case *tg.InputPeerChat:
-	    case *tg.InputPeerUser:
-	    case *tg.InputPeerEmpty:
-	        return false, mtp_errors.ErrPeerNotFound
-	    default:
-	        return false, mtp_errors.ErrNotChat
-	    }
+		case *tg.InputPeerChannel:
+		case *tg.InputPeerChat:
+		case *tg.InputPeerUser:
+		case *tg.InputPeerEmpty:
+			return false, mtp_errors.ErrPeerNotFound
+		default:
+			return false, mtp_errors.ErrNotChat
+		}
 		chatPeers[i] = inputPeer
 	}
 	return functions.ArchiveChats(ctx, ctx.Raw, chatPeers)
@@ -535,18 +535,18 @@ func (ctx *Context) UnarchiveChats(chatIDs []int64) (bool, error) {
 	chatPeers := make([]tg.InputPeerClass, len(chatIDs))
 	for i, chatID := range chatIDs {
 		inputPeer, err := ctx.ResolveInputPeerById(chatID)
-		if err != nil  {
+		if err != nil {
 			return false, err
 		}
 		switch inputPeer.(type) {
-	    case *tg.InputPeerChannel:
-	    case *tg.InputPeerChat:
-	    case *tg.InputPeerUser:
-	    case *tg.InputPeerEmpty:
-	        return false, mtp_errors.ErrPeerNotFound
-	    default:
-	        return false, mtp_errors.ErrNotChat
-	    }
+		case *tg.InputPeerChannel:
+		case *tg.InputPeerChat:
+		case *tg.InputPeerUser:
+		case *tg.InputPeerEmpty:
+			return false, mtp_errors.ErrPeerNotFound
+		default:
+			return false, mtp_errors.ErrNotChat
+		}
 		chatPeers[i] = inputPeer
 	}
 	return functions.UnarchiveChats(ctx, ctx.Raw, chatPeers)
@@ -584,12 +584,12 @@ func (ctx *Context) CreateChat(title string, userIDs []int64) (*tg.Chat, error) 
 // Returns error if failed to delete.
 func (ctx *Context) DeleteMessages(chatID int64, messageIDs []int) error {
 	inputPeer, err := ctx.ResolveInputPeerById(chatID)
-	if err != nil  {
+	if err != nil {
 		return err
 	}
 	switch p := inputPeer.(type) {
-    case *tg.InputPeerChannel:
-        _, err := ctx.Raw.ChannelsDeleteMessages(ctx, &tg.ChannelsDeleteMessagesRequest{
+	case *tg.InputPeerChannel:
+		_, err := ctx.Raw.ChannelsDeleteMessages(ctx, &tg.ChannelsDeleteMessagesRequest{
 			Channel: &tg.InputChannel{
 				ChannelID:  p.ChannelID,
 				AccessHash: p.AccessHash,
@@ -597,17 +597,17 @@ func (ctx *Context) DeleteMessages(chatID int64, messageIDs []int) error {
 			ID: messageIDs,
 		})
 		return err
-    case *tg.InputPeerChat, *tg.InputPeerUser:
-        _, err := ctx.Raw.MessagesDeleteMessages(ctx, &tg.MessagesDeleteMessagesRequest{
+	case *tg.InputPeerChat, *tg.InputPeerUser:
+		_, err := ctx.Raw.MessagesDeleteMessages(ctx, &tg.MessagesDeleteMessagesRequest{
 			Revoke: true,
 			ID:     messageIDs,
 		})
 		return err
-    case *tg.InputPeerEmpty:
-        return mtp_errors.ErrPeerNotFound
-    default:
-        return mtp_errors.ErrNotChat
-    }
+	case *tg.InputPeerEmpty:
+		return mtp_errors.ErrPeerNotFound
+	default:
+		return mtp_errors.ErrNotChat
+	}
 }
 
 // ForwardMessage shall be used to forward messages in a chat with chatID and messageIDs.
@@ -758,7 +758,7 @@ func (ctx *Context) GetUserProfilePhotos(userID int64, opts *tg.PhotosGetUserPho
 }
 
 // ExportSessionString returns session of authorized account in the form of string.
-// Note: This session string can be used to log back in with the help of gotgproto.
+// Note: This session string can be used to log back in with the help of gotg.
 // Check sessionMaker.SessionType for more information about it.
 func (ctx *Context) ExportSessionString() (string, error) {
 	return functions.EncodeSessionToString(ctx.PeerStorage.GetSession())
@@ -863,14 +863,14 @@ func (ctx *Context) SetPreCheckoutResults(success bool, queryID int64, err strin
 }
 
 // ResolveInputPeerById tries to resolve given id to InputPeer.
-// Returns tg.InputPeerClass or error if peer could not be resolved 
+// Returns tg.InputPeerClass or error if peer could not be resolved
 func (ctx *Context) ResolveInputPeerById(id int64) (tg.InputPeerClass, error) {
 	peerStorage := ctx.PeerStorage
 	peer := peerStorage.GetInputPeerById(id)
 	if _, isEmpty := peer.(*tg.InputPeerEmpty); !isEmpty {
 		return peer, nil
 	}
-	
+
 	ID := constant.TDLibPeerID(id)
 	if ID.IsChannel() {
 		plainID := ID.ToPlain()
@@ -931,7 +931,6 @@ func (ctx *Context) ResolveInputPeerById(id int64) (tg.InputPeerClass, error) {
 	return nil, mtp_errors.ErrPeerNotFound
 }
 
-
 // ResolvePeerById tries to resolve given id to peer.
 func (ctx *Context) ResolvePeerById(id int64) *storage.Peer {
 	_, _ = ctx.ResolveInputPeerById(id)
@@ -951,7 +950,7 @@ func (ctx *Context) ResolvePeerById(id int64) *storage.Peer {
 		if peer.ID != 0 {
 			return peer
 		}
-	
+
 	}
 	return peer
 }

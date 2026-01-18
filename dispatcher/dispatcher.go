@@ -8,11 +8,11 @@ import (
 	"runtime/debug"
 	"sync"
 
-	"github.com/celestix/gotgproto/ext"
-	"github.com/celestix/gotgproto/storage"
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/tg"
+	"github.com/pageton/gotg/ext"
+	"github.com/pageton/gotg/storage"
 	"go.uber.org/multierr"
 )
 

@@ -5,10 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/celestix/gotgproto/storage"
-	"github.com/celestix/gotgproto/types"
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/tg"
+	"github.com/pageton/gotg/storage"
+	"github.com/pageton/gotg/types"
 )
 
 // Update contains all the data related to an update.
@@ -227,14 +227,14 @@ func (u *Update) EffectiveChat() types.EffectiveChat {
 
 func (u *Update) fillUserIdFromMessage(selfUserId int64) {
 	if m := u.EffectiveMessage; m != nil {
-	    if userPeer, ok := m.FromID.(*tg.PeerUser); ok {
-	        u.userId = userPeer.UserID
-	        return
-	    }
-	    if userPeer, ok := m.PeerID.(*tg.PeerUser); ok {
-	        u.userId = userPeer.UserID
-	        return
-	    }
+		if userPeer, ok := m.FromID.(*tg.PeerUser); ok {
+			u.userId = userPeer.UserID
+			return
+		}
+		if userPeer, ok := m.PeerID.(*tg.PeerUser); ok {
+			u.userId = userPeer.UserID
+			return
+		}
 	}
 	if u.Entities != nil && u.Entities.Users != nil {
 		for uId := range u.Entities.Users {

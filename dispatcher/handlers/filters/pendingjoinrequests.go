@@ -1,8 +1,8 @@
 package filters
 
 import (
-	"github.com/celestix/gotgproto/functions"
 	"github.com/gotd/td/tg"
+	"github.com/pageton/gotg/functions"
 )
 
 type pendingJoinRequests struct{}

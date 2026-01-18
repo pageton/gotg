@@ -5,8 +5,8 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/celestix/gotgproto/storage"
 	"github.com/gotd/td/session"
+	"github.com/pageton/gotg/storage"
 )
 
 // SessionStorage implements SessionStorage for file system as file

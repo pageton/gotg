@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/celestix/gotgproto/storage"
 	"github.com/glebarez/sqlite"
 	"github.com/gotd/td/session"
 	"github.com/gotd/td/telegram"
+	"github.com/pageton/gotg/storage"
 )
 
 func NewSessionStorage(ctx context.Context, sessionType SessionConstructor, inMemory bool) (*storage.PeerStorage, telegram.SessionStorage, error) {
@@ -23,7 +23,7 @@ func NewSessionStorage(ctx context.Context, sessionType SessionConstructor, inMe
 		}, nil
 	}
 	if name.(sessionNameString) == "" {
-		name = sessionNameString("gotgproto")
+		name = sessionNameString("gotg")
 	}
 	peerStorage := storage.NewPeerStorage(sqlite.Open(fmt.Sprintf("%s.session", name)), inMemory)
 	if inMemory {

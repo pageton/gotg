@@ -1,4 +1,4 @@
-package gotgproto
+package gotg
 
 import (
 	"bufio"

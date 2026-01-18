@@ -71,7 +71,7 @@ func (root *EntityRoot) setNormalEntity(s string, e entity) {
 // StartParsing function creates an empty EntityRoot.
 // DEPRECATED
 func StartParsing() *EntityRoot {
-	fmt.Println("GoTGProto: func StartParsing() is deprecated, please use individual entity types instead.")
+	fmt.Println("GoTG: func StartParsing() is deprecated, please use individual entity types instead.")
 	return startParsing()
 }
 

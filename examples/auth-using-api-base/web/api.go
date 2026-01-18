@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/celestix/gotgproto"
+	"github.com/pageton/gotg"
 )
 
 // Start a web server and wait
@@ -29,23 +29,23 @@ func (wa *webAuth) setInfo(w http.ResponseWriter, req *http.Request) {
 		num := req.URL.Query().Get("phone")
 		phone := "+" + num
 		wa.ReceivePhone(phone)
-		for wa.authStatus.Event == gotgproto.AuthStatusPhoneAsked ||
-			wa.authStatus.Event == gotgproto.AuthStatusPhoneRetrial {
+		for wa.authStatus.Event == gotg.AuthStatusPhoneAsked ||
+			wa.authStatus.Event == gotg.AuthStatusPhoneRetrial {
 			continue
 		}
 	case "code":
 		fmt.Println("Rec code")
 		code := req.URL.Query().Get("code")
 		wa.ReceiveCode(code)
-		for wa.authStatus.Event == gotgproto.AuthStatusPhoneCodeAsked ||
-			wa.authStatus.Event == gotgproto.AuthStatusPhoneCodeRetrial {
+		for wa.authStatus.Event == gotg.AuthStatusPhoneCodeAsked ||
+			wa.authStatus.Event == gotg.AuthStatusPhoneCodeRetrial {
 			continue
 		}
 	case "passwd":
 		passwd := req.URL.Query().Get("passwd")
 		wa.ReceivePasswd(passwd)
-		for wa.authStatus.Event == gotgproto.AuthStatusPasswordAsked ||
-			wa.authStatus.Event == gotgproto.AuthStatusPasswordRetrial {
+		for wa.authStatus.Event == gotg.AuthStatusPasswordAsked ||
+			wa.authStatus.Event == gotg.AuthStatusPasswordRetrial {
 			continue
 		}
 	}

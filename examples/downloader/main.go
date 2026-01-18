@@ -6,13 +6,13 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/celestix/gotgproto"
-	"github.com/celestix/gotgproto/dispatcher/handlers"
-	"github.com/celestix/gotgproto/dispatcher/handlers/filters"
-	"github.com/celestix/gotgproto/ext"
-	"github.com/celestix/gotgproto/functions"
-	"github.com/celestix/gotgproto/sessionMaker"
 	"github.com/go-faster/errors"
+	"github.com/pageton/gotg"
+	"github.com/pageton/gotg/dispatcher/handlers"
+	"github.com/pageton/gotg/dispatcher/handlers/filters"
+	"github.com/pageton/gotg/ext"
+	"github.com/pageton/gotg/functions"
+	"github.com/pageton/gotg/sessionMaker"
 )
 
 func main() {
@@ -22,15 +22,15 @@ func main() {
 		log.Fatalln("failed to convert app id to int:", err)
 	}
 
-	client, err := gotgproto.NewClient(
+	client, err := gotg.NewClient(
 		// Get AppID from https://my.telegram.org/apps
 		appId,
 		// Get ApiHash from https://my.telegram.org/apps
 		os.Getenv("TG_API_HASH"),
 		// ClientType, as we defined above
-		gotgproto.ClientTypePhone("PHONE_NUMBER_HERE"),
+		gotg.ClientTypePhone("PHONE_NUMBER_HERE"),
 		// Optional parameters of client
-		&gotgproto.ClientOpts{
+		&gotg.ClientOpts{
 			InMemory: true,
 			Session:  sessionMaker.SimpleSession(),
 		},

@@ -3,9 +3,9 @@ package functions
 import (
 	"context"
 
-	"github.com/celestix/gotgproto/errors"
-	"github.com/celestix/gotgproto/storage"
 	"github.com/gotd/td/tg"
+	"github.com/pageton/gotg/errors"
+	"github.com/pageton/gotg/storage"
 )
 
 func GetMessages(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, chatId int64, mids []tg.InputMessageClass) (tg.MessageClassArray, error) {

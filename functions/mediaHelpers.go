@@ -2,8 +2,9 @@ package functions
 
 import (
 	"fmt"
-	mtp_errors "github.com/celestix/gotgproto/errors"
+
 	"github.com/gotd/td/tg"
+	mtp_errors "github.com/pageton/gotg/errors"
 )
 
 // GetMediaFileNameWithId

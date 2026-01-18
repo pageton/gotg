@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/celestix/gotgproto/functions"
-	"github.com/celestix/gotgproto/storage"
 	"github.com/gotd/td/session"
 	"github.com/gotd/td/session/tdesktop"
+	"github.com/pageton/gotg/functions"
+	"github.com/pageton/gotg/storage"
 	"gorm.io/gorm"
 )
 
@@ -38,7 +38,7 @@ func SimpleSession() *SimpleSessionConstructor {
 }
 
 func (*SimpleSessionConstructor) loadSession() (sessionName, []byte, error) {
-	return sessionNameString("gotgproto_simple"), nil, nil
+	return sessionNameString("gotg_simple"), nil, nil
 }
 
 type SqlSessionConstructor struct {

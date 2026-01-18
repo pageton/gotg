@@ -3,9 +3,9 @@ package filters
 import (
 	"regexp"
 
-	"github.com/celestix/gotgproto/functions"
-	"github.com/celestix/gotgproto/types"
 	"github.com/gotd/td/tg"
+	"github.com/pageton/gotg/functions"
+	"github.com/pageton/gotg/types"
 )
 
 type messageFilters struct{}

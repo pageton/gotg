@@ -3,23 +3,24 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/gotd/contrib/middleware/ratelimit"
-	"github.com/gotd/td/telegram"
-	"golang.org/x/time/rate"
 	"log"
 	"time"
 
-	"github.com/celestix/gotgproto"
-	"github.com/celestix/gotgproto/dispatcher/handlers"
-	"github.com/celestix/gotgproto/dispatcher/handlers/filters"
-	"github.com/celestix/gotgproto/ext"
-	"github.com/celestix/gotgproto/sessionMaker"
+	"github.com/gotd/contrib/middleware/ratelimit"
+	"github.com/gotd/td/telegram"
+	"golang.org/x/time/rate"
+
 	"github.com/gotd/contrib/middleware/floodwait"
+	"github.com/pageton/gotg"
+	"github.com/pageton/gotg/dispatcher/handlers"
+	"github.com/pageton/gotg/dispatcher/handlers/filters"
+	"github.com/pageton/gotg/ext"
+	"github.com/pageton/gotg/sessionMaker"
 )
 
 func main() {
-	// Type of client to login to, same as in https://github.com/celestix/gotgproto/blob/beta/examples/echo-bot/memory_session/main.go#L17
-	clientType := gotgproto.ClientType{
+	// Type of client to login to, same as in https://github.com/pageton/gotg/blob/beta/examples/echo-bot/memory_session/main.go#L17
+	clientType := gotg.ClientType{
 		BotToken: "BOT_TOKEN_HERE",
 	}
 
@@ -30,11 +31,11 @@ func main() {
 	// Initializing ratelimiter, which will allow at most 30 requests to Telegram in 100ms
 	ratelimiter := ratelimit.New(rate.Every(time.Millisecond*100), 30)
 
-	client, err := gotgproto.NewClient(
+	client, err := gotg.NewClient(
 		123456,
 		"API_HASH_HERE",
 		clientType,
-		&gotgproto.ClientOpts{
+		&gotg.ClientOpts{
 			InMemory:    true,
 			Session:     sessionMaker.SimpleSession(),
 			Middlewares: []telegram.Middleware{waiter, ratelimiter},

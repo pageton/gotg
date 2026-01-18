@@ -1,9 +1,9 @@
 package filters
 
 import (
-	"github.com/celestix/gotgproto/ext"
-	"github.com/celestix/gotgproto/types"
 	"github.com/gotd/td/tg"
+	"github.com/pageton/gotg/ext"
+	"github.com/pageton/gotg/types"
 )
 
 var (

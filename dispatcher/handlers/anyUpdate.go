@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/celestix/gotgproto/ext"
+	"github.com/pageton/gotg/ext"
 )
 
 // AnyUpdate handler is executed on all type of incoming updates.

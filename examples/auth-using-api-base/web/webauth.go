@@ -3,14 +3,14 @@ package web
 import (
 	"fmt"
 
-	"github.com/celestix/gotgproto"
+	"github.com/pageton/gotg"
 )
 
 type webAuth struct {
 	phoneChan  chan string
 	codeChan   chan string
 	passwdChan chan string
-	authStatus gotgproto.AuthStatus
+	authStatus gotg.AuthStatus
 }
 
 func GetWebAuth() *webAuth {
@@ -22,7 +22,7 @@ func GetWebAuth() *webAuth {
 }
 
 func (w *webAuth) AskPhoneNumber() (string, error) {
-	if w.authStatus.Event == gotgproto.AuthStatusPhoneRetrial {
+	if w.authStatus.Event == gotg.AuthStatusPhoneRetrial {
 		fmt.Println("The phone number you just entered seems to be incorrect,")
 		fmt.Println("Attempts Left:", w.authStatus.AttemptsLeft)
 		fmt.Println("Please try again....")
@@ -33,7 +33,7 @@ func (w *webAuth) AskPhoneNumber() (string, error) {
 }
 
 func (w *webAuth) AskCode() (string, error) {
-	if w.authStatus.Event == gotgproto.AuthStatusPhoneCodeRetrial {
+	if w.authStatus.Event == gotg.AuthStatusPhoneCodeRetrial {
 		fmt.Println("The OTP you just entered seems to be incorrect,")
 		fmt.Println("Attempts Left:", w.authStatus.AttemptsLeft)
 		fmt.Println("Please try again....")
@@ -44,7 +44,7 @@ func (w *webAuth) AskCode() (string, error) {
 }
 
 func (w *webAuth) AskPassword() (string, error) {
-	if w.authStatus.Event == gotgproto.AuthStatusPasswordRetrial {
+	if w.authStatus.Event == gotg.AuthStatusPasswordRetrial {
 		fmt.Println("The 2FA password you just entered seems to be incorrect,")
 		fmt.Println("Attempts Left:", w.authStatus.AttemptsLeft)
 		fmt.Println("Please try again....")
@@ -54,7 +54,7 @@ func (w *webAuth) AskPassword() (string, error) {
 	return code, nil
 }
 
-func (w *webAuth) AuthStatus(authStatusIp gotgproto.AuthStatus) {
+func (w *webAuth) AuthStatus(authStatusIp gotg.AuthStatus) {
 	w.authStatus = authStatusIp
 }
 

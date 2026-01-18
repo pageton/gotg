@@ -4,19 +4,19 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/celestix/gotgproto"
-	"github.com/celestix/gotgproto/sessionMaker"
+	"github.com/pageton/gotg"
+	"github.com/pageton/gotg/sessionMaker"
 )
 
 func main() {
-	client, err := gotgproto.NewClient(
+	client, err := gotg.NewClient(
 		// Get AppID from https://my.telegram.org/apps
 		123456,
 		// Get ApiHash from https://my.telegram.org/apps
 		"API_HASH_HERE",
-		gotgproto.ClientTypePhone("PHONE_NUMBER_HERE"),
+		gotg.ClientTypePhone("PHONE_NUMBER_HERE"),
 		// Optional parameters of client
-		&gotgproto.ClientOpts{
+		&gotg.ClientOpts{
 			Session: sessionMaker.TelethonSession("enter session string here").
 				// Sqlite session name (if you're not using memory session)
 				// i.e. InMemory in ClientOpts is set to false

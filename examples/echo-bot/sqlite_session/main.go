@@ -4,26 +4,26 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/celestix/gotgproto"
-	"github.com/celestix/gotgproto/dispatcher"
-	"github.com/celestix/gotgproto/dispatcher/handlers"
-	"github.com/celestix/gotgproto/dispatcher/handlers/filters"
-	"github.com/celestix/gotgproto/ext"
-	"github.com/celestix/gotgproto/sessionMaker"
 	"github.com/glebarez/sqlite"
 	"github.com/gotd/td/tg"
+	"github.com/pageton/gotg"
+	"github.com/pageton/gotg/dispatcher"
+	"github.com/pageton/gotg/dispatcher/handlers"
+	"github.com/pageton/gotg/dispatcher/handlers/filters"
+	"github.com/pageton/gotg/ext"
+	"github.com/pageton/gotg/sessionMaker"
 )
 
 func main() {
-	client, err := gotgproto.NewClient(
+	client, err := gotg.NewClient(
 		// Get AppID from https://my.telegram.org/apps
 		123456,
 		// Get ApiHash from https://my.telegram.org/apps
 		"API_HASH_HERE",
 		// ClientType, as we defined above
-		gotgproto.ClientTypeBot("BOT_TOKEN_HERE"),
+		gotg.ClientTypeBot("BOT_TOKEN_HERE"),
 		// Optional parameters of client
-		&gotgproto.ClientOpts{
+		&gotg.ClientOpts{
 			Session: sessionMaker.SqlSession(sqlite.Open("echobot")),
 		},
 	)
@@ -48,7 +48,7 @@ func main() {
 // callback function for /start command
 func start(ctx *ext.Context, update *ext.Update) error {
 	user := update.EffectiveUser()
-	_, _ = ctx.Reply(update, ext.ReplyTextString(fmt.Sprintf("Hello %s, I am @%s and will repeat all your messages.\nI was made using gotd and gotgproto.", user.FirstName, ctx.Self.Username)), &ext.ReplyOpts{
+	_, _ = ctx.Reply(update, ext.ReplyTextString(fmt.Sprintf("Hello %s, I am @%s and will repeat all your messages.\nI was made using gotd and gotg.", user.FirstName, ctx.Self.Username)), &ext.ReplyOpts{
 		Markup: &tg.ReplyInlineMarkup{
 			Rows: []tg.KeyboardButtonRow{
 				{
@@ -58,8 +58,8 @@ func start(ctx *ext.Context, update *ext.Update) error {
 							URL:  "https://github.com/gotd/td",
 						},
 						&tg.KeyboardButtonURL{
-							Text: "gotgproto",
-							URL:  "https://github.com/celestix/gotgproto",
+							Text: "gotg",
+							URL:  "https://github.com/pageton/gotg",
 						},
 					},
 				},

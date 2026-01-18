@@ -1,4 +1,4 @@
-package gotgproto
+package gotg
 
 //go:generate go run ./generator
 
@@ -9,18 +9,18 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestix/gotgproto/dispatcher"
-	intErrors "github.com/celestix/gotgproto/errors"
-	"github.com/celestix/gotgproto/ext"
-	"github.com/celestix/gotgproto/functions"
-	"github.com/celestix/gotgproto/sessionMaker"
-	"github.com/celestix/gotgproto/storage"
 	"github.com/gotd/td/session"
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/auth"
 	"github.com/gotd/td/telegram/dcs"
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/tg"
+	"github.com/pageton/gotg/dispatcher"
+	intErrors "github.com/pageton/gotg/errors"
+	"github.com/pageton/gotg/ext"
+	"github.com/pageton/gotg/functions"
+	"github.com/pageton/gotg/sessionMaker"
+	"github.com/pageton/gotg/storage"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
@@ -140,7 +140,7 @@ type ClientOpts struct {
 	Middlewares []telegram.Middleware
 	// Custom Run() Middleware
 	// Can be used for floodWaiter package
-	// https://github.com/celestix/gotgproto/blob/beta/examples/middleware/main.go#L41
+	// https://github.com/pageton/gotg/blob/beta/examples/middleware/main.go#L41
 	RunMiddleware func(
 		origRun func(ctx context.Context, f func(ctx context.Context) error) (err error),
 		ctx context.Context,
@@ -151,7 +151,7 @@ type ClientOpts struct {
 	// Note: This context will be used for the entire lifecycle of the client.
 	Context context.Context
 	// AuthConversator is the interface for the authenticator.
-	// gotgproto.BasicConversator is used by default.
+	// gotg.BasicConversator is used by default.
 	AuthConversator AuthConversator
 	// MigrationTimeout configures migration timeout.
 	MigrationTimeout time.Duration
@@ -188,7 +188,7 @@ type ClientOpts struct {
 	WaitOnPeersFromDialogs bool
 }
 
-// NewClient creates a new gotgproto client and logs in to telegram.
+// NewClient creates a new gotg client and logs in to telegram.
 func NewClient(appId int, apiHash string, cType clientType, opts *ClientOpts) (*Client, error) {
 	if opts == nil {
 		opts = &ClientOpts{
@@ -260,7 +260,7 @@ func (c *Client) initTelegramClient(
 ) {
 	if device == nil {
 		device = &telegram.DeviceConfig{
-			DeviceModel:    "GoTGProto",
+			DeviceModel:    "gotg",
 			SystemVersion:  runtime.GOOS,
 			AppVersion:     VERSION,
 			SystemLangCode: c.SystemLangCode,
@@ -324,7 +324,7 @@ func (c *Client) login() error {
 func (ch *Client) printCredit() {
 	if !ch.DisableCopyright {
 		fmt.Printf(`
-GoTGProto %s, Copyright (C) 2024 Anony <github.com/celestix>
+gotg %s, Copyright (C) 2026 Sadiq <github.com/pageton>
 Licensed under the terms of GNU General Public License v3
 
 `, VERSION)
