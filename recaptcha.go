@@ -10,7 +10,7 @@ import (
 )
 
 type RecaptchaSolver interface {
-	SolveRecaptcha(ctx context.Context, action, key string) (string, error)
+	SolveRecaptcha(packageID, action, key string) (string, error)
 }
 
 func parseRecaptcha(text string) (string, string) {
@@ -40,23 +40,32 @@ type FlowClient struct {
 	api     *tg.Client
 	appID   int
 	apiHash string
+	params  tg.JSONValueClass
 	solver  RecaptchaSolver
 }
 
 func (c FlowClient) SendCode(ctx context.Context, phone string, opts auth.SendCodeOptions) (tg.AuthSentCodeClass, error) {
 	sentCode, err := c.FlowClient.SendCode(ctx, phone, opts)
-	if err == nil || c.solver == nil {
+	if err == nil {
 		return sentCode, err
 	}
 	action, key := parseRecaptcha(err.Error())
 	if action == "" || key == "" {
 		return nil, err
 	}
-	token, err := c.solver.SolveRecaptcha(ctx, action, key)
-	if err != nil {
-		return nil, err
+	packageID := ""
+	if obj, ok := c.params.(*tg.JSONObject); ok {
+		for _, item := range obj.Value {
+			if item.Key == "package_id" {
+				if v, ok := item.Value.(*tg.JSONString); ok {
+					packageID = v.Value
+				}
+				break
+			}
+		}
 	}
-	if c.api == nil || c.appID == 0 || c.apiHash == "" {
+	token, err := c.solver.SolveRecaptcha(packageID, action, key)
+	if err != nil {
 		return nil, err
 	}
 
