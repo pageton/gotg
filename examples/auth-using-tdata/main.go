@@ -8,7 +8,7 @@ import (
 
 	"github.com/gotd/td/session/tdesktop"
 	"github.com/pageton/gotg"
-	"github.com/pageton/gotg/sessionMaker"
+	"github.com/pageton/gotg/session"
 )
 
 func main() {
@@ -34,7 +34,7 @@ func main() {
 			// There can be up to 3 tdesktop.Account, we consider here there is
 			// at least a single on, you can loop through them with
 			// for _, account := range accounts {// your code}
-			Session: sessionMaker.TdataSession(accounts[0]).Name("tdata"),
+			Session: session.TdataSession(accounts[0]).Name("tdata"),
 		},
 	)
 	if err != nil {

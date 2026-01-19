@@ -6,7 +6,7 @@ import (
 	"github.com/glebarez/sqlite"
 	"github.com/pageton/gotg"
 	"github.com/pageton/gotg/examples/auth-using-api-base/web"
-	"github.com/pageton/gotg/sessionMaker"
+	"github.com/pageton/gotg/session"
 )
 
 func main() {
@@ -25,7 +25,7 @@ func main() {
 
 			// custom authenticator using web api
 			AuthConversator: wa,
-			Session:         sessionMaker.SqlSession(sqlite.Open("webbot")),
+			Session:         session.SqlSession(sqlite.Open("webbot")),
 		},
 	)
 	if err != nil {

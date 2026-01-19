@@ -14,8 +14,8 @@ import (
 	"github.com/pageton/gotg"
 	"github.com/pageton/gotg/dispatcher/handlers"
 	"github.com/pageton/gotg/dispatcher/handlers/filters"
-	"github.com/pageton/gotg/ext"
-	"github.com/pageton/gotg/sessionMaker"
+	"github.com/pageton/gotg/adapter"
+	"github.com/pageton/gotg/session"
 )
 
 func main() {
@@ -37,7 +37,7 @@ func main() {
 		clientType,
 		&gotg.ClientOpts{
 			InMemory:    true,
-			Session:     sessionMaker.SimpleSession(),
+			Session:     session.SimpleSession(),
 			Middlewares: []telegram.Middleware{waiter, ratelimiter},
 			RunMiddleware: func(origRun func(ctx context.Context, f func(ctx context.Context) error) (err error), ctx context.Context, f func(ctx context.Context) (err error)) (err error) {
 				return origRun(ctx, func(ctx context.Context) error {
@@ -62,8 +62,7 @@ func main() {
 	}
 }
 
-func echo(ctx *ext.Context, update *ext.Update) error {
-	msg := update.EffectiveMessage
-	_, err := ctx.Reply(update, msg.Text, nil)
+func echo(ctx *adapter.Context, update *adapter.Update) error {
+	_, err := update.Reply(update.EffectiveMessage.Text, nil)
 	return err
 }

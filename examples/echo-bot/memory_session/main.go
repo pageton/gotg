@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg"
 	"github.com/pageton/gotg/dispatcher"
 	"github.com/pageton/gotg/dispatcher/handlers"
 	"github.com/pageton/gotg/dispatcher/handlers/filters"
-	"github.com/pageton/gotg/ext"
-	"github.com/pageton/gotg/sessionMaker"
+	"github.com/pageton/gotg/adapter"
+	"github.com/pageton/gotg/session"
 )
 
 func main() {
@@ -20,25 +19,25 @@ func main() {
 		// Get ApiHash from https://my.telegram.org/apps
 		"API_HASH_HERE",
 		// ClientType, as we defined above
-		gotg.ClientTypeBot("BOT_TOKEN_HERE"),
+		gotg.AsBot("BOT_TOKEN_HERE"),
 		// Optional parameters of client
 		&gotg.ClientOpts{
 			InMemory: true,
-			Session:  sessionMaker.SimpleSession(),
+			Session:  session.SimpleSession(),
 		},
 	)
 	if err != nil {
 		log.Fatalln("failed to start client:", err)
 	}
 
-	clientDispatcher := client.Dispatcher
+	dp := client.Dispatcher
 
 	// Command Handler for /start
-	clientDispatcher.AddHandler(handlers.NewCommand("start", start))
+	dp.AddHandler(handlers.OnCommand("start", start, filters.Private))
 	// Callback Query Handler with prefix filter for recieving specific query
-	clientDispatcher.AddHandler(handlers.NewCallbackQuery(filters.CallbackQuery.Prefix("cb_"), buttonCallback))
+	dp.AddHandler(handlers.OnCallbackQuery(filters.CallbackQuery.Prefix("cb_"), buttonCallback))
 	// This Message Handler will call our echo function on new messages
-	clientDispatcher.AddHandlerToGroup(handlers.NewMessage(filters.Message.Text, echo), 1)
+	dp.AddHandler(handlers.OnMessage(echo, filters.Message.Text))
 
 	fmt.Printf("client (@%s) has been started...\n", client.Self.Username)
 
@@ -49,50 +48,24 @@ func main() {
 }
 
 // callback function for /start command
-func start(ctx *ext.Context, update *ext.Update) error {
-	user := update.EffectiveUser()
-	_, _ = ctx.Reply(update, ext.ReplyTextString(fmt.Sprintf("Hello %s, I am @%s and will repeat all your messages.\nI was made using gotd and gotg.", user.FirstName, ctx.Self.Username)), &ext.ReplyOpts{
-		Markup: &tg.ReplyInlineMarkup{
-			Rows: []tg.KeyboardButtonRow{
-				{
-					Buttons: []tg.KeyboardButtonClass{
-						&tg.KeyboardButtonURL{
-							Text: "gotd/td",
-							URL:  "https://github.com/gotd/td",
-						},
-						&tg.KeyboardButtonURL{
-							Text: "gotg",
-							URL:  "https://github.com/pageton/gotg",
-						},
-					},
-				},
-				{
-					Buttons: []tg.KeyboardButtonClass{
-						&tg.KeyboardButtonCallback{
-							Text: "Click Here",
-							Data: []byte("cb_pressed"),
-						},
-					},
-				},
-			},
-		},
-	})
+func start(u *adapter.Update) error {
+	kbd := gotg.Keyboard().
+		URL("gotd/td", "https://github.com/gotd/td").
+		URL("GoTG", "https://github.com/pageton/gotg").
+		Next().
+		Button("Click Here", "cb_pressed").
+		Build()
+	_, _ = u.Reply(fmt.Sprintf("Hello %s, I am @%s and will repeat all your messages.\nI was made using gotd and gotg.", u.Mention(), u.Self.Username), &adapter.ReplyOpts{Markup: kbd})
 	// End dispatcher groups so that bot doesn't echo /start command usage
 	return dispatcher.EndGroups
 }
 
-func buttonCallback(ctx *ext.Context, update *ext.Update) error {
-	query := update.CallbackQuery
-	_, _ = ctx.AnswerCallback(&tg.MessagesSetBotCallbackAnswerRequest{
-		Alert:   true,
-		QueryID: query.QueryID,
-		Message: "This is an example bot!",
-	})
+func buttonCallback(u *adapter.Update) error {
+	_, _ = u.Answer("This is an example bot!", &adapter.CallbackOptions{Alert: true})
 	return nil
 }
 
-func echo(ctx *ext.Context, update *ext.Update) error {
-	msg := update.EffectiveMessage
-	_, err := ctx.Reply(update, ext.ReplyTextString(msg.Text), nil)
+func echo(u *adapter.Update) error {
+	_, err := u.Reply(u.Text())
 	return err
 }

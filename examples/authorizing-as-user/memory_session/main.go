@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/pageton/gotg"
-	"github.com/pageton/gotg/sessionMaker"
+	"github.com/pageton/gotg/session"
 )
 
 func main() {
@@ -18,7 +18,7 @@ func main() {
 		gotg.ClientTypePhone("PHONE_NUMBER_HERE"),
 		// Optional parameters of client
 		&gotg.ClientOpts{
-			Session: sessionMaker.SimpleSession(),
+			Session: session.SimpleSession(),
 		},
 	)
 	if err != nil {

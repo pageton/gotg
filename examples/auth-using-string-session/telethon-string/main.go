@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/pageton/gotg"
-	"github.com/pageton/gotg/sessionMaker"
+	"github.com/pageton/gotg/session"
 )
 
 func main() {
@@ -17,7 +17,7 @@ func main() {
 		gotg.ClientTypePhone("PHONE_NUMBER_HERE"),
 		// Optional parameters of client
 		&gotg.ClientOpts{
-			Session: sessionMaker.TelethonSession("enter session string here").
+			Session: session.TelethonSession("enter session string here").
 				// Sqlite session name (if you're not using memory session)
 				// i.e. InMemory in ClientOpts is set to false
 				// It will be saved as my_session.session as per this example.

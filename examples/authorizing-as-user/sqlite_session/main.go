@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/pageton/gotg"
-	"github.com/pageton/gotg/sessionMaker"
+	"github.com/pageton/gotg/session"
 	"gorm.io/driver/sqlite"
 )
 
@@ -19,7 +19,7 @@ func main() {
 		gotg.ClientTypePhone("PHONE_NUMBER_HERE"),
 		// Optional parameters of client
 		&gotg.ClientOpts{
-			Session: sessionMaker.SqlSession(sqlite.Open("echobot")),
+			Session: session.SqlSession(sqlite.Open("echobot")),
 		},
 	)
 	if err != nil {

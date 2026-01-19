@@ -8,11 +8,11 @@ import (
 
 	"github.com/go-faster/errors"
 	"github.com/pageton/gotg"
+	"github.com/pageton/gotg/adapter"
 	"github.com/pageton/gotg/dispatcher/handlers"
 	"github.com/pageton/gotg/dispatcher/handlers/filters"
-	"github.com/pageton/gotg/ext"
 	"github.com/pageton/gotg/functions"
-	"github.com/pageton/gotg/sessionMaker"
+	"github.com/pageton/gotg/session"
 )
 
 func main() {
@@ -32,7 +32,7 @@ func main() {
 		// Optional parameters of client
 		&gotg.ClientOpts{
 			InMemory: true,
-			Session:  sessionMaker.SimpleSession(),
+			Session:  session.SimpleSession(),
 		},
 	)
 	if err != nil {
@@ -52,15 +52,15 @@ func main() {
 	}
 }
 
-func download(ctx *ext.Context, update *ext.Update) error {
-	filename, err := functions.GetMediaFileNameWithId(update.EffectiveMessage.Media)
+func download(ctx *adapter.Context, update *adapter.Update) error {
+	filename, err := functions.GetMediaFileNameWithID(update.EffectiveMessage.Media)
 	if err != nil {
 		return errors.Wrap(err, "failed to get media file name")
 	}
 
 	_, err = ctx.DownloadMedia(
 		update.EffectiveMessage.Media,
-		ext.DownloadOutputPath(filename),
+		adapter.DownloadOutputPath(filename),
 		nil,
 	)
 	if err != nil {
@@ -68,7 +68,7 @@ func download(ctx *ext.Context, update *ext.Update) error {
 	}
 
 	msg := fmt.Sprintf(`File "%s" downloaded`, filename)
-	_, err = ctx.Reply(update, ext.ReplyTextString(msg), nil)
+	_, err = update.Reply(msg, nil)
 	if err != nil {
 		return errors.Wrap(err, "failed to reply")
 	}
