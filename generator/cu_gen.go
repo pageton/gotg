@@ -13,7 +13,7 @@ import (
 var helperFuncsCUTempl = template.Must(template.New("cuHelpers").Parse(helperFuncsCU))
 
 var hardCodedReplacements = map[string]string{
-	"EditAdminOpts": "ext.EditAdminOpts",
+	"EditAdminOpts": "adapter.EditAdminOpts",
 }
 
 func readContextFile() []byte {
@@ -35,18 +35,18 @@ func generateCUHelpers() {
 			continue
 		}
 		params := method.Params
-		if !(strings.Contains(params, "chatId ") ||
-			strings.Contains(params, "chatId, ") ||
-			strings.Contains(params, "userId ") ||
-			strings.Contains(params, "userId, ")) {
+		if !(strings.Contains(params, "chatID ") ||
+			strings.Contains(params, "chatID, ") ||
+			strings.Contains(params, "userID ") ||
+			strings.Contains(params, "userID, ")) {
 			continue
 		}
-		params = strings.ReplaceAll(params, "chatId, ", "")
-		params = strings.ReplaceAll(params, "chatId int64, ", "")
-		params = strings.ReplaceAll(params, "chatId int64", "")
-		params = strings.ReplaceAll(params, "userId, ", "")
-		params = strings.ReplaceAll(params, "userId int64, ", "")
-		params = strings.ReplaceAll(params, "userId int64", "")
+		params = strings.ReplaceAll(params, "chatID, ", "")
+		params = strings.ReplaceAll(params, "chatID int64, ", "")
+		params = strings.ReplaceAll(params, "chatID int64", "")
+		params = strings.ReplaceAll(params, "userID, ", "")
+		params = strings.ReplaceAll(params, "userID int64, ", "")
+		params = strings.ReplaceAll(params, "userID int64", "")
 		for repl, valrepl := range hardCodedReplacements {
 			params = strings.ReplaceAll(params, repl, valrepl)
 		}
@@ -77,9 +77,9 @@ func getFrames(method *parser.Method) (chatFrame, userFrame string) {
 	returnVals := goodErrReturns(method.Return)
 	for _, param := range getParamNamesArray(method.Params) {
 		switch param {
-		case "chatId":
+		case "chatID":
 			chatFrame = fmt.Sprintf(FrameProperty, "chat", "chat", returnVals)
-		case "userId":
+		case "userID":
 			userFrame = fmt.Sprintf(FrameProperty, "user", "user", returnVals)
 		}
 	}
@@ -90,13 +90,13 @@ func getIdParams(chatFrame, userFrame string) (inputIdParam, fetchedIdParam stri
 	switch {
 	case chatFrame != "" && userFrame != "":
 		inputIdParam = "chat, user chatUnion"
-		fetchedIdParam = "chatId, userId"
+		fetchedIdParam = "chatID, userID"
 	case chatFrame != "":
 		inputIdParam = "chat chatUnion"
-		fetchedIdParam = "chatId"
+		fetchedIdParam = "chatID"
 	case userFrame != "":
 		inputIdParam = "user chatUnion"
-		fetchedIdParam = "userId"
+		fetchedIdParam = "userID"
 	}
 	return
 }
@@ -108,7 +108,7 @@ const predefinedCU = `
 package generic
 
 import (
-	"github.com/pageton/gotg/ext" 
+	"github.com/pageton/gotg/adapter" 
 	"github.com/pageton/gotg/types"
 	"github.com/gotd/td/tg"
 )
@@ -117,7 +117,7 @@ type ChatUnion interface {
 	int | int64 | string
 }
 
-func getIdByUnion[chatUnion ChatUnion](ctx *ext.Context, chat chatUnion) (int64, error) {
+func getIdByUnion[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion) (int64, error) {
 	switch val := any(chat).(type) {
 	case string:
 		username := val
@@ -149,19 +149,19 @@ type contextHelpers struct {
 	FetchedIdParams string
 }
 
-// chatId, err := getIdByUnion(ctx, chat)
+// chatID, err := getIdByUnion(ctx, chat)
 //
 //	if err != nil {
 //		return {{.DefaultValues}}
 //	}
 const FrameProperty = `
-%sId, err := getIdByUnion(ctx, %s)
+%sID, err := getIdByUnion(ctx, %s)
 	if err != nil {return %s}
 `
 
 const helperFuncsCU = `
 // {{.FuncName}} is a generic helper for ext.Context.{{.FuncName}} method.
-func {{.FuncName}}[chatUnion ChatUnion] (ctx *ext.Context, {{.InputIdParams}}, {{.FuncParams}}) ({{.FuncReturn}}) {
+func {{.FuncName}}[chatUnion ChatUnion] (ctx *adapter.Context, {{.InputIdParams}}, {{.FuncParams}}) ({{.FuncReturn}}) {
 	{{.ChatFrame}}
 	{{.UserFrame}}
 	return ctx.{{.FuncName}}({{.FetchedIdParams}}, {{.FilledParams}})
@@ -200,8 +200,8 @@ func writeFile(builder strings.Builder, filename string) error {
 
 func getParamNamesArray(paramStr string) []string {
 	paramArr := make([]string, 0)
-	params := strings.Split(paramStr, ", ")
-	for _, param := range params {
+	params := strings.SplitSeq(paramStr, ", ")
+	for param := range params {
 		paramFields := strings.Fields(param)
 		if len(paramFields) == 0 {
 			continue

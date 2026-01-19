@@ -12,7 +12,7 @@ type Function struct {
 
 func ParseFunctions(s string) []*Function {
 	fs := make([]*Function, 0)
-	for _, l := range strings.Split(s, "\n\n") {
+	for l := range strings.SplitSeq(s, "\n\n") {
 		if f := parseFunction(l); f.Name != "" {
 			fs = append(fs, f)
 		}
@@ -22,7 +22,7 @@ func ParseFunctions(s string) []*Function {
 
 func parseFunction(s string) *Function {
 	funcInfo := new(Function)
-	for _, line := range strings.Split(s, "\n") {
+	for line := range strings.SplitSeq(s, "\n") {
 		line = strings.TrimSpace(line)
 		funcString := "func "
 		// func Hemlo(...) (...) {...}

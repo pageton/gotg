@@ -14,7 +14,7 @@ type Method struct {
 
 func ParseMethods(s string) []*Method {
 	fs := make([]*Method, 0)
-	for _, l := range strings.Split(s, "\n\n") {
+	for l := range strings.SplitSeq(s, "\n\n") {
 		if f := parseMethod(l); f.Name != "" {
 			fs = append(fs, f)
 		}
@@ -24,7 +24,7 @@ func ParseMethods(s string) []*Method {
 
 func parseMethod(s string) *Method {
 	funcInfo := new(Method)
-	for _, line := range strings.Split(s, "\n") {
+	for line := range strings.SplitSeq(s, "\n") {
 		line = strings.TrimSpace(line)
 		funcString := "func "
 		// func (c *Something) Hemlo(...) (...) {...}

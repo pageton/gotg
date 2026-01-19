@@ -5,7 +5,7 @@ package generic
 
 import (
 	"github.com/gotd/td/tg"
-	"github.com/pageton/gotg/ext"
+	"github.com/pageton/gotg/adapter"
 	"github.com/pageton/gotg/types"
 )
 
@@ -13,7 +13,7 @@ type ChatUnion interface {
 	int | int64 | string
 }
 
-func getIdByUnion[chatUnion ChatUnion](ctx *ext.Context, chat chatUnion) (int64, error) {
+func getIdByUnion[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion) (int64, error) {
 	switch val := any(chat).(type) {
 	case string:
 		username := val
@@ -33,219 +33,219 @@ func getIdByUnion[chatUnion ChatUnion](ctx *ext.Context, chat chatUnion) (int64,
 }
 
 // SendMessage is a generic helper for ext.Context.SendMessage method.
-func SendMessage[chatUnion ChatUnion](ctx *ext.Context, chat chatUnion, request *tg.MessagesSendMessageRequest) (*types.Message, error) {
+func SendMessage[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, request *tg.MessagesSendMessageRequest) (*types.Message, error) {
 
-	chatId, err := getIdByUnion(ctx, chat)
+	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return nil, err
 	}
 
-	return ctx.SendMessage(chatId, request)
+	return ctx.SendMessage(chatID, request)
 }
 
 // SendMedia is a generic helper for ext.Context.SendMedia method.
-func SendMedia[chatUnion ChatUnion](ctx *ext.Context, chat chatUnion, request *tg.MessagesSendMediaRequest) (*types.Message, error) {
+func SendMedia[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, request *tg.MessagesSendMediaRequest) (*types.Message, error) {
 
-	chatId, err := getIdByUnion(ctx, chat)
+	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return nil, err
 	}
 
-	return ctx.SendMedia(chatId, request)
+	return ctx.SendMedia(chatID, request)
 }
 
 // GetInlineBotResults is a generic helper for ext.Context.GetInlineBotResults method.
-func GetInlineBotResults[chatUnion ChatUnion](ctx *ext.Context, chat chatUnion, botUsername string, request *tg.MessagesGetInlineBotResultsRequest) (*tg.MessagesBotResults, error) {
+func GetInlineBotResults[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, botUsername string, request *tg.MessagesGetInlineBotResultsRequest) (*tg.MessagesBotResults, error) {
 
-	chatId, err := getIdByUnion(ctx, chat)
+	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return nil, err
 	}
 
-	return ctx.GetInlineBotResults(chatId, botUsername, request)
+	return ctx.GetInlineBotResults(chatID, botUsername, request)
 }
 
 // SendInlineBotResult is a generic helper for ext.Context.SendInlineBotResult method.
-func SendInlineBotResult[chatUnion ChatUnion](ctx *ext.Context, chat chatUnion, request *tg.MessagesSendInlineBotResultRequest) (tg.UpdatesClass, error) {
+func SendInlineBotResult[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, request *tg.MessagesSendInlineBotResultRequest) (tg.UpdatesClass, error) {
 
-	chatId, err := getIdByUnion(ctx, chat)
+	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return nil, err
 	}
 
-	return ctx.SendInlineBotResult(chatId, request)
+	return ctx.SendInlineBotResult(chatID, request)
 }
 
 // SendReaction is a generic helper for ext.Context.SendReaction method.
-func SendReaction[chatUnion ChatUnion](ctx *ext.Context, chat chatUnion, request *tg.MessagesSendReactionRequest) (*types.Message, error) {
+func SendReaction[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, request *tg.MessagesSendReactionRequest) (*types.Message, error) {
 
-	chatId, err := getIdByUnion(ctx, chat)
+	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return nil, err
 	}
 
-	return ctx.SendReaction(chatId, request)
+	return ctx.SendReaction(chatID, request)
 }
 
 // SendMultiMedia is a generic helper for ext.Context.SendMultiMedia method.
-func SendMultiMedia[chatUnion ChatUnion](ctx *ext.Context, chat chatUnion, request *tg.MessagesSendMultiMediaRequest) (*types.Message, error) {
+func SendMultiMedia[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, request *tg.MessagesSendMultiMediaRequest) (*types.Message, error) {
 
-	chatId, err := getIdByUnion(ctx, chat)
+	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return nil, err
 	}
 
-	return ctx.SendMultiMedia(chatId, request)
+	return ctx.SendMultiMedia(chatID, request)
 }
 
 // EditMessage is a generic helper for ext.Context.EditMessage method.
-func EditMessage[chatUnion ChatUnion](ctx *ext.Context, chat chatUnion, request *tg.MessagesEditMessageRequest) (*types.Message, error) {
+func EditMessage[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, request *tg.MessagesEditMessageRequest) (*types.Message, error) {
 
-	chatId, err := getIdByUnion(ctx, chat)
+	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return nil, err
 	}
 
-	return ctx.EditMessage(chatId, request)
+	return ctx.EditMessage(chatID, request)
 }
 
 // GetChat is a generic helper for ext.Context.GetChat method.
-func GetChat[chatUnion ChatUnion](ctx *ext.Context, chat chatUnion) (tg.ChatFullClass, error) {
+func GetChat[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion) (tg.ChatFullClass, error) {
 
-	chatId, err := getIdByUnion(ctx, chat)
+	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return nil, err
 	}
 
-	return ctx.GetChat(chatId)
+	return ctx.GetChat(chatID)
 }
 
 // GetUser is a generic helper for ext.Context.GetUser method.
-func GetUser[chatUnion ChatUnion](ctx *ext.Context, user chatUnion) (*tg.UserFull, error) {
+func GetUser[chatUnion ChatUnion](ctx *adapter.Context, user chatUnion) (*tg.UserFull, error) {
 
-	userId, err := getIdByUnion(ctx, user)
+	userID, err := getIdByUnion(ctx, user)
 	if err != nil {
 		return nil, err
 	}
 
-	return ctx.GetUser(userId)
+	return ctx.GetUser(userID)
 }
 
 // GetMessages is a generic helper for ext.Context.GetMessages method.
-func GetMessages[chatUnion ChatUnion](ctx *ext.Context, chat chatUnion, messageIds []tg.InputMessageClass) ([]tg.MessageClass, error) {
+func GetMessages[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, messageIds []tg.InputMessageClass) ([]tg.MessageClass, error) {
 
-	chatId, err := getIdByUnion(ctx, chat)
+	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return nil, err
 	}
 
-	return ctx.GetMessages(chatId, messageIds)
+	return ctx.GetMessages(chatID, messageIds)
 }
 
 // BanChatMember is a generic helper for ext.Context.BanChatMember method.
-func BanChatMember[chatUnion ChatUnion](ctx *ext.Context, chat, user chatUnion, untilDate int) (tg.UpdatesClass, error) {
+func BanChatMember[chatUnion ChatUnion](ctx *adapter.Context, chat, user chatUnion, untilDate int) (tg.UpdatesClass, error) {
 
-	chatId, err := getIdByUnion(ctx, chat)
+	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return nil, err
 	}
 
-	userId, err := getIdByUnion(ctx, user)
+	userID, err := getIdByUnion(ctx, user)
 	if err != nil {
 		return nil, err
 	}
 
-	return ctx.BanChatMember(chatId, userId, untilDate)
+	return ctx.BanChatMember(chatID, userID, untilDate)
 }
 
 // UnbanChatMember is a generic helper for ext.Context.UnbanChatMember method.
-func UnbanChatMember[chatUnion ChatUnion](ctx *ext.Context, chat, user chatUnion) (bool, error) {
+func UnbanChatMember[chatUnion ChatUnion](ctx *adapter.Context, chat, user chatUnion) (bool, error) {
 
-	chatId, err := getIdByUnion(ctx, chat)
+	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return false, err
 	}
 
-	userId, err := getIdByUnion(ctx, user)
+	userID, err := getIdByUnion(ctx, user)
 	if err != nil {
 		return false, err
 	}
 
-	return ctx.UnbanChatMember(chatId, userId)
+	return ctx.UnbanChatMember(chatID, userID)
 }
 
 // AddChatMembers is a generic helper for ext.Context.AddChatMembers method.
-func AddChatMembers[chatUnion ChatUnion](ctx *ext.Context, chat chatUnion, userIds []int64, forwardLimit int) (bool, error) {
+func AddChatMembers[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, userIDs []int64, forwardLimit int) (bool, error) {
 
-	chatId, err := getIdByUnion(ctx, chat)
+	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return false, err
 	}
 
-	return ctx.AddChatMembers(chatId, userIds, forwardLimit)
+	return ctx.AddChatMembers(chatID, userIDs, forwardLimit)
 }
 
 // DeleteMessages is a generic helper for ext.Context.DeleteMessages method.
-func DeleteMessages[chatUnion ChatUnion](ctx *ext.Context, chat chatUnion, messageIDs []int) error {
+func DeleteMessages[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, messageIDs []int) error {
 
-	chatId, err := getIdByUnion(ctx, chat)
+	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return err
 	}
 
-	return ctx.DeleteMessages(chatId, messageIDs)
+	return ctx.DeleteMessages(chatID, messageIDs)
 }
 
 // PromoteChatMember is a generic helper for ext.Context.PromoteChatMember method.
-func PromoteChatMember[chatUnion ChatUnion](ctx *ext.Context, chat, user chatUnion, opts *ext.EditAdminOpts) (bool, error) {
+func PromoteChatMember[chatUnion ChatUnion](ctx *adapter.Context, chat, user chatUnion, opts *adapter.EditAdminOpts) (bool, error) {
 
-	chatId, err := getIdByUnion(ctx, chat)
+	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return false, err
 	}
 
-	userId, err := getIdByUnion(ctx, user)
+	userID, err := getIdByUnion(ctx, user)
 	if err != nil {
 		return false, err
 	}
 
-	return ctx.PromoteChatMember(chatId, userId, opts)
+	return ctx.PromoteChatMember(chatID, userID, opts)
 }
 
 // DemoteChatMember is a generic helper for ext.Context.DemoteChatMember method.
-func DemoteChatMember[chatUnion ChatUnion](ctx *ext.Context, chat, user chatUnion, opts *ext.EditAdminOpts) (bool, error) {
+func DemoteChatMember[chatUnion ChatUnion](ctx *adapter.Context, chat, user chatUnion, opts *adapter.EditAdminOpts) (bool, error) {
 
-	chatId, err := getIdByUnion(ctx, chat)
+	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return false, err
 	}
 
-	userId, err := getIdByUnion(ctx, user)
+	userID, err := getIdByUnion(ctx, user)
 	if err != nil {
 		return false, err
 	}
 
-	return ctx.DemoteChatMember(chatId, userId, opts)
+	return ctx.DemoteChatMember(chatID, userID, opts)
 }
 
 // GetUserProfilePhotos is a generic helper for ext.Context.GetUserProfilePhotos method.
-func GetUserProfilePhotos[chatUnion ChatUnion](ctx *ext.Context, user chatUnion, opts *tg.PhotosGetUserPhotosRequest) ([]tg.PhotoClass, error) {
+func GetUserProfilePhotos[chatUnion ChatUnion](ctx *adapter.Context, user chatUnion, opts *tg.PhotosGetUserPhotosRequest) ([]tg.PhotoClass, error) {
 
-	userId, err := getIdByUnion(ctx, user)
+	userID, err := getIdByUnion(ctx, user)
 	if err != nil {
 		return nil, err
 	}
 
-	return ctx.GetUserProfilePhotos(userId, opts)
+	return ctx.GetUserProfilePhotos(userID, opts)
 }
 
 // TransferStarGift is a generic helper for ext.Context.TransferStarGift method.
-func TransferStarGift[chatUnion ChatUnion](ctx *ext.Context, chat chatUnion, starGift tg.InputSavedStarGiftClass) (tg.UpdatesClass, error) {
+func TransferStarGift[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, starGift tg.InputSavedStarGiftClass) (tg.UpdatesClass, error) {
 
-	chatId, err := getIdByUnion(ctx, chat)
+	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return nil, err
 	}
 
-	return ctx.TransferStarGift(chatId, starGift)
+	return ctx.TransferStarGift(chatID, starGift)
 }
