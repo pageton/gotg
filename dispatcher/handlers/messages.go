@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"github.com/pageton/gotg/dispatcher/handlers/filters"
-	"github.com/pageton/gotg/ext"
+	"github.com/pageton/gotg/adapter"
 )
 
 // Message handler is executed when the update consists of tg.Message with provided conditions.
@@ -23,7 +23,25 @@ func NewMessage(filters filters.MessageFilter, response CallbackResponse) Messag
 	}
 }
 
-func (m Message) CheckUpdate(ctx *ext.Context, u *ext.Update) error {
+// OnMessage creates a new Message handler with an UpdateHandler.
+// This is a convenience function for handlers that only need to Update parameter.
+func OnMessage(handler UpdateHandler, messageFilters ...filters.MessageFilter) Message {
+	var filter filters.MessageFilter
+	if len(messageFilters) > 0 {
+		filter = messageFilters[0]
+		if len(messageFilters) > 1 {
+			filter = filters.MessageAnd(messageFilters...)
+		}
+	}
+	return Message{
+		Callback:      ToCallbackResponse(handler),
+		Filters:       filter,
+		UpdateFilters: nil,
+		Outgoing:      true,
+	}
+}
+
+func (m Message) CheckUpdate(ctx *adapter.Context, u *adapter.Update) error {
 	msg := u.EffectiveMessage
 	if msg == nil {
 		return nil

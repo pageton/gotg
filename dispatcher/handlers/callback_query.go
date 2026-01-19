@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"github.com/pageton/gotg/dispatcher/handlers/filters"
-	"github.com/pageton/gotg/ext"
+	"github.com/pageton/gotg/adapter"
 )
 
 // CallbackQuery handler is executed when the update consists of tg.UpdateBotCallbackQuery.
@@ -21,7 +21,27 @@ func NewCallbackQuery(filters filters.CallbackQueryFilter, response CallbackResp
 	}
 }
 
-func (c CallbackQuery) CheckUpdate(ctx *ext.Context, u *ext.Update) error {
+// OnCallbackQuery creates a new CallbackQuery handler with an UpdateHandler.
+// This is a convenience function for handlers that only need to Update parameter.
+func OnCallbackQuery(filter filters.CallbackQueryFilter, handler UpdateHandler, updateFilters ...filters.UpdateFilter) CallbackQuery {
+	return CallbackQuery{
+		Filters:  filter,
+		Callback: ToCallbackResponse(handler),
+		UpdateFilters: func(u *adapter.Update) bool {
+			if len(updateFilters) == 0 {
+				return true
+			}
+			for _, f := range updateFilters {
+				if !f(u) {
+					return false
+				}
+			}
+			return true
+		},
+	}
+}
+
+func (c CallbackQuery) CheckUpdate(ctx *adapter.Context, u *adapter.Update) error {
 	if u.CallbackQuery == nil {
 		return nil
 	}

@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/pageton/gotg/dispatcher/handlers/filters"
-	"github.com/pageton/gotg/ext"
+	"github.com/pageton/gotg/adapter"
 )
 
 // Command handler is executed when the update consists of tg.Message provided it is a command and satisfies all the conditions.
@@ -29,7 +29,30 @@ func NewCommand(name string, response CallbackResponse) Command {
 	}
 }
 
-func (c Command) CheckUpdate(ctx *ext.Context, u *ext.Update) error {
+// OnCommand creates a new Command handler with an UpdateHandler.
+// This is a convenience function for handlers that only need to Update parameter.
+func OnCommand(name string, handler UpdateHandler, updateFilters ...filters.UpdateFilter) Command {
+	updateFilter := func(u *adapter.Update) bool {
+		if len(updateFilters) == 0 {
+			return true
+		}
+		for _, f := range updateFilters {
+			if !f(u) {
+				return false
+			}
+		}
+		return true
+	}
+	return Command{
+		Name:          name,
+		Callback:      ToCallbackResponse(handler),
+		Prefix:        DefaultPrefix,
+		Outgoing:      true,
+		UpdateFilters: updateFilter,
+	}
+}
+
+func (c Command) CheckUpdate(ctx *adapter.Context, u *adapter.Update) error {
 	m := u.EffectiveMessage
 	if m == nil || m.Text == "" {
 		return nil

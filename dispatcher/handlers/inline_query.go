@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"github.com/pageton/gotg/dispatcher/handlers/filters"
-	"github.com/pageton/gotg/ext"
+	"github.com/pageton/gotg/adapter"
 )
 
 // InlineQuery handler is executed when the update consists of tg.UpdateInlineBotCallbackQuery.
@@ -21,7 +21,7 @@ func NewInlineQuery(filters filters.InlineQueryFilter, response CallbackResponse
 	}
 }
 
-func (c InlineQuery) CheckUpdate(ctx *ext.Context, u *ext.Update) error {
+func (c InlineQuery) CheckUpdate(ctx *adapter.Context, u *adapter.Update) error {
 	if u.InlineQuery == nil {
 		return nil
 	}

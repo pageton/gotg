@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"github.com/pageton/gotg/dispatcher/handlers/filters"
-	"github.com/pageton/gotg/ext"
+	"github.com/pageton/gotg/adapter"
 )
 
 // PendingJoinRequests handler is executed on all type of incoming updates.
@@ -16,7 +16,7 @@ func NewChatJoinRequest(filters filters.PendingJoinRequestsFilter, response Call
 	return PendingJoinRequests{Callback: response, Filters: filters}
 }
 
-func (c PendingJoinRequests) CheckUpdate(ctx *ext.Context, u *ext.Update) error {
+func (c PendingJoinRequests) CheckUpdate(ctx *adapter.Context, u *adapter.Update) error {
 	if u.ChatJoinRequest == nil {
 		return nil
 	}

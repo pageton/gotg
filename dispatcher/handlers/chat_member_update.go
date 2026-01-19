@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"github.com/pageton/gotg/dispatcher/handlers/filters"
-	"github.com/pageton/gotg/ext"
+	"github.com/pageton/gotg/adapter"
 )
 
 // ChatMemberUpdated handler is executed on all type of incoming updates.
@@ -19,7 +19,7 @@ func NewChatMemberUpdated(filters filters.ChatMemberUpdatedFilter, response Call
 	}
 }
 
-func (cm ChatMemberUpdated) CheckUpdate(ctx *ext.Context, u *ext.Update) error {
+func (cm ChatMemberUpdated) CheckUpdate(ctx *adapter.Context, u *adapter.Update) error {
 	if u.ChatParticipant == nil && u.ChannelParticipant == nil {
 		return nil
 	}
