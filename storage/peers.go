@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/gotd/td/constant"
-	"github.com/gotd/td/tg"
 	"github.com/gotd/td/telegram/query/dialogs"
+	"github.com/gotd/td/tg"
 )
 
 type Peer struct {
@@ -14,6 +14,7 @@ type Peer struct {
 	AccessHash int64
 	Type       int
 	Username   string
+	Language   string
 }
 type EntityType int
 
@@ -36,15 +37,30 @@ const (
 func (p *PeerStorage) AddPeer(iD, accessHash int64, peerType EntityType, userName string) {
 	var ID constant.TDLibPeerID
 	switch EntityType(peerType) {
-		case TypeUser:
-			ID.User(iD)
-		case TypeChat:
-			ID.Chat(iD)
-		case TypeChannel:
-			ID.Channel(iD)
+	case TypeUser:
+		ID.User(iD)
+	case TypeChat:
+		ID.Chat(iD)
+	case TypeChannel:
+		ID.Channel(iD)
 	}
 	iD = int64(ID)
-	peer := &Peer{ID: iD, AccessHash: accessHash, Type: peerType.GetInt(), Username: userName}
+	
+	var peer *Peer
+	
+	// Check if peer already exists in cache
+	existingPeer, exists := p.peerCache.Get(iD)
+	if exists && existingPeer != nil {
+		// Update existing peer while preserving fields like Language
+		existingPeer.AccessHash = accessHash
+		existingPeer.Type = peerType.GetInt()
+		existingPeer.Username = userName
+		peer = existingPeer
+	} else {
+		// Create new peer
+		peer = &Peer{ID: iD, AccessHash: accessHash, Type: peerType.GetInt(), Username: userName}
+	}
+	
 	p.peerCache.Set(iD, peer)
 	if p.inMemory {
 		return
@@ -70,16 +86,20 @@ func (p *Peer) GetID() int64 {
 	}
 }
 
-// GetPeerById finds the provided id in the peer storage and return it if found.
-func (p *PeerStorage) GetPeerById(iD int64) *Peer {
-	peer, ok := p.peerCache.Get(iD)
+// GetPeerByID finds the provided id in the peer storage and return it if found.
+func (p *PeerStorage) GetPeerByID(ID int64) *Peer {
+	peer, ok := p.peerCache.Get(ID)
 	if p.inMemory {
 		if !ok {
-			return &Peer{}
+			return nil
 		}
 	} else {
 		if !ok {
-			return p.cachePeers(iD)
+			peer = p.cachePeers(ID)
+			// Return nil if peer doesn't exist in DB (ID is 0)
+			if peer != nil && peer.ID == 0 {
+				return nil
+			}
 		}
 	}
 	return peer
@@ -101,9 +121,9 @@ func (p *PeerStorage) GetPeerByUsername(username string) *Peer {
 	return &Peer{}
 }
 
-// GetInputPeerById finds the provided id in the peer storage and return its tg.InputPeerClass if found.
-func (p *PeerStorage) GetInputPeerById(iD int64) tg.InputPeerClass {
-	return getInputPeerFromStoragePeer(p.GetPeerById(iD))
+// GetInputPeerByID finds the provided id in the peer storage and return its tg.InputPeerClass if found.
+func (p *PeerStorage) GetInputPeerByID(iD int64) tg.InputPeerClass {
+	return getInputPeerFromStoragePeer(p.GetPeerByID(iD))
 }
 
 // GetInputPeerByUsername finds the provided username in the peer storage and return its tg.InputPeerClass if found.
@@ -116,6 +136,33 @@ func (p *PeerStorage) cachePeers(id int64) *Peer {
 	p.SqlSession.Where("id = ?", id).Find(&peer)
 	p.peerCache.Set(id, &peer)
 	return &peer
+}
+
+// SetPeerLanguage updates and saves the language preference for a peer
+func (p *PeerStorage) SetPeerLanguage(userID int64, lang string) {
+	peer := p.GetPeerByID(userID)
+	// Create new peer if it doesn't exist
+	if peer == nil {
+		peer = &Peer{
+			ID:       userID,
+			Language: lang,
+			Type:     1, // TypeUser
+		}
+	} else {
+		peer.Language = lang
+	}
+	p.peerCache.Set(userID, peer)
+
+	if !p.inMemory {
+		if err := p.SqlSession.Save(peer).Error; err != nil {
+		} else {
+		}
+	}
+
+	// Verify cache was updated
+	peer2, ok := p.peerCache.Get(userID)
+	if ok && peer2 != nil {
+	}
 }
 
 func getInputPeerFromStoragePeer(peer *Peer) tg.InputPeerClass {
@@ -139,7 +186,7 @@ func getInputPeerFromStoragePeer(peer *Peer) tg.InputPeerClass {
 			fmt.Printf(warning, "-100")
 		}
 		return &tg.InputPeerChannel{
-			ChannelID: ID.ToPlain(),
+			ChannelID:  ID.ToPlain(),
 			AccessHash: peer.AccessHash,
 		}
 	default:
@@ -147,18 +194,17 @@ func getInputPeerFromStoragePeer(peer *Peer) tg.InputPeerClass {
 	}
 }
 
-
 func AddPeersFromDialogs(ctx context.Context, raw *tg.Client, peerStorage *PeerStorage) {
 	_ = dialogs.NewQueryBuilder(raw).GetDialogs().ForEach(ctx, func(ctx context.Context, e dialogs.Elem) error {
-    for cid, channel := range e.Entities.Channels() {
-      peerStorage.AddPeer(cid, channel.AccessHash, TypeChannel, channel.Username)
-    }
-    for uid, user := range e.Entities.Users() {
-      peerStorage.AddPeer(uid, user.AccessHash, TypeUser, user.Username)
-    }
-    for gid := range e.Entities.Chats() {
-      peerStorage.AddPeer(gid, DefaultAccessHash, TypeChat, DefaultUsername)
-    }
-    return nil
-  })
+		for cid, channel := range e.Entities.Channels() {
+			peerStorage.AddPeer(cid, channel.AccessHash, TypeChannel, channel.Username)
+		}
+		for uid, user := range e.Entities.Users() {
+			peerStorage.AddPeer(uid, user.AccessHash, TypeUser, user.Username)
+		}
+		for gid := range e.Entities.Chats() {
+			peerStorage.AddPeer(gid, DefaultAccessHash, TypeChat, DefaultUsername)
+		}
+		return nil
+	})
 }

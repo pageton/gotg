@@ -1,0 +1,84 @@
+# Spanish locale file for gotg bot
+# Formato YAML con soporte para pluralización, género y contexto
+
+# Mensajes básicos
+welcome: "¡Bienvenido al bot!"
+goodbye: "¡Adiós! Hasta pronto."
+thanks: "Gracias por usar este bot."
+
+# Comando de inicio
+start: |
+  ¡Hola {0}!
+
+  Bienvenido a {1}! Soy un bot construido con gotg y gotd.
+
+  Usa /help para ver los comandos disponibles.
+
+# Comando de ayuda
+help: |
+  *Comandos Disponibles:*
+
+  /start - Iniciar el bot
+  /help - Mostrar este mensaje de ayuda
+  /settings - Cambiar tu configuración
+  /language - Cambiar el idioma del bot
+
+# Información del usuario
+user_info: |
+  *Información del Usuario:*
+  Nombre: {0}
+  ID de Usuario: {1}
+  Nombre de Usuario: {2}
+
+# Ejemplos de pluralización
+items_count:
+  one: "Tienes {count} artículo."
+  other: "Tienes {count} artículos."
+
+messages_count:
+  one: "Tienes 1 mensaje nuevo."
+  other: "Tienes {count} mensajes nuevos."
+
+# Mensajes basados en género
+greeting:
+  male: "¡Hola, guapo!"
+  female: "¡Hola, hermosa!"
+  other: "¡Hola!"
+
+# Configuración
+settings_language: "Idioma"
+settings_notifications: "Notificaciones"
+settings_privacy: "Privacidad"
+
+# Errores
+error_general: "Ocurrió un error. Por favor, intenta de nuevo."
+error_permission: "No tienes permiso para hacer esto."
+error_not_found: "El recurso solicitado no fue encontrado."
+
+# Mensajes de éxito
+success: "¡Éxito!"
+done: "¡Hecho!"
+completed: "Operación completada exitosamente."
+
+# Botones comunes
+btn_yes: "Sí"
+btn_no: "No"
+btn_cancel: "Cancelar"
+btn_back: "Atrás"
+btn_next: "Siguiente"
+btn_menu: "Menú"
+
+# Selección de idioma
+language_select: "Por favor, selecciona tu idioma:"
+language_changed: "Idioma cambiado a {0}"
+language_current: "Tu idioma actual es: {0}"
+
+# Ejemplo con claves anidadas
+features:
+  formatting: "Formato de texto con HTML y Markdown"
+  i18n: "Soporte de internacionalización"
+  sessions: "Múltiples backends de sesión"
+  middleware: "Soporte de middleware"
+
+# Mensaje de reserva
+key_not_found: "Traducción no encontrada: {0}"
