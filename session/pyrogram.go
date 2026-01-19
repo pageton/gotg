@@ -1,4 +1,4 @@
-package sessionMaker
+package session
 
 import (
 	"crypto/sha1"

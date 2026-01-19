@@ -1,14 +1,15 @@
-package sessionMaker
+package session
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/binary"
 	"net"
 	"strconv"
-	"bytes"
+
 	"github.com/go-faster/errors"
-	"github.com/gotd/td/session"
 	"github.com/gotd/td/crypto"
+	"github.com/gotd/td/session"
 )
 
 func DecodeGramjsSession(hx string) (*session.Data, error) {
@@ -23,7 +24,7 @@ func decodeGramjsSession(sessionStr string) (*session.Data, error) {
 		Port          int16
 		Key           []byte
 		AuthKey       string
-		KeyId         string
+		KeyID         string
 	}{}
 
 	if len(sessionStr) == 0 || sessionStr[0] != '1' {
@@ -74,7 +75,7 @@ func decodeGramjsSession(sessionStr string) (*session.Data, error) {
 
 	data.AuthKey = base64.StdEncoding.EncodeToString(data.Key)
 	keyid := crypto.Key(data.Key).WithID().ID
-	data.KeyId = base64.StdEncoding.EncodeToString(keyid[:])
+	data.KeyID = base64.StdEncoding.EncodeToString(keyid[:])
 	return &session.Data{
 		DC:        int(data.DCID),
 		Addr:      net.JoinHostPort(data.ServerAddress, strconv.Itoa(int(data.Port))),
