@@ -7,9 +7,9 @@ import (
 	mtp_errors "github.com/pageton/gotg/errors"
 )
 
-// GetMediaFileNameWithId
+// GetMediaFileNameWithID
 // Return media's filename in format "{id}-{name}.{extension}"
-func GetMediaFileNameWithId(media tg.MessageMediaClass) (string, error) {
+func GetMediaFileNameWithID(media tg.MessageMediaClass) (string, error) {
 	switch v := media.(type) {
 	case *tg.MessageMediaPhoto: // messageMediaPhoto#695150d7
 		f, ok := v.Photo.AsNotEmpty()
@@ -45,14 +45,14 @@ func GetMediaFileNameWithId(media tg.MessageMediaClass) (string, error) {
 		if !ok {
 			return "", mtp_errors.ErrUnknownTypeMedia
 		}
-		return GetMediaFileNameWithId(f.Media)
+		return GetMediaFileNameWithID(f.Media)
 	}
 	return "", mtp_errors.ErrUnknownTypeMedia
 }
 
 // GetMediaFileName
 // Return media's filename in format "{name}.{extension}"
-// Warning, stickers will always have name "sticker.webp", if you need distinction, use GetMediaFileNameWithId
+// Warning, stickers will always have name "sticker.webp", if you need distinction, use GetMediaFileNameWithID
 func GetMediaFileName(media tg.MessageMediaClass) (string, error) {
 	switch v := media.(type) {
 	case *tg.MessageMediaPhoto: // messageMediaPhoto#695150d7

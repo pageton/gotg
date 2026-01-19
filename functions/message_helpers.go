@@ -8,8 +8,8 @@ import (
 	"github.com/pageton/gotg/storage"
 )
 
-func GetMessages(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, chatId int64, mids []tg.InputMessageClass) (tg.MessageClassArray, error) {
-	peer := p.GetPeerById(chatId)
+func GetMessages(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, chatID int64, mids []tg.InputMessageClass) (tg.MessageClassArray, error) {
+	peer := p.GetPeerByID(chatID)
 	if peer.ID == 0 {
 		return nil, errors.ErrPeerNotFound
 	}

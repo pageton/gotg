@@ -47,9 +47,9 @@ func GetChatFromPeer(ctx context.Context, client *tg.Client, peer tg.PeerClass) 
 	}
 }
 
-// GetInputPeerClassFromId finds provided user id in the session storage and returns it if found.
-func GetInputPeerClassFromId(p *storage.PeerStorage, iD int64) tg.InputPeerClass {
-	peer := p.GetPeerById(iD)
+// GetInputPeerClassFromID finds provided user id in the session storage and returns it if found.
+func GetInputPeerClassFromID(p *storage.PeerStorage, iD int64) tg.InputPeerClass {
+	peer := p.GetPeerByID(iD)
 	if peer.ID == 0 {
 		return nil
 	}
