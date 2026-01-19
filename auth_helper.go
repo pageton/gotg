@@ -48,7 +48,7 @@ func authFlow(ctx context.Context, client *auth.Client, conversator AuthConversa
 		err      error
 	)
 	SendAuthStatus(conversator, AuthStatusPhoneAsked)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		var err1 error
 		if i == 0 {
 			phone, err1 = f.Auth.Phone(ctx)
@@ -83,7 +83,7 @@ func authFlow(ctx context.Context, client *auth.Client, conversator AuthConversa
 	case *tg.AuthSentCode:
 		hash := s.PhoneCodeHash
 		var signInErr error
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			var code string
 			if i == 0 {
 				SendAuthStatus(conversator, AuthStatusPhoneCodeAsked)

@@ -9,17 +9,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gotd/td/session"
+	tdSession "github.com/gotd/td/session"
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/auth"
 	"github.com/gotd/td/telegram/dcs"
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/tg"
+	"github.com/pageton/gotg/adapter"
 	"github.com/pageton/gotg/dispatcher"
 	intErrors "github.com/pageton/gotg/errors"
-	"github.com/pageton/gotg/ext"
 	"github.com/pageton/gotg/functions"
-	"github.com/pageton/gotg/sessionMaker"
+	"github.com/pageton/gotg/session"
 	"github.com/pageton/gotg/storage"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -65,8 +65,8 @@ type Client struct {
 	DisableCopyright bool
 	// Logger is instance of zap.Logger. No logs by default.
 	Logger *zap.Logger
-	// Session info of the authenticated user, use sessionMaker.NewSession function to fill this field.
-	sessionStorage session.Storage
+	// Session info of the authenticated user, use session.NewSession function to fill this field.
+	sessionStorage tdSession.Storage
 	// Self contains details of logged in user in the form of *tg.User.
 	Self *tg.User
 	// Code for the language used on the device's OS, ISO 639-1 standard.
@@ -91,7 +91,7 @@ type Client struct {
 	cancel          context.CancelFunc
 	running         bool
 	*telegram.Client
-	appId   int
+	appID   int
 	apiHash string
 }
 
@@ -116,8 +116,8 @@ type ClientOpts struct {
 	Resolver dcs.Resolver
 	// Whether to show the copyright line in console or no.
 	DisableCopyright bool
-	// Session info of the authenticated user, use sessionMaker.NewSession function to fill this field.
-	Session sessionMaker.SessionConstructor
+	// Session info of the authenticated user, use session.NewSession function to fill this field.
+	Session session.SessionConstructor
 	// Setting this field to true will lead to automatically fetch the reply_to_message for a new message update.
 	//
 	// Set to `false` by default.
@@ -138,6 +138,10 @@ type ClientOpts struct {
 	ErrorHandler dispatcher.ErrorHandler
 	// Custom Middlewares
 	Middlewares []telegram.Middleware
+	// DispatcherMiddlewares are middleware handlers that run before user-added handlers.
+	// These are automatically added to groups 0, 1, 2, ... in order.
+	// Useful for i18n, authentication, logging, etc.
+	DispatcherMiddlewares []dispatcher.Handler
 	// Custom Run() Middleware
 	// Can be used for floodWaiter package
 	// https://github.com/pageton/gotg/blob/beta/examples/middleware/main.go#L41
@@ -189,7 +193,7 @@ type ClientOpts struct {
 }
 
 // NewClient creates a new gotg client and logs in to telegram.
-func NewClient(appId int, apiHash string, cType clientType, opts *ClientOpts) (*Client, error) {
+func NewClient(appID int, apiHash string, cType clientType, opts *ClientOpts) (*Client, error) {
 	if opts == nil {
 		opts = &ClientOpts{
 			SystemLangCode: "en",
@@ -202,7 +206,7 @@ func NewClient(appId int, apiHash string, cType clientType, opts *ClientOpts) (*
 	}
 	ctx, cancel := context.WithCancel(opts.Context)
 
-	peerStorage, sessionStorage, err := sessionMaker.NewSessionStorage(ctx, opts.Session, opts.InMemory)
+	peerStorage, sessionStorage, err := session.NewSessionStorage(ctx, opts.Session, opts.InMemory)
 	if err != nil {
 		cancel()
 		return nil, err
@@ -213,6 +217,12 @@ func NewClient(appId int, apiHash string, cType clientType, opts *ClientOpts) (*
 	}
 
 	d := dispatcher.NewNativeDispatcher(opts.AutoFetchReply, opts.FetchEntireReplyChain, opts.ErrorHandler, opts.PanicHandler, peerStorage)
+
+	// Register dispatcher middlewares with auto-incrementing group numbers (0, 1, 2, ...)
+	// Middlewares run in order, before user-added handlers
+	for i, middleware := range opts.DispatcherMiddlewares {
+		d.AddHandlerToGroup(middleware, i)
+	}
 
 	c := Client{
 		Resolver:          opts.Resolver,
@@ -241,7 +251,7 @@ func NewClient(appId int, apiHash string, cType clientType, opts *ClientOpts) (*
 		ctx:               ctx,
 		autoFetchReply:    opts.AutoFetchReply,
 		cancel:            cancel,
-		appId:             appId,
+		appID:             appID,
 		apiHash:           apiHash,
 	}
 
@@ -267,7 +277,7 @@ func (c *Client) initTelegramClient(
 			LangCode:       c.ClientLangCode,
 		}
 	}
-	c.Client = telegram.NewClient(c.appId, c.apiHash, telegram.Options{
+	c.Client = telegram.NewClient(c.appID, c.apiHash, telegram.Options{
 		DCList:            c.DCList,
 		Resolver:          c.Resolver,
 		DC:                c.DC,
@@ -302,6 +312,10 @@ func (c *Client) login() error {
 		if c.NoAutoAuth {
 			return intErrors.ErrSessionUnauthorized
 		}
+		// Skip auth flow if phone value is empty (e.g., when using string sessions)
+		if c.clientType.getValue() == "" {
+			return intErrors.ErrSessionUnauthorized
+		}
 		err = authFlow(
 			c.ctx, authClient,
 			c.authConversator,
@@ -312,7 +326,8 @@ func (c *Client) login() error {
 			return errors.Wrap(err, "auth flow")
 		}
 	} else {
-		if !status.Authorized {
+		// Skip bot auth if token value is empty (e.g., when using string sessions)
+		if !status.Authorized && c.clientType.getValue() != "" {
 			if _, err := c.Auth().Bot(c.ctx, c.clientType.getValue()); err != nil {
 				return errors.Wrap(err, "login")
 			}
@@ -379,8 +394,8 @@ func (c *Client) Idle() error {
 
 // CreateContext creates a new pseudo updates context.
 // A context retrieved from this method should be reused.
-func (c *Client) CreateContext() *ext.Context {
-	return ext.NewContext(
+func (c *Client) CreateContext() *adapter.Context {
+	return adapter.NewContext(
 		c.ctx,
 		c.API(),
 		c.PeerStorage,
@@ -454,7 +469,7 @@ func (c *Client) Start(opts *ClientOpts) error {
 
 // RefreshContext casts the new context.Context and telegram session
 // to ext.Context (It may be used after doing Stop and Start calls respectively.)
-func (c *Client) RefreshContext(ctx *ext.Context) {
+func (c *Client) RefreshContext(ctx *adapter.Context) {
 	(*ctx).Context = c.ctx
 	(*ctx).Raw = c.API()
 }
