@@ -7,11 +7,12 @@ import (
 	"log"
 	"runtime/debug"
 	"sync"
+	"sync/atomic"
 
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/tg"
-	"github.com/pageton/gotg/ext"
+	"github.com/pageton/gotg/adapter"
 	"github.com/pageton/gotg/storage"
 	"go.uber.org/multierr"
 )
@@ -33,6 +34,8 @@ type Dispatcher interface {
 	Handle(context.Context, tg.UpdatesClass) error
 	AddHandler(Handler)
 	AddHandlerToGroup(Handler, int)
+	AddHandlers(...Handler)
+	AddHandlersToGroup(int, ...Handler)
 }
 
 type NativeDispatcher struct {
@@ -44,7 +47,7 @@ type NativeDispatcher struct {
 	setEntireReplyChain bool
 	// Panic handles all the panics that occur during handler execution.
 	Panic PanicHandler
-	// Error handles all the unknown errors which are returned by the handler callback functions.
+	// Error handles all the unknown errors which are returned by handler callback functions.
 	Error ErrorHandler
 	// handlerMap is used for internal functionality of NativeDispatcher.
 	handlerMap map[int][]Handler
@@ -52,10 +55,11 @@ type NativeDispatcher struct {
 	handlerGroups []int
 	pStorage      *storage.PeerStorage
 	initwg        sync.WaitGroup
+	nextGroup     atomic.Int64
 }
 
-type PanicHandler func(*ext.Context, *ext.Update, string)
-type ErrorHandler func(*ext.Context, *ext.Update, string) error
+type PanicHandler func(*adapter.Context, *adapter.Update, string)
+type ErrorHandler func(*adapter.Context, *adapter.Update, string) error
 
 // MakeDispatcher creates new custom dispatcher which process and handles incoming updates.
 func NewNativeDispatcher(setReply bool, setEntireReplyChain bool, eHandler ErrorHandler, pHandler PanicHandler, p *storage.PeerStorage) *NativeDispatcher {
@@ -75,7 +79,7 @@ func NewNativeDispatcher(setReply bool, setEntireReplyChain bool, eHandler Error
 	return nd
 }
 
-func defaultErrorHandler(_ *ext.Context, _ *ext.Update, err string) error {
+func defaultErrorHandler(_ *adapter.Context, _ *adapter.Update, err string) error {
 	log.Println("An error occured while handling update:", err)
 	return ContinueGroups
 }
@@ -143,9 +147,9 @@ func (dp *NativeDispatcher) dispatch(ctx context.Context, e tg.Entities, update 
 }
 
 func (dp *NativeDispatcher) handleUpdate(ctx context.Context, e tg.Entities, update tg.UpdateClass) error {
-	u := ext.GetNewUpdate(ctx, dp.client, dp.self.ID, dp.pStorage, &e, update)
+	c := adapter.NewContext(ctx, dp.client, dp.pStorage, dp.self, dp.sender, &e, dp.setReply)
+	u := adapter.GetNewUpdate(c, update)
 	dp.handleUpdateRepliedToMessage(u, ctx)
-	c := ext.NewContext(ctx, dp.client, dp.pStorage, dp.self, dp.sender, &e, dp.setReply)
 	var err error
 	defer func() {
 		if r := recover(); r != nil {
@@ -186,7 +190,7 @@ func (dp *NativeDispatcher) handleUpdate(ctx context.Context, e tg.Entities, upd
 	return err
 }
 
-func (dp *NativeDispatcher) handleUpdateRepliedToMessage(u *ext.Update, ctx context.Context) {
+func (dp *NativeDispatcher) handleUpdateRepliedToMessage(u *adapter.Update, ctx context.Context) {
 	msg := u.EffectiveMessage
 	if msg == nil || !dp.setReply {
 		return
