@@ -54,6 +54,36 @@ func (*messageFilters) Text(m *types.Message) bool {
 	return m.Text != ""
 }
 
+
+
+// Equal checks if the message text is equal to the provided text and returns true if matches.
+func (*messageFilters) Equal(text string) MessageFilter {
+	return func(m *types.Message) bool {
+		return m.Text == text
+	}
+}
+
+// Prefix returns true if the message text starts with the provided prefix.
+func (*messageFilters) Prefix(prefix string) MessageFilter {
+	return func(m *types.Message) bool {
+		return strings.HasPrefix(m.Text, prefix)
+	}
+}
+
+// Suffix returns true if the message text ends with the provided suffix.
+func (*messageFilters) Suffix(suffix string) MessageFilter {
+	return func(m *types.Message) bool {
+		return strings.HasSuffix(m.Text, suffix)
+	}
+}
+
+// Contains returns true if the message text contains the provided substring.
+func (*messageFilters) Contains(substring string) MessageFilter {
+	return func(m *types.Message) bool {
+		return strings.Contains(m.Text, substring)
+	}
+}
+
 // Regex returns true if the Message field of types.Message matches the regex filter
 func (*messageFilters) Regex(rString string) (MessageFilter, error) {
 	r, err := regexp.Compile(rString)
