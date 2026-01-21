@@ -2,6 +2,7 @@ package filters
 
 import (
 	"regexp"
+	"strings"
 
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/functions"
