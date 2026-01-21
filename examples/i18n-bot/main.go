@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/glebarez/sqlite"
 	"github.com/pageton/gotg"
 	"github.com/pageton/gotg/adapter"
 	"github.com/pageton/gotg/dispatcher"
@@ -14,6 +13,7 @@ import (
 	"github.com/pageton/gotg/i18n"
 	"github.com/pageton/gotg/session"
 	"golang.org/x/text/language"
+	"gorm.io/driver/sqlite"
 )
 
 //go:embed locales/*.yaml
@@ -33,8 +33,8 @@ func main() {
 	})
 
 	client, err := gotg.NewClient(
-		123456,            // APP_ID - Replace with your Telegram App ID
-		"API_HASH_HERE",   // APP_HASH - Replace with your Telegram App Hash
+		123456,                       // APP_ID - Replace with your Telegram App ID
+		"API_HASH_HERE",              // APP_HASH - Replace with your Telegram App Hash
 		gotg.AsBot("BOT_TOKEN_HERE"), // BOT_TOKEN - Replace with your bot token
 		&gotg.ClientOpts{
 			Session: session.SqlSession(sqlite.Open("testbot")),
@@ -69,7 +69,6 @@ func main() {
 func start(update *adapter.Update) error {
 	user := update.EffectiveUser()
 	text := update.T("start", user.FirstName, "gotg bot")
-	log.Println(text)
 
 	// Create language selection keyboard using gotg.Keyboard()
 	kbd := gotg.Keyboard().
@@ -131,7 +130,6 @@ func languageCallback(u *adapter.Update) error {
 
 	// Get user info for greeting
 	user := u.EffectiveUser()
-	log.Println("Ok 1")
 
 	// Show pluralization examples
 	text := u.T("language_changed", lang.String()) + "\n\n"
@@ -146,24 +144,16 @@ func languageCallback(u *adapter.Update) error {
 		Count: 5,
 	}) + "\n\n"
 
-	log.Println("Ok 2")
-
 	// User info
 	text += u.T("user_info", user.FirstName, user.ID, user.Username)
 
 	// Answer callback query
 	u.Answer(u.T("success"))
 
-	log.Println("Ok 3 - before edit")
-
 	// Try without markdown parsing first
-	resp, err := u.Edit(text, &adapter.ReplyOpts{
+	_, err := u.Edit(text, &adapter.ReplyOpts{
 		ParseMode: adapter.ModeNone,
 	})
-
-	log.Println("Ok 4 - after edit")
-	log.Println("Error:", err)
-	log.Println("Response:", resp)
 
 	return err
 }

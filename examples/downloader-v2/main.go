@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/glebarez/sqlite"
 	"github.com/go-faster/errors"
 	"github.com/pageton/gotg"
+	"github.com/pageton/gotg/adapter"
 	"github.com/pageton/gotg/dispatcher/handlers"
 	"github.com/pageton/gotg/dispatcher/handlers/filters"
-	"github.com/pageton/gotg/adapter"
 	"github.com/pageton/gotg/session"
+	"gorm.io/driver/sqlite"
 )
 
 func main() {

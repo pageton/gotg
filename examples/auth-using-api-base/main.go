@@ -3,10 +3,10 @@ package main
 import (
 	"log"
 
-	"github.com/glebarez/sqlite"
 	"github.com/pageton/gotg"
 	"github.com/pageton/gotg/examples/auth-using-api-base/web"
 	"github.com/pageton/gotg/session"
+	"gorm.io/driver/sqlite"
 )
 
 func main() {
