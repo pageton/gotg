@@ -85,14 +85,11 @@ func (*messageFilters) Contains(substring string) MessageFilter {
 }
 
 // Regex returns true if the Message field of types.Message matches the regex filter
-func (*messageFilters) Regex(rString string) (MessageFilter, error) {
-	r, err := regexp.Compile(rString)
-	if err != nil {
-		return nil, err
-	}
+func (*messageFilters) Regex(rString string) MessageFilter {
+	r := regexp.MustCompile(rString)
 	return func(m *types.Message) bool {
 		return r.MatchString(m.Text)
-	}, nil
+	}
 }
 
 // Media returns true if types.Message consists of media.
@@ -535,12 +532,9 @@ func (*messageFilters) HasMediaSpoiler(m *types.Message) bool {
 }
 
 // RegexAdvanced returns a Regex filter with options.
-func (*messageFilters) RegexAdvanced(pattern string, opts *RegexOptions) (MessageFilter, error) {
-	var r *regexp.Regexp
-	var err error
-
+func (*messageFilters) RegexAdvanced(pattern string, opts *RegexOptions) MessageFilter {
+	var patternPrefix string
 	if opts != nil {
-		var patternPrefix string
 		if opts.IgnoreCase {
 			patternPrefix = "(?i)"
 		}
@@ -550,17 +544,11 @@ func (*messageFilters) RegexAdvanced(pattern string, opts *RegexOptions) (Messag
 		if opts.DotAll {
 			patternPrefix += "(?s)"
 		}
-		r, err = regexp.Compile(patternPrefix + pattern)
-	} else {
-		r, err = regexp.Compile(pattern)
 	}
-
-	if err != nil {
-		return nil, err
-	}
+	r := regexp.MustCompile(patternPrefix + pattern)
 	return func(m *types.Message) bool {
 		return r.MatchString(m.Text)
-	}, nil
+	}
 }
 
 // RegexOptions holds optional parameters for Regex filter.
