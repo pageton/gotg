@@ -17,7 +17,7 @@ var hardCodedReplacements = map[string]string{
 }
 
 func readContextFile() []byte {
-	b, err := os.ReadFile("ext/context.go")
+	b, err := os.ReadFile("adapter/context.go")
 	if err != nil {
 		panic("failed to read context file: " + err.Error())
 	}
@@ -65,7 +65,7 @@ func generateCUHelpers() {
 			// DefaultValues: goodErrReturns(method.Return),
 		})
 		if err != nil {
-			fmt.Printf("failed to generate helper for ext.Context.%s because %s\n", method.Name, err.Error())
+			fmt.Printf("failed to generate helper for adapter.Context.%s because %s\n", method.Name, err.Error())
 			continue
 		}
 	}
@@ -160,7 +160,7 @@ const FrameProperty = `
 `
 
 const helperFuncsCU = `
-// {{.FuncName}} is a generic helper for ext.Context.{{.FuncName}} method.
+// {{.FuncName}} is a generic helper for adapter.Context.{{.FuncName}} method.
 func {{.FuncName}}[chatUnion ChatUnion] (ctx *adapter.Context, {{.InputIdParams}}, {{.FuncParams}}) ({{.FuncReturn}}) {
 	{{.ChatFrame}}
 	{{.UserFrame}}
