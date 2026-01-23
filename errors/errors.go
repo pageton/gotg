@@ -3,8 +3,11 @@ package errors
 import "errors"
 
 var (
-	ErrClientAlreadyRunning = errors.New("client is already running")
-	ErrSessionUnauthorized  = errors.New("session is unauthorized")
+	ErrClientAlreadyRunning  = errors.New("client is already running")
+	ErrSessionUnauthorized   = errors.New("session is unauthorized")
+	ErrConversationCancelled = errors.New("conversation cancelled")
+	ErrConversationTimeout   = errors.New("conversation: timeout waiting for response")
+	ErrConversationClosed    = errors.New("conversation: closed")
 )
 
 var (
