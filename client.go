@@ -16,6 +16,7 @@ import (
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/adapter"
+	"github.com/pageton/gotg/conversation"
 	"github.com/pageton/gotg/dispatcher"
 	intErrors "github.com/pageton/gotg/errors"
 	"github.com/pageton/gotg/functions"
@@ -25,11 +26,12 @@ import (
 	"go.uber.org/zap"
 )
 
-const VERSION = "v1.0.0-beta22"
+const VERSION = "v1.0.0-beta23"
 
 type Client struct {
 	// Dispatcher handlers the incoming updates and execute mapped handlers. It is recommended to use dispatcher.MakeDispatcher function for this field.
-	Dispatcher dispatcher.Dispatcher
+	Dispatcher          dispatcher.Dispatcher
+	ConversationManager *conversation.Manager
 	// PublicKeys of telegram.
 	//
 	// If not provided, embedded public keys will be used.
@@ -91,7 +93,7 @@ type Client struct {
 	cancel          context.CancelFunc
 	running         bool
 	*telegram.Client
-	appID   int
+	apiID   int
 	apiHash string
 }
 
@@ -193,7 +195,7 @@ type ClientOpts struct {
 }
 
 // NewClient creates a new gotg client and logs in to telegram.
-func NewClient(appID int, apiHash string, cType clientType, opts *ClientOpts) (*Client, error) {
+func NewClient(apiID int, apiHash string, clientType clientType, opts *ClientOpts) (*Client, error) {
 	if opts == nil {
 		opts = &ClientOpts{
 			SystemLangCode: "en",
@@ -225,34 +227,35 @@ func NewClient(appID int, apiHash string, cType clientType, opts *ClientOpts) (*
 	}
 
 	c := Client{
-		Resolver:          opts.Resolver,
-		PublicKeys:        opts.PublicKeys,
-		DC:                opts.DC,
-		DCList:            opts.DCList,
-		MigrationTimeout:  opts.MigrationTimeout,
-		AckBatchSize:      opts.AckBatchSize,
-		AckInterval:       opts.AckInterval,
-		RetryInterval:     opts.RetryInterval,
-		MaxRetries:        opts.MaxRetries,
-		ExchangeTimeout:   opts.ExchangeTimeout,
-		DialTimeout:       opts.DialTimeout,
-		CompressThreshold: opts.CompressThreshold,
-		DisableCopyright:  opts.DisableCopyright,
-		Logger:            opts.Logger,
-		SystemLangCode:    opts.SystemLangCode,
-		ClientLangCode:    opts.ClientLangCode,
-		NoAutoAuth:        opts.NoAutoAuth,
-		NoUpdates:         opts.NoUpdates,
-		authConversator:   opts.AuthConversator,
-		Dispatcher:        d,
-		PeerStorage:       peerStorage,
-		sessionStorage:    sessionStorage,
-		clientType:        cType,
-		ctx:               ctx,
-		autoFetchReply:    opts.AutoFetchReply,
-		cancel:            cancel,
-		appID:             appID,
-		apiHash:           apiHash,
+		Resolver:            opts.Resolver,
+		PublicKeys:          opts.PublicKeys,
+		DC:                  opts.DC,
+		DCList:              opts.DCList,
+		MigrationTimeout:    opts.MigrationTimeout,
+		AckBatchSize:        opts.AckBatchSize,
+		AckInterval:         opts.AckInterval,
+		RetryInterval:       opts.RetryInterval,
+		MaxRetries:          opts.MaxRetries,
+		ExchangeTimeout:     opts.ExchangeTimeout,
+		DialTimeout:         opts.DialTimeout,
+		CompressThreshold:   opts.CompressThreshold,
+		DisableCopyright:    opts.DisableCopyright,
+		Logger:              opts.Logger,
+		SystemLangCode:      opts.SystemLangCode,
+		ClientLangCode:      opts.ClientLangCode,
+		NoAutoAuth:          opts.NoAutoAuth,
+		NoUpdates:           opts.NoUpdates,
+		authConversator:     opts.AuthConversator,
+		Dispatcher:          d,
+		ConversationManager: d.ConversationManager(),
+		PeerStorage:         peerStorage,
+		sessionStorage:      sessionStorage,
+		clientType:          clientType,
+		ctx:                 ctx,
+		autoFetchReply:      opts.AutoFetchReply,
+		cancel:              cancel,
+		apiID:               apiID,
+		apiHash:             apiHash,
 	}
 
 	if opts.SendCodeOptions != nil {
@@ -277,7 +280,7 @@ func (c *Client) initTelegramClient(
 			LangCode:       c.ClientLangCode,
 		}
 	}
-	c.Client = telegram.NewClient(c.appID, c.apiHash, telegram.Options{
+	c.Client = telegram.NewClient(c.apiID, c.apiHash, telegram.Options{
 		DCList:            c.DCList,
 		Resolver:          c.Resolver,
 		DC:                c.DC,
@@ -407,6 +410,7 @@ func (c *Client) CreateContext() *adapter.Context {
 			},
 		},
 		c.autoFetchReply,
+		c.ConversationManager,
 	)
 }
 
