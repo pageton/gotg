@@ -21,7 +21,7 @@ func (ctx *Context) GetInlineBotResults(chatID int64, botUsername string, reques
 			return nil, err
 		}
 		switch {
-		case c.IsAUser():
+		case c.IsUser():
 			bot = &storage.Peer{
 				ID:         c.GetID(),
 				AccessHash: c.GetAccessHash(),

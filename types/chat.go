@@ -29,11 +29,11 @@ type EffectiveChat interface {
 	// Use this method to get access hash of the effective chat.
 	GetAccessHash() int64
 	// Use this method to check if the effective chat is a channel.
-	IsAChannel() bool
+	IsChannel() bool
 	// Use this method to check if the effective chat is a chat.
-	IsAChat() bool
+	IsChat() bool
 	// Use this method to check if the effective chat is a user.
-	IsAUser() bool
+	IsUser() bool
 	// Use this method to get InputUserClass
 	GetInputUser() tg.InputUserClass
 	// Use this method to get InputUserClass
@@ -75,21 +75,21 @@ func (*EmptyUC) GetInputPeer() tg.InputPeerClass {
 	return nil
 }
 
-// IsAChannel returns true for a channel.
+// IsChannel returns true for a channel.
 // Always false for EmptyUC
-func (*EmptyUC) IsAChannel() bool {
+func (*EmptyUC) IsChannel() bool {
 	return false
 }
 
-// IsAChat returns true for a chat.
+// IsChat returns true for a chat.
 // Always false for EmptyUC
-func (*EmptyUC) IsAChat() bool {
+func (*EmptyUC) IsChat() bool {
 	return false
 }
 
-// IsAUser returns true for a user.
+// IsUser returns true for a user.
 // Always false for EmptyUC
-func (*EmptyUC) IsAUser() bool {
+func (*EmptyUC) IsUser() bool {
 	return false
 }
 
@@ -135,18 +135,18 @@ func (v *User) GetInputPeer() tg.InputPeerClass {
 	}
 }
 
-// IsAChannel returns true for a channel.
-func (*User) IsAChannel() bool {
+// IsChannel returns true for a channel.
+func (*User) IsChannel() bool {
 	return false
 }
 
-// IsAChat returns true for a chat.
-func (*User) IsAChat() bool {
+// IsChat returns true for a chat.
+func (*User) IsChat() bool {
 	return false
 }
 
-// IsAUser returns true for a user.
-func (*User) IsAUser() bool {
+// IsUser returns true for a user.
+func (*User) IsUser() bool {
 	return true
 }
 
@@ -562,18 +562,18 @@ func (v *Channel) GetInputPeer() tg.InputPeerClass {
 	}
 }
 
-// IsAChannel returns true for a channel.
-func (*Channel) IsAChannel() bool {
+// IsChannel returns true for a channel.
+func (*Channel) IsChannel() bool {
 	return true
 }
 
-// IsAChat returns true for a chat.
-func (*Channel) IsAChat() bool {
+// IsChat returns true for a chat.
+func (*Channel) IsChat() bool {
 	return false
 }
 
-// IsAUser returns true for a user.
-func (*Channel) IsAUser() bool {
+// IsUser returns true for a user.
+func (*Channel) IsUser() bool {
 	return false
 }
 
@@ -882,18 +882,18 @@ func (v *Chat) GetInputPeer() tg.InputPeerClass {
 	}
 }
 
-// IsAChannel returns true for a channel.
-func (*Chat) IsAChannel() bool {
+// IsChannel returns true for a channel.
+func (*Chat) IsChannel() bool {
 	return false
 }
 
-// IsAChat returns true for a chat.
-func (*Chat) IsAChat() bool {
+// IsChat returns true for a chat.
+func (*Chat) IsChat() bool {
 	return true
 }
 
-// IsAUser returns true for a user.
-func (*Chat) IsAUser() bool {
+// IsUser returns true for a user.
+func (*Chat) IsUser() bool {
 	return false
 }
 
