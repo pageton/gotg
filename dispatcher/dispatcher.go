@@ -8,11 +8,13 @@ import (
 	"runtime/debug"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/adapter"
+	"github.com/pageton/gotg/conversation"
 	"github.com/pageton/gotg/storage"
 	"go.uber.org/multierr"
 )
@@ -45,6 +47,7 @@ type NativeDispatcher struct {
 	sender              *message.Sender
 	setReply            bool
 	setEntireReplyChain bool
+	convManager         *conversation.Manager
 	// Panic handles all the panics that occur during handler execution.
 	Panic PanicHandler
 	// Error handles all the unknown errors which are returned by handler callback functions.
@@ -75,8 +78,14 @@ func NewNativeDispatcher(setReply bool, setEntireReplyChain bool, eHandler Error
 		Error:               eHandler,
 		Panic:               pHandler,
 	}
+	nd.convManager = conversation.NewManager(p, 45*time.Second)
 	nd.initwg.Add(1)
 	return nd
+}
+
+// ConversationManager exposes the underlying conversation manager instance.
+func (dp *NativeDispatcher) ConversationManager() *conversation.Manager {
+	return dp.convManager
 }
 
 func defaultErrorHandler(_ *adapter.Context, _ *adapter.Update, err string) error {
@@ -143,13 +152,23 @@ func (dp *NativeDispatcher) dispatch(ctx context.Context, e tg.Entities, update 
 	if update == nil {
 		return nil
 	}
-	return dp.handleUpdate(ctx, e, update)
+	go func() {
+		if err := dp.handleUpdate(ctx, e, update); err != nil {
+			if !errors.Is(err, ContinueGroups) && !errors.Is(err, EndGroups) && !errors.Is(err, SkipCurrentGroup) {
+				log.Println("dispatcher: update handler error:", err)
+			}
+		}
+	}()
+	return nil
 }
 
 func (dp *NativeDispatcher) handleUpdate(ctx context.Context, e tg.Entities, update tg.UpdateClass) error {
-	c := adapter.NewContext(ctx, dp.client, dp.pStorage, dp.self, dp.sender, &e, dp.setReply)
+	c := adapter.NewContext(ctx, dp.client, dp.pStorage, dp.self, dp.sender, &e, dp.setReply, dp.convManager)
 	u := adapter.GetNewUpdate(c, update)
 	dp.handleUpdateRepliedToMessage(u, ctx)
+	if dp.routeConversation(u) {
+		return nil
+	}
 	var err error
 	defer func() {
 		if r := recover(); r != nil {
@@ -206,6 +225,23 @@ func (dp *NativeDispatcher) handleUpdateRepliedToMessage(u *adapter.Update, ctx 
 		}
 		msg = msg.ReplyToMessage
 	}
+}
+
+func (dp *NativeDispatcher) routeConversation(u *adapter.Update) bool {
+	if dp.convManager == nil || u == nil {
+		return false
+	}
+	msg := u.EffectiveMessage
+	if msg == nil {
+		return false
+	}
+	chatID := u.ChatID()
+	userID := u.UserID()
+	if chatID == 0 || userID == 0 {
+		return false
+	}
+	key := conversation.Key{ChatID: chatID, UserID: userID}
+	return dp.convManager.Route(key, msg)
 }
 
 func saveUsersPeers(u tg.UserClassArray, p *storage.PeerStorage) {
