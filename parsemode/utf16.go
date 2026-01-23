@@ -75,7 +75,7 @@ func ByteOffsetToUTF16Offset(s string, byteOffset int) int32 {
 
 	// Fast path for ASCII
 	ascii := true
-	for i := 0; i < byteOffset; i++ {
+	for i := range byteOffset {
 		if s[i] >= utf8.RuneSelf {
 			ascii = false
 			break

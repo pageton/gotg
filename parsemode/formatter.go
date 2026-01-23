@@ -2,6 +2,7 @@ package parsemode
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gotd/td/tg"
 )
@@ -32,71 +33,57 @@ func NewFormatHelper(mode FormatterMode) *FormatHelper {
 	return &FormatHelper{mode: mode}
 }
 
-// Helper function to escape special characters in MarkdownV2.
-func escapeMarkdown(text string) string {
-	// Characters that need to be escaped in MarkdownV2
-	specialChars := []string{"_", "*", "[", "]", "(", ")", "~", "`", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"}
-	result := text
-	for _, char := range specialChars {
-		result = fmt.Sprintf("%s\\%s", result, char)
-		// Simple replacement - not perfect but functional
-	}
-	// Fix the above implementation - we need to escape each special char properly
-	// Let's use a simpler approach
-	return escapeMarkdownV2(text)
-}
-
 func escapeMarkdownV2(text string) string {
 	// Escape special characters in MarkdownV2
 	// Order matters for some characters
 	escapeMap := map[rune]string{
-		'_':  "\\_",
-		'*':  "\\*",
-		'[':  "\\[",
-		']':  "\\]",
-		'(':  "\\(",
-		')':  "\\)",
-		'~':  "\\~",
-		'`':  "\\`",
-		'>':  "\\>",
-		'#':  "\\#",
-		'+':  "\\+",
-		'-':  "\\-",
-		'=':  "\\=",
-		'|':  "\\|",
-		'{':  "\\{",
-		'}':  "\\}",
-		'.':  "\\.",
-		'!':  "\\!",
+		'_': "\\_",
+		'*': "\\*",
+		'[': "\\[",
+		']': "\\]",
+		'(': "\\(",
+		')': "\\)",
+		'~': "\\~",
+		'`': "\\`",
+		'>': "\\>",
+		'#': "\\#",
+		'+': "\\+",
+		'-': "\\-",
+		'=': "\\=",
+		'|': "\\|",
+		'{': "\\{",
+		'}': "\\}",
+		'.': "\\.",
+		'!': "\\!",
 	}
-	result := ""
+	var result strings.Builder
 	for _, r := range text {
 		if escaped, ok := escapeMap[r]; ok {
-			result += escaped
+			result.WriteString(escaped)
 		} else {
-			result += string(r)
+			result.WriteString(string(r))
 		}
 	}
-	return result
+	return result.String()
 }
 
 func escapeHTML(text string) string {
-	result := ""
+	var result strings.Builder
 	for _, r := range text {
 		switch r {
 		case '&':
-			result += "&amp;"
+			result.WriteString("&amp;")
 		case '<':
-			result += "&lt;"
+			result.WriteString("&lt;")
 		case '>':
-			result += "&gt;"
+			result.WriteString("&gt;")
 		case '"':
-			result += "&quot;"
+			result.WriteString("&quot;")
 		default:
-			result += string(r)
+			result.WriteString(string(r))
 		}
 	}
-	return result
+	return result.String()
 }
 
 // Bold formats text as bold.
@@ -280,9 +267,9 @@ func (h *FormatHelper) PreWithLanguage(text, language string) FormattedText {
 				Text: fmt.Sprintf("```%s\n%s\n```", language, text),
 				Entities: []tg.MessageEntityClass{
 					&tg.MessageEntityPre{
-						Offset:    0,
-						Length:    len(text),
-						Language:  language,
+						Offset:   0,
+						Length:   len(text),
+						Language: language,
 					},
 				},
 			}
@@ -304,9 +291,9 @@ func (h *FormatHelper) PreWithLanguage(text, language string) FormattedText {
 				Text: fmt.Sprintf(`<pre><code class="language-%s">%s</code></pre>`, language, escapedText),
 				Entities: []tg.MessageEntityClass{
 					&tg.MessageEntityPre{
-						Offset:    0,
-						Length:    len(text),
-						Language:  language,
+						Offset:   0,
+						Length:   len(text),
+						Language: language,
 					},
 				},
 			}
@@ -495,9 +482,9 @@ func (h *FormatHelper) ExpandableBlockquote(text string) FormattedText {
 			Text: fmt.Sprintf(">%s||", text),
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityBlockquote{
-					Offset:     0,
-					Length:     len(text),
-					Collapsed:  true,
+					Offset:    0,
+					Length:    len(text),
+					Collapsed: true,
 				},
 			},
 		}
@@ -507,9 +494,9 @@ func (h *FormatHelper) ExpandableBlockquote(text string) FormattedText {
 			Text: fmt.Sprintf(`<blockquote expandable>%s</blockquote>`, escapedText),
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityBlockquote{
-					Offset:     0,
-					Length:     len(text),
-					Collapsed:  true,
+					Offset:    0,
+					Length:    len(text),
+					Collapsed: true,
 				},
 			},
 		}
