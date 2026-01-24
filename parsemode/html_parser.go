@@ -9,6 +9,27 @@ import (
 	"github.com/gotd/td/tg"
 )
 
+// isValidTelegramURL validates that a URL protocol is safe for Telegram use.
+// Returns true for safe protocols (http, https, tg, mailto) and empty hrefs.
+// Returns false for dangerous protocols (javascript, data, vbscript, file).
+func isValidTelegramURL(href string) bool {
+	if href == "" {
+		return true
+	}
+	u, err := url.Parse(href)
+	if err != nil {
+		return false
+	}
+	switch u.Scheme {
+	case "http", "https", "tg", "mailto":
+		return true
+	case "javascript", "data", "vbscript", "file":
+		return false
+	default:
+		return false
+	}
+}
+
 // HTMLParser implements the Parser interface for HTML formatting.
 // It is thread-safe and can be used concurrently.
 type HTMLParser struct {
@@ -355,6 +376,15 @@ func (p *HTMLParser) tagToEntity(tag tag) tg.MessageEntityClass {
 // parseAnchorTag converts an <a> tag to the appropriate Telegram entity.
 func (p *HTMLParser) parseAnchorTag(tag tag) tg.MessageEntityClass {
 	href := tag.Attrs["href"]
+
+	// Validate URL protocol to prevent XSS
+	if !isValidTelegramURL(href) {
+		// Unsafe URL - treat as plain text without URL entity
+		return &tg.MessageEntityURL{
+			Offset: int(tag.Offset),
+			Length: int(tag.Length),
+		}
+	}
 
 	switch {
 	case href == "":
