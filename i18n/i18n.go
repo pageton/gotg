@@ -90,11 +90,31 @@ func (t *Translator) loadEmbeddedLocales(fs embed.FS, dir string, langs []langua
 
 		switch t.format {
 		case FormatFTL:
-			path := fmt.Sprintf("%s/%s.ftl", dir, lang)
-			content, err = fs.ReadFile(path)
+			ext := ".ftl"
+			// Try with directory prefix first (if dir is not empty or ".")
+			if dir != "" && dir != "." {
+				path := fmt.Sprintf("%s/%s%s", dir, lang, ext)
+				content, err = fs.ReadFile(path)
+			}
+			// Fallback: try without directory prefix (for files embedded at root)
+			// Always try fallback if first attempt failed or was skipped
+			if err != nil || dir == "" || dir == "." {
+				path := fmt.Sprintf("%s%s", lang, ext)
+				content, err = fs.ReadFile(path)
+			}
 		case FormatYAML:
-			path := fmt.Sprintf("%s/%s.yaml", dir, lang)
-			content, err = fs.ReadFile(path)
+			ext := ".yaml"
+			// Try with directory prefix first (if dir is not empty or ".")
+			if dir != "" && dir != "." {
+				path := fmt.Sprintf("%s/%s%s", dir, lang, ext)
+				content, err = fs.ReadFile(path)
+			}
+			// Fallback: try without directory prefix (for files embedded at root)
+			// Always try fallback if first attempt failed or was skipped
+			if err != nil || dir == "" || dir == "." {
+				path := fmt.Sprintf("%s%s", lang, ext)
+				content, err = fs.ReadFile(path)
+			}
 		}
 
 		if err != nil {
@@ -529,4 +549,17 @@ func (t *Translator) GetWithCtx(langTag string, key string, ctx *Args) string {
 	}
 
 	return t.formatMessage(msg.Value, ctx)
+}
+
+// DebugLocaleLoadInfo returns information about what locales were loaded
+// Useful for troubleshooting embedded locale issues
+func (t *Translator) DebugLocaleLoadInfo() (loadedLangs []language.Tag, loadedCount int) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	langs := make([]language.Tag, 0, len(t.locales))
+	for lang := range t.locales {
+		langs = append(langs, lang)
+	}
+	return langs, len(t.locales)
 }
