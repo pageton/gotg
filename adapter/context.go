@@ -16,6 +16,8 @@ import (
 	"github.com/pageton/gotg/types"
 )
 
+// generateRandomID generates a random int64 for use in Telegram API calls.
+// Random IDs are required by Telegram for duplicate request prevention.
 func (ctx *Context) generateRandomID() int64 {
 	return ctx.random.Int63()
 }
@@ -60,6 +62,7 @@ func (ctx *Context) SendMedia(chatID int64, request *tg.MessagesSendMediaRequest
 			return nil, err
 		}
 	}
+
 	var m = &tg.Message{}
 	m.Message = request.Message
 	u, err := ctx.Raw.MessagesSendMedia(ctx, request)
@@ -136,6 +139,7 @@ func (ctx *Context) EditMessage(chatID int64, request *tg.MessagesEditMessageReq
 			return nil, err
 		}
 	}
+
 	upds, err := ctx.Raw.MessagesEditMessage(ctx, request)
 	message, err := functions.ReturnEditMessageWithError(ctx.PeerStorage, upds, err)
 	if err != nil {
@@ -149,6 +153,14 @@ func (ctx *Context) EditMessage(chatID int64, request *tg.MessagesEditMessageReq
 }
 
 // EditCaption edits the caption of a media message.
+//
+// Parameters:
+//   - chatID: The chat ID containing the message
+//   - messageID: The ID of the message to edit
+//   - caption: The new caption text
+//   - entities: Optional formatting entities for the caption
+//
+// Returns the edited Message or an error.
 func (ctx *Context) EditCaption(chatID int64, messageID int, caption string, entities []tg.MessageEntityClass) (*types.Message, error) {
 	req := &tg.MessagesEditMessageRequest{
 		ID:       messageID,
@@ -158,7 +170,14 @@ func (ctx *Context) EditCaption(chatID int64, messageID int, caption string, ent
 	return ctx.EditMessage(chatID, req)
 }
 
-// EditReplyMarkup edits only the reply markup of a message.
+// EditReplyMarkup edits only the reply markup (inline keyboard) of a message.
+//
+// Parameters:
+//   - chatID: The chat ID containing the message
+//   - messageID: The ID of the message to edit
+//   - markup: The new reply markup (inline keyboard or force reply)
+//
+// Returns the edited Message or an error.
 func (ctx *Context) EditReplyMarkup(chatID int64, messageID int, markup tg.ReplyMarkupClass) (*types.Message, error) {
 	req := &tg.MessagesEditMessageRequest{
 		ID:          messageID,
@@ -218,7 +237,14 @@ func (ctx *Context) GetUser(userID int64) (*tg.UserFull, error) {
 }
 
 // GetChatMember fetches information about a chat member.
-// Returns tg.ChannelParticipantClass for channels, or an error.
+// For channels, returns tg.ChannelParticipantClass with member details.
+// For regular chats, this is not yet implemented and returns an error.
+//
+// Parameters:
+//   - chatID: The channel ID to query
+//   - userID: The user ID to look up
+//
+// Returns the participant information or an error.
 func (ctx *Context) GetChatMember(chatID, userID int64) (tg.ChannelParticipantClass, error) {
 	peer, err := ctx.ResolveInputPeerByID(chatID)
 	if err != nil {
@@ -249,12 +275,25 @@ func (ctx *Context) GetChatMember(chatID, userID int64) (tg.ChannelParticipantCl
 	}
 }
 
-// GetMessages is used to fetch messages from a PM (Private Chat).
+// GetMessages fetches messages from a chat by their IDs.
+//
+// Parameters:
+//   - chatID: The chat ID containing the messages
+//   - messageIDs: List of message identifiers (InputMessageID, InputMessageReplyTo, etc.)
+//
+// Returns the fetched messages or an error.
 func (ctx *Context) GetMessages(chatID int64, messageIDs []tg.InputMessageClass) ([]tg.MessageClass, error) {
 	return functions.GetMessages(ctx.Context, ctx.Raw, ctx.PeerStorage, chatID, messageIDs)
 }
 
-// BanChatMember is used to ban a user from a chat.
+// BanChatMember bans a user from a chat until a specified date.
+//
+// Parameters:
+//   - chatID: The chat ID (channel, group, or supergroup)
+//   - userID: The user ID to ban
+//   - untilDate: Unix timestamp for ban expiration (0 for permanent)
+//
+// Returns updates confirming the action or an error.
 func (ctx *Context) BanChatMember(chatID, userID int64, untilDate int) (tg.UpdatesClass, error) {
 	inputPeerChat, err := ctx.ResolveInputPeerByID(chatID)
 	if err != nil {
@@ -284,7 +323,13 @@ func (ctx *Context) BanChatMember(chatID, userID int64, untilDate int) (tg.Updat
 	return functions.BanChatMember(ctx, ctx.Raw, inputPeerChat, inputPeerUser, untilDate)
 }
 
-// UnbanChatMember is used to unban a user from a chat.
+// UnbanChatMember unbans a previously banned user from a channel.
+//
+// Parameters:
+//   - chatID: The channel ID
+//   - userID: The user ID to unban
+//
+// Returns true if successful, or an error.
 func (ctx *Context) UnbanChatMember(chatID, userID int64) (bool, error) {
 	var inputPeerChat *tg.InputPeerChannel
 	inputPeer, err := ctx.ResolveInputPeerByID(chatID)
@@ -316,7 +361,14 @@ func (ctx *Context) UnbanChatMember(chatID, userID int64) (bool, error) {
 	return functions.UnbanChatMember(ctx, ctx.Raw, inputPeerChat, inputPeerUser)
 }
 
-// AddChatMembers is used to add members to a chat
+// AddChatMembers adds multiple users to a chat.
+//
+// Parameters:
+//   - chatID: The chat ID (channel or group)
+//   - userIDs: List of user IDs to add
+//   - forwardLimit: Number of messages to forward from chat history (0-100)
+//
+// Returns true if successful, or an error.
 func (ctx *Context) AddChatMembers(chatID int64, userIDs []int64, forwardLimit int) (bool, error) {
 	inputPeerChat, err := ctx.ResolveInputPeerByID(chatID)
 	if err != nil {
@@ -558,6 +610,8 @@ func (ctx *Context) ResolveUsername(username string) (types.EffectiveChat, error
 	)
 }
 
+// extractContactResolvedPeer converts a ContactsResolvedPeer response to an EffectiveChat.
+// Used internally by ResolveUsername.
 func (ctx *Context) extractContactResolvedPeer(p *tg.ContactsResolvedPeer, err error) (types.EffectiveChat, error) {
 	if err != nil {
 		return &types.EmptyUC{}, err
@@ -795,6 +849,14 @@ func (ctx *Context) ResolveInputPeerByID(id int64) (tg.InputPeerClass, error) {
 }
 
 // ResolvePeerByID tries to resolve given id to peer.
+// ResolvePeerByID resolves a peer ID to a storage.Peer with metadata.
+// Unlike ResolveInputPeerByID, this returns the stored peer information
+// including ID, access hash, type, and username.
+//
+// Parameters:
+//   - id: The peer ID to resolve
+//
+// Returns the Peer information or nil if not found.
 func (ctx *Context) ResolvePeerByID(id int64) *storage.Peer {
 	_, _ = ctx.ResolveInputPeerByID(id)
 	peer := ctx.PeerStorage.GetPeerByID(id)
@@ -818,6 +880,13 @@ func (ctx *Context) ResolvePeerByID(id int64) *storage.Peer {
 	return peer
 }
 
+// PinMessage pins a message in a chat.
+//
+// Parameters:
+//   - chatID: The chat ID containing the message
+//   - messageID: The message ID to pin
+//
+// Returns updates confirming the action or an error.
 func (ctx *Context) PinMessage(chatID int64, messageID int) (tg.UpdatesClass, error) {
 	if chatID == 0 {
 		return nil, fmt.Errorf("chat ID cannot be empty")
@@ -844,6 +913,12 @@ func (ctx *Context) PinMessage(chatID int64, messageID int) (tg.UpdatesClass, er
 }
 
 // UnpinMessage unpins a specific message in a chat.
+//
+// Parameters:
+//   - chatID: The chat ID containing the message
+//   - messageID: The message ID to unpin
+//
+// Returns an error if the operation fails.
 func (ctx *Context) UnpinMessage(chatID int64, messageID int) error {
 	if chatID == 0 {
 		return fmt.Errorf("chat ID cannot be empty")
@@ -870,6 +945,11 @@ func (ctx *Context) UnpinMessage(chatID int64, messageID int) error {
 }
 
 // UnpinAllMessages unpins all messages in a chat.
+//
+// Parameters:
+//   - chatID: The chat ID containing pinned messages
+//
+// Returns an error if the operation fails.
 func (ctx *Context) UnpinAllMessages(chatID int64) error {
 	if chatID == 0 {
 		return fmt.Errorf("chat ID cannot be empty")
