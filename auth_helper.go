@@ -9,6 +9,9 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Flow wraps auth.Flow to add custom sign-up handling.
+// It extends the standard Telegram authentication flow with support for
+// interactive sign-up prompts when required.
 type Flow auth.Flow
 
 func (f Flow) handleSignUp(ctx context.Context, client auth.FlowClient, phone, hash string, s *auth.SignUpRequired) error {

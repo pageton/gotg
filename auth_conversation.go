@@ -14,12 +14,37 @@ type (
 	}
 )
 
+// SendAuthStatus sends an authentication status event to the conversator.
+//
+// This is used to inform the user about the current state of the
+// authentication process (phone number, OTP, password, etc.).
+//
+// Parameters:
+//   - conversator: The conversator to send the status to
+//   - event: The authentication status event containing status and attempts info
+//
+// Example:
+//
+//	SendAuthStatus(conversator, gotg.AuthStatusPhoneAsked)
 func SendAuthStatus(conversator AuthConversator, event AuthStatusEvent) {
 	conversator.AuthStatus(AuthStatus{
 		Event: event,
 	})
 }
 
+// SendAuthStatusWithRetrials sends an authentication status event with retry count.
+//
+// This extends SendAuthStatus by including the number of attempts remaining
+// before the authentication process should be considered failed.
+//
+// Parameters:
+//   - conversator: The conversator to send the status to
+//   - event: The authentication status event containing status info
+//   - attemptsLeft: Number of authentication attempts remaining
+//
+// Example:
+//
+//	SendAuthStatusWithRetrials(conversator, gotg.AuthStatusPhoneAsked, 2)
 func SendAuthStatusWithRetrials(conversator AuthConversator, event AuthStatusEvent, attemptsLeft int) {
 	conversator.AuthStatus(AuthStatus{
 		Event:        event,
@@ -59,6 +84,17 @@ type AuthConversator interface {
 	AuthStatus(authStatus AuthStatus)
 }
 
+// BasicConversator creates a simple conversator for terminal-based authentication.
+//
+// This conversator uses standard input/output (stdio/stdout and stdin) to collect
+// user authentication information interactively.
+//
+// Returns:
+//   - An AuthConversator implementation that uses terminal I/O
+//
+// Example:
+//
+//	conversator := gotg.BasicConversator()
 func BasicConversator() AuthConversator {
 	return &basicConservator{}
 }
