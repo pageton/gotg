@@ -137,6 +137,78 @@ ctx.SendMedia(chatID, &tg.MessagesSendMediaRequest{
 })
 ```
 
+### Multi-Step Conversations
+The library provides a high-level conversation API for handling multi-step interactions with users. This is useful for flows like registration, surveys, or any scenario requiring multiple inputs from a user.
+
+```go
+import (
+    "github.com/pageton/gotg/adapter"
+    "github.com/pageton/gotg/conv"
+    "github.com/pageton/gotg/dispatcher"
+    "github.com/pageton/gotg/dispatcher/handlers"
+    "github.com/pageton/gotg/dispatcher/handlers/filters"
+)
+
+func main() {
+    client, _ := gotg.NewClient(appID, apiHash, gotg.AsBot("BOT_TOKEN"), &gotg.ClientOpts{...})
+    dp := client.Dispatcher
+    convManager := client.ConvManager
+
+    // 1. Register step handlers for your conversation flow
+    convManager.RegisterStep("reg:name", registerName)
+    convManager.RegisterStep("reg:photo", registerPhoto)
+
+    // 2. Add conversation middleware to handle automatic routing
+    dp.AddHandlerToGroup(dispatcher.Conv(dispatcher.ConvOpts{
+        Manager:        convManager,
+        CancelKeywords: []string{"cancel", "stop"},
+        CancelText:     "Conversation stopped by user.",
+        CancelReply:    true,
+    }), 0)
+
+    // 3. Add command handler to start the conversation
+    dp.AddHandler(handlers.OnCommand("register", cmdRegister, filters.Private))
+
+    client.Idle()
+}
+
+// Start the registration conversation
+func cmdRegister(u *adapter.Update) error {
+    _, err := u.StartConv("reg:name", "Starting registration! What is your name?", &adapter.ConvOpts{
+        Reply:   true,
+        Timeout: 5 * time.Minute,
+        Filter:  conv.Filters.Text,
+    })
+    return err
+}
+
+// Handle the name input
+func registerName(state *conv.State) error {
+    name := state.Text()
+    state.Set("user_name", name)
+    return state.Next("reg:photo", fmt.Sprintf("Nice to meet you %s! Please send me a photo for your profile.", name), &conv.NextOpts{
+        Filter: conv.Filters.Photo,
+    })
+}
+
+// Handle the photo input and end conversation
+func registerPhoto(state *conv.State) error {
+    name := state.GetString("user_name")
+    return state.End(fmt.Sprintf("Thank you %s! I've received your photo and your registration is complete.", name), &conv.EndOpts{
+        Reply: true,
+    })
+}
+```
+
+**Available Filters:**
+- `conv.Filters.Text` - Accepts only text messages
+- `conv.Filters.Photo` - Accepts only photo messages
+- `conv.Filters.Video` - Accepts only video messages
+- `conv.Filters.Audio` - Accepts only audio messages
+- `conv.Filters.Voice` - Accepts only voice messages
+- `conv.Filters.Media` - Accepts any media message
+- `conv.Filters.Any` - Accepts any message type
+
 ### Working with raw tl functions
 Telegram has a big library of functions, Gotg doesn't have helper for all of them currently, but you can use the raw functions to call any function you want and also utilize this library's features. Here is an example of calling the `messages.getHistory` function to get chat history:
 ```go
