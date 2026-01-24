@@ -45,6 +45,20 @@ type SqlSessionConstructor struct {
 	dialector gorm.Dialector
 }
 
+// SqlSession creates a constructor for SQLite-based session storage.
+//
+// This allows loading and saving sessions from a SQLite database file.
+//
+// Parameters:
+//   - dialector: The GORM dialector for database connection
+//
+// Returns:
+//   - A constructor that implements SessionConstructor interface
+//
+// Example:
+//
+//	dialector := sqlite.Open("telegram.db")
+//	constructor := session.SqlSession(dialector)
 func SqlSession(dialector gorm.Dialector) *SqlSessionConstructor {
 	return &SqlSessionConstructor{dialector: dialector}
 }
@@ -57,6 +71,20 @@ type PyrogramSessionConstructor struct {
 	name, value string
 }
 
+// PyrogramSession creates a constructor for Pyrogram string session format.
+//
+// Pyrogram session strings use a specific hex encoding format
+// ( '>BI?256sQ?' prefix followed by encoded session data).
+//
+// Parameters:
+//   - value: The Pyrogram session string to encode
+//
+// Returns:
+//   - A constructor that implements SessionConstructor interface
+//
+// Example:
+//
+//	constructor := session.PyrogramSession("v12345...67890abcdef")
 func PyrogramSession(value string) *PyrogramSessionConstructor {
 	return &PyrogramSessionConstructor{value: value}
 }
@@ -82,6 +110,20 @@ type TelethonSessionConstructor struct {
 	name, value string
 }
 
+// TelethonSession creates a constructor for Telethon string session format.
+//
+// Telethon session strings use a specific hex encoding format
+// ( '>BI?256sQ?' prefix followed by encoded session data).
+//
+// Parameters:
+//   - value: The Telethon session string to encode
+//
+// Returns:
+//   - A constructor that implements SessionConstructor interface
+//
+// Example:
+//
+//	constructor := session.TelethonSession("v12345...67890abcdef")
 func TelethonSession(value string) *TelethonSessionConstructor {
 	return &TelethonSessionConstructor{value: value}
 }
@@ -107,6 +149,19 @@ type StringSessionConstructor struct {
 	name, value string
 }
 
+// StringSession creates a constructor for plain string session format.
+//
+// This allows using simple string-encoded session data without hex encoding.
+//
+// Parameters:
+//   - value: The session string value
+//
+// Returns:
+//   - A constructor that implements SessionConstructor interface
+//
+// Example:
+//
+//	constructor := session.StringSession(sessionString)
 func StringSession(value string) *StringSessionConstructor {
 	return &StringSessionConstructor{value: value}
 }
@@ -129,6 +184,19 @@ type TdataSessionConstructor struct {
 	name    string
 }
 
+// TdataSession creates a constructor for Telegram Desktop session format.
+//
+// Telegram Desktop session uses a specific binary format for session storage.
+//
+// Parameters:
+//   - account: The tdesktop.Account containing session data
+//
+// Returns:
+//   - A constructor that implements SessionConstructor interface
+//
+// Example:
+//
+//	constructor := session.TdataSession(account)
 func TdataSession(account tdesktop.Account) *TdataSessionConstructor {
 	return &TdataSessionConstructor{Account: account}
 }
@@ -163,6 +231,19 @@ type GramjsSessionConstructor struct {
 	name, value string
 }
 
+// GramjsSession creates a constructor for Gram.js string session format.
+//
+// Gram.js session strings use a specific hex encoding format.
+//
+// Parameters:
+//   - value: The Gram.js session string to encode
+//
+// Returns:
+//   - A constructor that implements SessionConstructor interface
+//
+// Example:
+//
+//	constructor := session.GramjsSession("v12345...67890abcdef")
 func GramjsSession(value string) *GramjsSessionConstructor {
 	return &GramjsSessionConstructor{value: value}
 }
@@ -188,6 +269,19 @@ type JsonFileSessionConstructor struct {
 	name, filePath string
 }
 
+// JsonFileSession creates a constructor for JSON file session format.
+//
+// This allows loading and saving sessions from a local JSON file.
+//
+// Parameters:
+//   - filePath: Path to the JSON session file
+//
+// Returns:
+//   - A constructor that implements SessionConstructor interface
+//
+// Example:
+//
+//	constructor := session.JsonFileSession("/path/to/session.json")
 func JsonFileSession(filePath string) *JsonFileSessionConstructor {
 	return &JsonFileSessionConstructor{filePath: filePath}
 }
