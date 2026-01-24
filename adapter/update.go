@@ -2,12 +2,19 @@ package adapter
 
 import (
 	"fmt"
+	"html"
 	"strings"
 
 	"github.com/gotd/td/tg"
+	"github.com/pageton/gotg/parsemode"
 	"github.com/pageton/gotg/types"
 )
 
+// Args parses and returns the arguments from the update.
+// For messages, splits the message text by whitespace.
+// For callback queries, splits the callback data by whitespace.
+// For inline queries, splits the query text by whitespace.
+// Returns an empty slice if no applicable content exists.
 func (u *Update) Args() []string {
 	switch {
 	case u.EffectiveMessage != nil:
@@ -189,6 +196,8 @@ func (u *Update) EffectiveReply() *types.Message {
 	return u.EffectiveMessage.ReplyToMessage
 }
 
+// fillUserIDFromMessage populates the userID field by extracting the user ID
+// from various update types. Used internally during update construction.
 func (u *Update) fillUserIDFromMessage(selfUserID int64) {
 	if m := u.EffectiveMessage; m != nil {
 		if userPeer, ok := m.FromID.(*tg.PeerUser); ok {
@@ -211,6 +220,9 @@ func (u *Update) fillUserIDFromMessage(selfUserID int64) {
 	}
 }
 
+// ChatID returns the chat ID for this update.
+// For messages and callback queries, extracts from the peer ID.
+// Returns 0 if no chat can be determined.
 func (u *Update) ChatID() int64 {
 	if chat := u.EffectiveChat(); chat != nil {
 		return chat.GetID()
@@ -229,6 +241,10 @@ func (u *Update) ChatID() int64 {
 	return 0
 }
 
+// MsgID returns the message ID for this update.
+// For messages, returns the message ID.
+// For callback queries, returns the message ID that triggered the callback.
+// Returns 0 if no message ID exists.
 func (u *Update) MsgID() int {
 	switch {
 	case u.EffectiveMessage != nil:
@@ -240,6 +256,7 @@ func (u *Update) MsgID() int {
 	}
 }
 
+// MessageID returns the message ID for this update (alias for MsgID).
 func (u *Update) MessageID() int {
 	switch {
 	case u.EffectiveMessage != nil:
@@ -251,6 +268,8 @@ func (u *Update) MessageID() int {
 	}
 }
 
+// UserID returns the effective user ID for this update.
+// Returns 0 if no user can be determined.
 func (u *Update) UserID() int64 {
 	if user := u.EffectiveUser(); user != nil {
 		return user.GetID()
@@ -258,6 +277,8 @@ func (u *Update) UserID() int64 {
 	return 0
 }
 
+// FirstName returns the first name of the effective user.
+// Returns an empty string if no user exists.
 func (u *Update) FirstName() string {
 	if user := u.EffectiveUser(); user != nil {
 		return user.FirstName
@@ -265,6 +286,8 @@ func (u *Update) FirstName() string {
 	return ""
 }
 
+// LastName returns the last name of the effective user.
+// Returns an empty string if no user exists.
 func (u *Update) LastName() string {
 	if user := u.EffectiveUser(); user != nil {
 		return user.LastName
@@ -272,6 +295,8 @@ func (u *Update) LastName() string {
 	return ""
 }
 
+// FullName returns the full name (first name + last name) of the effective user.
+// Returns an empty string if no user exists.
 func (u *Update) FullName() string {
 	if user := u.EffectiveUser(); user != nil {
 		return user.FirstName + " " + user.LastName
@@ -279,6 +304,8 @@ func (u *Update) FullName() string {
 	return ""
 }
 
+// Username returns the username of the effective user.
+// Returns an empty string if no user exists or username is not set.
 func (u *Update) Username() string {
 	if user := u.EffectiveUser(); user != nil {
 		return user.Username
@@ -286,6 +313,8 @@ func (u *Update) Username() string {
 	return ""
 }
 
+// Usernames returns all usernames (including collected) of the effective user.
+// Returns nil if no user exists.
 func (u *Update) Usernames() []tg.Username {
 	if user := u.EffectiveUser(); user != nil {
 		return user.Usernames
@@ -293,10 +322,14 @@ func (u *Update) Usernames() []tg.Username {
 	return nil
 }
 
+// Text returns the text content of the effective message.
+// Returns an empty string if no message exists.
 func (u *Update) Text() string {
 	return u.EffectiveMessage.Text
 }
 
+// LangCode returns the language code of the effective user.
+// Returns an empty string if no user exists.
 func (u *Update) LangCode() string {
 	if user := u.EffectiveUser(); user != nil {
 		return user.LangCode
@@ -326,7 +359,7 @@ func (u *Update) Mention(args ...any) string {
 		case int64:
 			userID = v
 		case string:
-			name = v
+			name = html.EscapeString(v)
 		}
 	} else if len(args) >= 2 {
 		switch v := args[0].(type) {
@@ -336,31 +369,39 @@ func (u *Update) Mention(args ...any) string {
 			userID = v
 		}
 		if n, ok := args[1].(string); ok {
-			name = n
+			name = html.EscapeString(n)
 		}
 	}
 
 	return fmt.Sprintf("<a href='tg://user?id=%d'>%s</a>", userID, name)
 }
 
+// Delete deletes the effective message for this update.
+// Returns an error if the deletion fails.
 func (u *Update) Delete() error {
 	return u.Ctx.DeleteMessages(u.ChatID(), []int{u.MsgID()})
 }
 
+// GetUser fetches full user information for the effective user.
+// Returns nil if no user exists or on error.
 func (u *Update) GetUser() (*tg.UserFull, error) {
 	return u.Ctx.GetUser(u.UserID())
 }
 
+// Pin pins the effective message in the chat.
+// Returns updates confirming the action or an error.
 func (u *Update) Pin() (tg.UpdatesClass, error) {
 	return u.Ctx.PinMessage(u.ChatID(), u.MsgID())
 }
 
 // Unpin unpins the effective message in the chat.
+// Returns an error if the operation fails.
 func (u *Update) Unpin() error {
 	return u.Ctx.UnpinMessage(u.ChatID(), u.MsgID())
 }
 
 // UnpinAll unpins all messages in the current chat.
+// Returns an error if the operation fails.
 func (u *Update) UnpinAll() error {
 	return u.Ctx.UnpinAllMessages(u.ChatID())
 }
@@ -421,6 +462,11 @@ func (u *Update) T(key string, args ...any) string {
 	return updateTImpl(u, key, args...)
 }
 
+// SetLang sets the language preference for the effective user.
+// This requires i18n middleware to be initialized.
+//
+// Parameters:
+//   - lang: The language code (e.g., "en", "es") or language.Tag
 func (u *Update) SetLang(lang any) {
 	updateSetLangImpl(u, lang)
 }
@@ -433,4 +479,521 @@ func (u *Update) SetLang(lang any) {
 //	lang := u.GetLang()
 func (u *Update) GetLang() any {
 	return updateGetLangImpl(u)
+}
+
+// SendMessage sends a text message to the specified chat.
+// Text can be a string or any type that can be formatted with %v.
+// Default parse mode is HTML.
+//
+// NOTE: This method does NOT reply by default. To reply to a specific message,
+// set ReplyMessageID in ReplyOpts.
+//
+// Parameters:
+//   - chatID: The target chat ID (use 0 to use the current update's chat)
+//   - text: The message text
+//   - opts: Optional ReplyOpts for formatting, reply markup, etc.
+//
+// Returns the sent Message or an error.
+//
+// Example:
+//
+//	msg, err := u.SendMessage(0, "Hello, world!")  // Send to current chat (no reply)
+//	msg, err := u.SendMessage(chatID, "<b>Bold text</b>", &ReplyOpts{
+//	    ParseMode: "HTML",
+//	})
+//	// Reply to a specific message:
+//	msg, err := u.SendMessage(chatID, "Reply text", &ReplyOpts{
+//	    ReplyMessageID: 123,
+//	})
+func (u *Update) SendMessage(chatID int64, text string, opts ...*ReplyOpts) (*types.Message, error) {
+	if chatID == 0 {
+		chatID = u.ChatID()
+	}
+	if chatID == 0 {
+		return nil, fmt.Errorf("no chat found")
+	}
+
+	// Build request from opts
+	var opt *ReplyOpts
+	if len(opts) > 0 && opts[0] != nil {
+		opt = opts[0]
+	} else {
+		opt = &ReplyOpts{}
+	}
+
+	// Default parse mode is HTML
+	parseMode := opt.ParseMode
+	if parseMode == "" {
+		parseMode = HTML
+	}
+
+	// Parse HTML/Markdown to entities
+	var messageText string
+	var entities []tg.MessageEntityClass
+
+	if parseMode != ModeNone {
+		var mode parsemode.ParseMode
+		switch strings.ToUpper(strings.TrimSpace(parseMode)) {
+		case HTML:
+			mode = parsemode.ModeHTML
+		case "MARKDOWN", "MARKDOWNV2":
+			mode = parsemode.ModeMarkdown
+		default:
+			mode = parsemode.ModeNone
+		}
+
+		result, err := parsemode.Parse(text, mode)
+		if err == nil && result != nil {
+			messageText = result.Text
+			entities = result.Entities
+		} else {
+			messageText = text
+		}
+	} else {
+		messageText = text
+	}
+
+	// Build the send request
+	req := &tg.MessagesSendMessageRequest{
+		Message:  messageText,
+		Entities: entities,
+	}
+
+	// Set reply markup
+	if opt.Markup != nil {
+		req.ReplyMarkup = opt.Markup
+	}
+
+	// Set flags
+	if opt.NoWebpage {
+		req.Flags |= 4
+		req.NoWebpage = true
+	}
+	if opt.Silent {
+		req.Silent = true
+	}
+	if opt.ClearDraft {
+		req.ClearDraft = true
+	}
+	if opt.NoForwards {
+		req.Noforwards = true
+	}
+	if opt.ScheduleDate != 0 {
+		req.ScheduleDate = int(opt.ScheduleDate)
+	}
+	if opt.Effect != 0 {
+		req.Effect = opt.Effect
+	}
+
+	// Add ReplyTo if ReplyMessageID is set
+	if opt.ReplyMessageID != 0 {
+		req.ReplyTo = &tg.InputReplyToMessage{
+			ReplyToMsgID: opt.ReplyMessageID,
+		}
+	}
+
+	return u.Ctx.SendMessage(chatID, req)
+}
+
+// SendMedia sends media (photo, document, video, etc.) to the chat associated with this update.
+// Accepts tg.InputMediaClass (e.g., InputMediaPhoto, InputMediaDocument).
+// Default parse mode for caption is HTML.
+//
+// NOTE: This method does NOT reply by default. To reply to a specific message,
+// set ReplyMessageID in ReplyMediaOpts.
+//
+// Parameters:
+//   - media: The media to send (tg.InputMediaClass)
+//   - caption: Optional caption text
+//   - opts: Optional ReplyMediaOpts
+//
+// Returns the sent Message or an error.
+//
+// Example using InputMedia:
+//
+//	msg, err := u.SendMedia(&tg.InputMediaPhoto{
+//	    ID: &tg.InputPhoto{ID: photoID, AccessHash: accessHash},
+//	}, "Photo caption")
+//
+// Example using fileID (convert with types.InputMediaFromFileID):
+//
+//	media, _ := types.InputMediaFromFileID(fileID, "caption")
+//	msg, err := u.SendMedia(media, "caption")
+//
+// Example replying to a specific message:
+//
+//	msg, err := u.SendMedia(media, "caption", &ReplyMediaOpts{
+//	    ReplyMessageID: 123,
+//	})
+func (u *Update) SendMedia(media tg.InputMediaClass, caption string, opts ...*ReplyMediaOpts) (*types.Message, error) {
+	chatID := u.ChatID()
+	if chatID == 0 {
+		return nil, fmt.Errorf("no chat found")
+	}
+
+	var opt *ReplyMediaOpts
+	if len(opts) > 0 && opts[0] != nil {
+		opt = opts[0]
+	} else {
+		opt = &ReplyMediaOpts{}
+	}
+
+	// Default parse mode is HTML
+	parseMode := opt.ParseMode
+	if parseMode == "" {
+		parseMode = HTML
+	}
+
+	// If caption passed directly, use it
+	if caption != "" && opt.Caption == "" {
+		opt.Caption = caption
+	}
+
+	// Parse caption for entities
+	var captionText string
+	var entities []tg.MessageEntityClass
+
+	if opt.Caption != "" && parseMode != ModeNone {
+		var mode parsemode.ParseMode
+		switch strings.ToUpper(strings.TrimSpace(parseMode)) {
+		case HTML:
+			mode = parsemode.ModeHTML
+		case "MARKDOWN", "MARKDOWNV2":
+			mode = parsemode.ModeMarkdown
+		default:
+			mode = parsemode.ModeNone
+		}
+
+		result, err := parsemode.Parse(opt.Caption, mode)
+		if err == nil && result != nil {
+			captionText = result.Text
+			entities = result.Entities
+		} else {
+			captionText = opt.Caption
+		}
+	} else {
+		captionText = opt.Caption
+	}
+
+	// Build the send media request
+	req := &tg.MessagesSendMediaRequest{
+		Media:    media,
+		Message:  captionText,
+		Entities: entities,
+	}
+
+	// Set reply markup
+	if opt.Markup != nil {
+		req.ReplyMarkup = opt.Markup
+	}
+
+	// Set flags
+	if opt.Silent {
+		req.Silent = true
+	}
+	if opt.ClearDraft {
+		req.ClearDraft = true
+	}
+	if opt.NoForwards {
+		req.Noforwards = true
+	}
+	if opt.ScheduleDate != 0 {
+		req.ScheduleDate = int(opt.ScheduleDate)
+	}
+	if opt.InvertMedia {
+		req.InvertMedia = true
+	}
+
+	// Add ReplyTo if ReplyMessageID is set
+	if opt.ReplyMessageID != 0 {
+		req.ReplyTo = &tg.InputReplyToMessage{
+			ReplyToMsgID: opt.ReplyMessageID,
+		}
+	}
+
+	return u.Ctx.SendMedia(chatID, req)
+}
+
+// SendMultiMedia sends multiple media items as an album to the chat associated with this update.
+// Albums can contain up to 10 media items.
+//
+// NOTE: This method does NOT reply by default. To reply to a specific message,
+// set ReplyMessageID in ReplyMediaOpts.
+//
+// Parameters:
+//   - media: Slice of InputMediaClass items
+//   - opts: Optional ReplyMediaOpts (applied to all items)
+//
+// Returns the sent Message or an error.
+//
+// Example:
+//
+//	msgs, err := u.SendMultiMedia([]tg.InputMediaClass{
+//	    &tg.InputMediaPhoto{ID: &tg.InputPhoto{...}},
+//	    &tg.InputMediaPhoto{ID: &tg.InputPhoto{...}},
+//	}, nil)
+//
+// Example replying to a specific message:
+//
+//	msgs, err := u.SendMultiMedia(media, &ReplyMediaOpts{
+//	    ReplyMessageID: 123,
+//	})
+func (u *Update) SendMultiMedia(media []tg.InputMediaClass, opts ...*ReplyMediaOpts) (*types.Message, error) {
+	chatID := u.ChatID()
+	if chatID == 0 {
+		return nil, fmt.Errorf("no chat found")
+	}
+
+	if len(media) == 0 {
+		return nil, fmt.Errorf("media slice cannot be empty")
+	}
+
+	var opt *ReplyMediaOpts
+	if len(opts) > 0 && opts[0] != nil {
+		opt = opts[0]
+	} else {
+		opt = &ReplyMediaOpts{}
+	}
+
+	// Default parse mode is HTML
+	parseMode := opt.ParseMode
+	if parseMode == "" {
+		parseMode = HTML
+	}
+
+	// Build single media request with array
+	// Note: SendMultiMedia uses MessagesSendMultiMediaRequest
+
+	inputMedia := make([]tg.InputSingleMedia, len(media))
+	for i, m := range media {
+		var caption string
+		var entities []tg.MessageEntityClass
+
+		// Parse caption if provided
+		if opt.Caption != "" && parseMode != ModeNone {
+			var mode parsemode.ParseMode
+			switch strings.ToUpper(strings.TrimSpace(parseMode)) {
+			case HTML:
+				mode = parsemode.ModeHTML
+			case "MARKDOWN", "MARKDOWNV2":
+				mode = parsemode.ModeMarkdown
+			default:
+				mode = parsemode.ModeNone
+			}
+
+			result, err := parsemode.Parse(opt.Caption, mode)
+			if err == nil && result != nil {
+				caption = result.Text
+				entities = result.Entities
+			} else {
+				caption = opt.Caption
+			}
+		}
+
+		inputMedia[i] = tg.InputSingleMedia{
+			Media:    m,
+			RandomID: u.Ctx.generateRandomID(),
+			Message:  caption,
+			Entities: entities,
+		}
+	}
+
+	req := &tg.MessagesSendMultiMediaRequest{
+		MultiMedia: inputMedia,
+	}
+
+	// Set flags
+	if opt.Silent {
+		req.Silent = true
+	}
+	if opt.ClearDraft {
+		req.ClearDraft = true
+	}
+	if opt.NoForwards {
+		req.Noforwards = true
+	}
+	if opt.ScheduleDate != 0 {
+		req.ScheduleDate = int(opt.ScheduleDate)
+	}
+
+	// Add ReplyTo if ReplyMessageID is set
+	if opt.ReplyMessageID != 0 {
+		req.ReplyTo = &tg.InputReplyToMessage{
+			ReplyToMsgID: opt.ReplyMessageID,
+		}
+	}
+
+	return u.Ctx.SendMultiMedia(chatID, req)
+}
+
+// EditMessage edits a message in the specified chat.
+// Text can be a string or any type that can be formatted with %v.
+// Default parse mode is HTML.
+//
+// Parameters:
+//   - chatID: The target chat ID (use 0 to use the current update's chat)
+//   - messageID: The ID of the message to edit
+//   - text: New message text
+//   - opts: Optional ReplyOpts for entities, reply markup, etc.
+//
+// Returns the edited Message or an error.
+//
+// Example:
+//
+//	msg, err := u.EditMessage(0, 123, "Updated text")  // Edit in current chat
+//	msg, err := u.EditMessage(chatID, 123, "<b>Updated</b>", &ReplyOpts{
+//	    ParseMode: "HTML",
+//	})
+func (u *Update) EditMessage(chatID int64, messageID int, text string, opts ...*ReplyOpts) (*types.Message, error) {
+	if chatID == 0 {
+		chatID = u.ChatID()
+	}
+	if chatID == 0 {
+		return nil, fmt.Errorf("no chat found")
+	}
+
+	var opt *ReplyOpts
+	if len(opts) > 0 && opts[0] != nil {
+		opt = opts[0]
+	} else {
+		opt = &ReplyOpts{}
+	}
+
+	// Default parse mode is HTML
+	parseMode := opt.ParseMode
+	if parseMode == "" {
+		parseMode = HTML
+	}
+
+	// Parse HTML/Markdown to entities
+	var messageText string
+	var entities []tg.MessageEntityClass
+
+	if parseMode != ModeNone {
+		var mode parsemode.ParseMode
+		switch strings.ToUpper(strings.TrimSpace(parseMode)) {
+		case HTML:
+			mode = parsemode.ModeHTML
+		case "MARKDOWN", "MARKDOWNV2":
+			mode = parsemode.ModeMarkdown
+		default:
+			mode = parsemode.ModeNone
+		}
+
+		result, err := parsemode.Parse(text, mode)
+		if err == nil && result != nil {
+			messageText = result.Text
+			entities = result.Entities
+		} else {
+			messageText = text
+		}
+	} else {
+		messageText = text
+	}
+
+	// Build the edit request
+	req := &tg.MessagesEditMessageRequest{
+		ID:        messageID,
+		Message:   messageText,
+		Entities:  entities,
+		NoWebpage: opt.NoWebpage,
+	}
+
+	// Set reply markup
+	if opt.Markup != nil {
+		req.ReplyMarkup = opt.Markup
+	}
+
+	return u.Ctx.EditMessage(chatID, req)
+}
+
+// EditMessageMedia edits the media of a specific message in the specified chat.
+// Accepts tg.InputMediaClass (e.g., InputMediaPhoto, InputMediaDocument).
+// This differs from EditMedia() which edits the current update's effective message.
+//
+// Parameters:
+//   - chatID: The target chat ID (use 0 to use the current update's chat)
+//   - messageID: The ID of the message to edit
+//   - media: The new media (tg.InputMediaClass)
+//   - caption: New caption text
+//   - opts: Optional ReplyMediaOpts
+//
+// Returns the edited Message or an error.
+//
+// Example using InputMedia:
+//
+//	msg, err := u.EditMessageMedia(0, 123, &tg.InputMediaPhoto{
+//	    ID: &tg.InputPhoto{ID: photoID, AccessHash: accessHash},
+//	}, "New caption")  // Edit in current chat
+//
+// Example using fileID (convert with types.InputMediaFromFileID):
+//
+//	media, _ := types.InputMediaFromFileID(fileID, "caption")
+//	msg, err := u.EditMessageMedia(chatID, 123, media, "caption")
+func (u *Update) EditMessageMedia(chatID int64, messageID int, media tg.InputMediaClass, caption string, opts ...*ReplyMediaOpts) (*types.Message, error) {
+	if chatID == 0 {
+		chatID = u.ChatID()
+	}
+	if chatID == 0 {
+		return nil, fmt.Errorf("no chat found")
+	}
+
+	var opt *ReplyMediaOpts
+	if len(opts) > 0 && opts[0] != nil {
+		opt = opts[0]
+	} else {
+		opt = &ReplyMediaOpts{}
+	}
+
+	// Default parse mode is HTML
+	parseMode := opt.ParseMode
+	if parseMode == "" {
+		parseMode = HTML
+	}
+
+	// If caption passed directly, use it
+	if caption != "" && opt.Caption == "" {
+		opt.Caption = caption
+	}
+
+	// Parse caption for entities
+	var captionText string
+	var entities []tg.MessageEntityClass
+
+	if opt.Caption != "" && parseMode != ModeNone {
+		var mode parsemode.ParseMode
+		switch strings.ToUpper(strings.TrimSpace(parseMode)) {
+		case HTML:
+			mode = parsemode.ModeHTML
+		case "MARKDOWN", "MARKDOWNV2":
+			mode = parsemode.ModeMarkdown
+		default:
+			mode = parsemode.ModeNone
+		}
+
+		result, err := parsemode.Parse(opt.Caption, mode)
+		if err == nil && result != nil {
+			captionText = result.Text
+			entities = result.Entities
+		} else {
+			captionText = opt.Caption
+		}
+	} else {
+		captionText = opt.Caption
+	}
+
+	// Build the edit request
+	req := &tg.MessagesEditMessageRequest{
+		ID:       messageID,
+		Media:    media,
+		Message:  captionText,
+		Entities: entities,
+	}
+
+	// Set reply markup
+	if opt.Markup != nil {
+		req.ReplyMarkup = opt.Markup
+	}
+
+	return u.Ctx.EditMessage(chatID, req)
 }
