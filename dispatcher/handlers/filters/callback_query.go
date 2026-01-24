@@ -1,7 +1,7 @@
 package filters
 
 import (
-	"strings"
+	"bytes"
 
 	"github.com/gotd/td/tg"
 )
@@ -14,23 +14,36 @@ func (*callbackQueryFilters) All(_ *tg.UpdateBotCallbackQuery) bool {
 }
 
 // Prefix returns true if the tg.UpdateBotCallbackQuery's Data field contains provided prefix.
+// Optimized: Uses bytes.Index instead of string conversion
 func (*callbackQueryFilters) Prefix(prefix string) CallbackQueryFilter {
+	if len(prefix) == 0 {
+		return func(cbq *tg.UpdateBotCallbackQuery) bool {
+			return len(cbq.Data) > 0
+		}
+	}
 	return func(cbq *tg.UpdateBotCallbackQuery) bool {
-		return strings.HasPrefix(string(cbq.Data), prefix)
+		return bytes.HasPrefix(cbq.Data, []byte(prefix))
 	}
 }
 
 // Suffix returns true if the tg.UpdateBotCallbackQuery's Data field contains provided suffix.
+// Optimized: Uses bytes operations instead of string conversion
 func (*callbackQueryFilters) Suffix(suffix string) CallbackQueryFilter {
+	if len(suffix) == 0 {
+		return func(cbq *tg.UpdateBotCallbackQuery) bool {
+			return len(cbq.Data) > 0
+		}
+	}
 	return func(cbq *tg.UpdateBotCallbackQuery) bool {
-		return strings.HasSuffix(string(cbq.Data), suffix)
+		return bytes.HasSuffix(cbq.Data, []byte(suffix))
 	}
 }
 
 // Equal checks if the tg.UpdateBotCallbackQuery's Data field is equal to the provided data and returns true if matches.
+// Optimized: Uses bytes.Equal instead of string conversion
 func (*callbackQueryFilters) Equal(data string) CallbackQueryFilter {
 	return func(cbq *tg.UpdateBotCallbackQuery) bool {
-		return string(cbq.Data) == data
+		return bytes.Equal(cbq.Data, []byte(data))
 	}
 }
 

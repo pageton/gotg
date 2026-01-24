@@ -21,9 +21,10 @@ func (*inlineQuery) Prefix(prefix string) InlineQueryFilter {
 }
 
 // Suffix returns true if the tg.UpdateBotInlineQuery's Query field contains provided suffix.
+// BUGFIX: Was using HasPrefix, now correctly uses HasSuffix
 func (*inlineQuery) Suffix(suffix string) InlineQueryFilter {
 	return func(iq *tg.UpdateBotInlineQuery) bool {
-		return strings.HasPrefix(iq.Query, suffix)
+		return strings.HasSuffix(iq.Query, suffix)
 	}
 }
 

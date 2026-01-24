@@ -532,25 +532,31 @@ func (*messageFilters) HasMediaSpoiler(m *types.Message) bool {
 }
 
 // RegexAdvanced returns a Regex filter with options.
+// Optimized: Uses strings.Builder instead of string concatenation
 func (*messageFilters) RegexAdvanced(pattern string, opts *RegexOptions) MessageFilter {
-	var patternPrefix string
+	// Pre-calculate capacity: pattern + potential flags (max 12 chars for "(?i)(?m)(?s)")
+	capacity := len(pattern) + 12
+	var sb strings.Builder
+	sb.Grow(capacity)
+	
 	if opts != nil {
 		if opts.IgnoreCase {
-			patternPrefix = "(?i)"
+			sb.WriteString("(?i)")
 		}
 		if opts.Multiline {
-			patternPrefix += "(?m)"
+			sb.WriteString("(?m)")
 		}
 		if opts.DotAll {
-			patternPrefix += "(?s)"
+			sb.WriteString("(?s)")
 		}
 	}
-	r := regexp.MustCompile(patternPrefix + pattern)
+	sb.WriteString(pattern)
+	
+	r := regexp.MustCompile(sb.String())
 	return func(m *types.Message) bool {
 		return r.MatchString(m.Text)
 	}
 }
-
 // RegexOptions holds optional parameters for Regex filter.
 type RegexOptions struct {
 	IgnoreCase bool
