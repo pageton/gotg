@@ -17,9 +17,9 @@ import (
 
 func main() {
 	client, err := gotg.NewClient(
-		23342721,
-		"41bc92e72bbe9aa8ba7a9d6dccc0e684",
-		gotg.AsBot("7748832654:AAFm7ViMQswnYjwQaNcYXLA2vDt-U24GdYo"),
+		0,                            // APP_ID from https://my.telegram.org/apps
+		"",                           // API_HASH from https://my.telegram.org/apps
+		gotg.AsBot("BOT_TOKEN_HERE"), // Bot token from @BotFather
 		&gotg.ClientOpts{
 			Session: session.SqlSession(sqlite.Open("conv_bot")),
 		},
