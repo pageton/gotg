@@ -41,6 +41,8 @@ type ReplyOpts struct {
 	Effect int64
 	// WithoutReply sends message without replying to the original message
 	WithoutReply bool
+	// ReplyMessageID is the message ID to reply to (instead of the current message)
+	ReplyMessageID int
 }
 
 // ReplyMediaOpts contains optional parameters for ReplyMedia method.
@@ -94,6 +96,8 @@ type ReplyMediaOpts struct {
 	Spoiler bool
 	// WithoutReply sends media without replying to the original message
 	WithoutReply bool
+	// ReplyMessageID is the message ID to reply to (instead of the current message)
+	ReplyMessageID int
 }
 
 // Reply sends a reply to the current update's message.
@@ -164,16 +168,17 @@ func (u *Update) Reply(Text any, Opts ...*ReplyOpts) (*types.Message, error) {
 	}
 
 	// Set reply to message ID
-	if u.EffectiveMessage != nil && !opts.WithoutReply {
-		if opts.ReplyTo != nil {
-			req.ReplyTo = opts.ReplyTo
-		} else {
-			req.ReplyTo = &tg.InputReplyToMessage{
-				ReplyToMsgID: u.EffectiveMessage.ID,
-			}
+	// Priority: ReplyMessageID > ReplyTo field > current message ID
+	if opts.ReplyMessageID != 0 {
+		req.ReplyTo = &tg.InputReplyToMessage{
+			ReplyToMsgID: opts.ReplyMessageID,
 		}
 	} else if opts.ReplyTo != nil {
 		req.ReplyTo = opts.ReplyTo
+	} else if u.EffectiveMessage != nil && !opts.WithoutReply {
+		req.ReplyTo = &tg.InputReplyToMessage{
+			ReplyToMsgID: u.EffectiveMessage.ID,
+		}
 	}
 
 	// Set reply markup
@@ -218,8 +223,18 @@ func (u *Update) Reply(Text any, Opts ...*ReplyOpts) (*types.Message, error) {
 }
 
 // ReplyMedia sends a media reply to the current update's message.
-// Media should be a tg.InputMediaClass (InputMediaPhoto, InputMediaDocument, etc.).
+// Accepts tg.InputMediaClass (e.g., InputMediaPhoto, InputMediaDocument).
 // Default parse mode for caption is HTML.
+//
+// Example using InputMedia:
+//
+//	newMsg, err := u.ReplyMedia(&tg.InputMediaPhoto{
+//	    ID: &tg.InputPhoto{ID: photoID, AccessHash: accessHash},
+//	}, &adapter.ReplyMediaOpts{
+//	    Caption: "Photo caption",
+//	})
+//
+// For using fileID strings, see ReplyMediaWithFileID.
 func (u *Update) ReplyMedia(Media tg.InputMediaClass, Opts ...*ReplyMediaOpts) (*types.Message, error) {
 	if Media == nil {
 		return nil, fmt.Errorf("media cannot be nil")
@@ -275,16 +290,17 @@ func (u *Update) ReplyMedia(Media tg.InputMediaClass, Opts ...*ReplyMediaOpts) (
 	}
 
 	// Set reply to message ID
-	if u.EffectiveMessage != nil && !opts.WithoutReply {
-		if opts.ReplyTo != nil {
-			req.ReplyTo = opts.ReplyTo
-		} else {
-			req.ReplyTo = &tg.InputReplyToMessage{
-				ReplyToMsgID: u.EffectiveMessage.ID,
-			}
+	// Priority: ReplyMessageID > ReplyTo field > current message ID
+	if opts.ReplyMessageID != 0 {
+		req.ReplyTo = &tg.InputReplyToMessage{
+			ReplyToMsgID: opts.ReplyMessageID,
 		}
 	} else if opts.ReplyTo != nil {
 		req.ReplyTo = opts.ReplyTo
+	} else if u.EffectiveMessage != nil && !opts.WithoutReply {
+		req.ReplyTo = &tg.InputReplyToMessage{
+			ReplyToMsgID: u.EffectiveMessage.ID,
+		}
 	}
 
 	// Set reply markup
@@ -322,6 +338,30 @@ func (u *Update) ReplyMedia(Media tg.InputMediaClass, Opts ...*ReplyMediaOpts) (
 	}
 
 	return u.Ctx.SendMedia(chatID, req)
+}
+
+// ReplyMediaWithFileID sends a media reply to the current update's message using a fileID string.
+// The fileID should be obtained from a previous Message's FileID(), Document().FileID(), or Photo().FileID() method.
+// Default parse mode for caption is HTML.
+//
+// Example:
+//
+//	fileID := msg.FileID()  // or msg.Document().FileID() or msg.Photo().FileID()
+//	newMsg, err := u.ReplyMediaWithFileID(fileID, &adapter.ReplyMediaOpts{
+//	    Caption: "Here's the media you requested",
+//	})
+func (u *Update) ReplyMediaWithFileID(fileID string, Opts ...*ReplyMediaOpts) (*types.Message, error) {
+	// Extract caption from opts to pass to InputMediaFromFileID
+	var caption string
+	if len(Opts) > 0 && Opts[0] != nil {
+		caption = Opts[0].Caption
+	}
+
+	media, err := types.InputMediaFromFileID(fileID, caption)
+	if err != nil {
+		return nil, fmt.Errorf("invalid fileID: %w", err)
+	}
+	return u.ReplyMedia(media, Opts...)
 }
 
 // Edit edits the current update's message text.
@@ -472,7 +512,17 @@ func (u *Update) Edit(Text any, Opts ...*ReplyOpts) (*types.Message, error) {
 }
 
 // EditMedia edits the media of the current update's message.
-// Media should be a tg.InputMediaClass (InputMediaPhoto, InputMediaDocument, etc.).
+// Accepts tg.InputMediaClass (e.g., InputMediaPhoto, InputMediaDocument).
+//
+// Example using InputMedia:
+//
+//	editedMsg, err := u.EditMedia(&tg.InputMediaPhoto{
+//	    ID: &tg.InputPhoto{ID: photoID, AccessHash: accessHash},
+//	}, &adapter.ReplyMediaOpts{
+//	    Caption: "New photo",
+//	})
+//
+// For using fileID strings, see EditMediaWithFileID.
 func (u *Update) EditMedia(Media tg.InputMediaClass, Opts ...*ReplyMediaOpts) (*types.Message, error) {
 	if Media == nil {
 		return nil, fmt.Errorf("media cannot be nil")
@@ -534,6 +584,29 @@ func (u *Update) EditMedia(Media tg.InputMediaClass, Opts ...*ReplyMediaOpts) (*
 	}
 
 	return u.Ctx.EditMessage(u.ChatID(), req)
+}
+
+// EditMediaWithFileID edits the media of the current update's message using a fileID string.
+// The fileID should be obtained from a previous Message's FileID(), Document().FileID(), or Photo().FileID() method.
+//
+// Example:
+//
+//	fileID := newMsg.FileID()
+//	editedMsg, err := u.EditMediaWithFileID(fileID, &adapter.ReplyMediaOpts{
+//	    Caption: "Updated media!",
+//	})
+func (u *Update) EditMediaWithFileID(fileID string, Opts ...*ReplyMediaOpts) (*types.Message, error) {
+	// Extract caption from opts to pass to InputMediaFromFileID
+	var caption string
+	if len(Opts) > 0 && Opts[0] != nil {
+		caption = Opts[0].Caption
+	}
+
+	media, err := types.InputMediaFromFileID(fileID, caption)
+	if err != nil {
+		return nil, fmt.Errorf("invalid fileID: %w", err)
+	}
+	return u.EditMedia(media, Opts...)
 }
 
 // EditCaption edits the caption of the current update's media message.
@@ -626,6 +699,9 @@ func (u *Update) EditReplyMarkup(Markup tg.ReplyMarkupClass) (*types.Message, er
 	return u.Ctx.EditMessage(u.ChatID(), req)
 }
 
+// ChatType returns the type of chat for this update.
+// Returns "private" for users, "group" for chats, "channel" for channels,
+// or an empty string if the chat type cannot be determined.
 func (u *Update) ChatType() string {
 	chat := u.EffectiveChat()
 	if chat == nil {
