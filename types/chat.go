@@ -3,6 +3,7 @@ package types
 import (
 	"context"
 	"fmt"
+	"html"
 	"reflect"
 	"strings"
 
@@ -45,50 +46,50 @@ type EffectiveChat interface {
 // EmptyUC implements EffectiveChat interface for empty chats.
 type EmptyUC struct{}
 
-// Use this method to get chat id.
-// Always 0 for EmptyUC
+// GetID returns the chat ID.
+// Always returns 0 for EmptyUC.
 func (*EmptyUC) GetID() int64 {
 	return 0
 }
 
-// Use this method to get access hash of effective chat.
-// Always 0 for EmptyUC
+// GetAccessHash returns the access hash for API authentication.
+// Always returns 0 for EmptyUC.
 func (*EmptyUC) GetAccessHash() int64 {
 	return 0
 }
 
-// Use this method to get InputUserClass
-// Always nil for EmptyUC
+// GetInputUser returns the InputUser for this peer.
+// Always returns nil for EmptyUC.
 func (*EmptyUC) GetInputUser() tg.InputUserClass {
 	return nil
 }
 
-// Use this method to get InputChannelClass
-// Always nil for EmptyUC
+// GetInputChannel returns the InputChannel for this peer.
+// Always returns nil for EmptyUC.
 func (*EmptyUC) GetInputChannel() tg.InputChannelClass {
 	return nil
 }
 
-// Use this method to get InputPeerClass
-// Always nil for EmptyUC
+// GetInputPeer returns the InputPeer for this peer.
+// Always returns nil for EmptyUC.
 func (*EmptyUC) GetInputPeer() tg.InputPeerClass {
 	return nil
 }
 
-// IsChannel returns true for a channel.
-// Always false for EmptyUC
+// IsChannel returns true if this effective chat is a channel.
+// Always returns false for EmptyUC.
 func (*EmptyUC) IsChannel() bool {
 	return false
 }
 
-// IsChat returns true for a chat.
-// Always false for EmptyUC
+// IsChat returns true if this effective chat is a group chat.
+// Always returns false for EmptyUC.
 func (*EmptyUC) IsChat() bool {
 	return false
 }
 
-// IsUser returns true for a user.
-// Always false for EmptyUC
+// IsUser returns true if this effective chat is a user (private chat).
+// Always returns false for EmptyUC.
 func (*EmptyUC) IsUser() bool {
 	return false
 }
@@ -103,17 +104,17 @@ type User struct {
 	SelfID      int64
 }
 
-// Use this method to get chat id.
+// GetID returns the user ID.
 func (u *User) GetID() int64 {
 	return u.ID
 }
 
-// Use this method to get access hash of the effective chat.
+// GetAccessHash returns the access hash for API authentication.
 func (u *User) GetAccessHash() int64 {
 	return u.AccessHash
 }
 
-// Use this method to get InputUserClass
+// GetInputUser returns the InputUser for API calls.
 func (v *User) GetInputUser() tg.InputUserClass {
 	return &tg.InputUser{
 		UserID:     v.ID,
@@ -121,13 +122,13 @@ func (v *User) GetInputUser() tg.InputUserClass {
 	}
 }
 
-// Use this method to get InputChannelClass
-// Always nil for User
+// GetInputChannel returns the InputChannel for this peer.
+// Always returns nil for User (users are not channels).
 func (*User) GetInputChannel() tg.InputChannelClass {
 	return nil
 }
 
-// Use this method to get InputPeerClass
+// GetInputPeer returns the InputPeer for API calls.
 func (v *User) GetInputPeer() tg.InputPeerClass {
 	return &tg.InputPeerUser{
 		UserID:     v.ID,
@@ -135,21 +136,25 @@ func (v *User) GetInputPeer() tg.InputPeerClass {
 	}
 }
 
-// IsChannel returns true for a channel.
+// IsChannel returns true if this effective chat is a channel.
+// Always returns false for User.
 func (*User) IsChannel() bool {
 	return false
 }
 
-// IsChat returns true for a chat.
+// IsChat returns true if this effective chat is a group chat.
+// Always returns false for User.
 func (*User) IsChat() bool {
 	return false
 }
 
-// IsUser returns true for a user.
+// IsUser returns true if this effective chat is a user (private chat).
+// Always returns true for User.
 func (*User) IsUser() bool {
 	return true
 }
 
+// Raw returns the underlying tg.User struct.
 func (u *User) Raw() *tg.User {
 	return &u.User
 }
@@ -175,7 +180,7 @@ func (u *User) Mention(args ...any) string {
 		case int64:
 			userID = v
 		case string:
-			name = v
+			name = html.EscapeString(v)
 		}
 	} else if len(args) >= 2 {
 		switch v := args[0].(type) {
@@ -185,7 +190,7 @@ func (u *User) Mention(args ...any) string {
 			userID = v
 		}
 		if n, ok := args[1].(string); ok {
-			name = n
+			name = html.EscapeString(n)
 		}
 	}
 
@@ -528,25 +533,26 @@ type Channel struct {
 	SelfID      int64
 }
 
-// Use this method to get chat id.
+// GetID returns the channel ID in TDLib format.
+// The ID is encoded with the channel prefix for proper peer identification.
 func (u *Channel) GetID() int64 {
 	var ID constant.TDLibPeerID
 	ID.Channel(u.ID)
 	return int64(ID)
 }
 
-// Use this method to get access hash of the effective chat.
+// GetAccessHash returns the access hash for API authentication.
 func (u *Channel) GetAccessHash() int64 {
 	return u.AccessHash
 }
 
-// Use this method to get InputUserClass
-// Always nil for Channel
+// GetInputUser returns the InputUser for this peer.
+// Always returns nil for Channel (channels are not users).
 func (*Channel) GetInputUser() tg.InputUserClass {
 	return nil
 }
 
-// Use this method to get InputChannelClass
+// GetInputChannel returns the InputChannel for API calls.
 func (v *Channel) GetInputChannel() tg.InputChannelClass {
 	return &tg.InputChannel{
 		ChannelID:  v.ID,
@@ -554,7 +560,7 @@ func (v *Channel) GetInputChannel() tg.InputChannelClass {
 	}
 }
 
-// Use this method to get InputPeerClass
+// GetInputPeer returns the InputPeer for API calls.
 func (v *Channel) GetInputPeer() tg.InputPeerClass {
 	return &tg.InputPeerChannel{
 		ChannelID:  v.ID,
@@ -562,21 +568,25 @@ func (v *Channel) GetInputPeer() tg.InputPeerClass {
 	}
 }
 
-// IsChannel returns true for a channel.
+// IsChannel returns true if this effective chat is a channel.
+// Always returns true for Channel.
 func (*Channel) IsChannel() bool {
 	return true
 }
 
-// IsChat returns true for a chat.
+// IsChat returns true if this effective chat is a group chat.
+// Always returns false for Channel.
 func (*Channel) IsChat() bool {
 	return false
 }
 
-// IsUser returns true for a user.
+// IsUser returns true if this effective chat is a user (private chat).
+// Always returns false for Channel.
 func (*Channel) IsUser() bool {
 	return false
 }
 
+// Raw returns the underlying tg.Channel struct.
 func (c *Channel) Raw() *tg.Channel {
 	return &c.Channel
 }
@@ -851,52 +861,58 @@ type Chat struct {
 	SelfID      int64
 }
 
-// Use this method to get chat id.
+// GetID returns the chat ID in TDLib format.
+// The ID is encoded with the chat prefix for proper peer identification.
 func (u *Chat) GetID() int64 {
 	var ID constant.TDLibPeerID
 	ID.Chat(u.ID)
 	return int64(ID)
 }
 
-// Use this method to get access hash of the effective chat.
+// GetAccessHash returns the access hash for API authentication.
+// Always returns 0 for Chat (group chats don't use access hashes).
 func (*Chat) GetAccessHash() int64 {
 	return 0
 }
 
-// Use this method to get InputUserClass
-// Always nil for Chat
+// GetInputUser returns the InputUser for this peer.
+// Always returns nil for Chat (chats are not users).
 func (*Chat) GetInputUser() tg.InputUserClass {
 	return nil
 }
 
-// Use this method to get InputChannelClass
-// Always nil for Chat
+// GetInputChannel returns the InputChannel for this peer.
+// Always returns nil for Chat (chats are not channels).
 func (*Chat) GetInputChannel() tg.InputChannelClass {
 	return nil
 }
 
-// Use this method to get InputPeerClass
+// GetInputPeer returns the InputPeer for API calls.
 func (v *Chat) GetInputPeer() tg.InputPeerClass {
 	return &tg.InputPeerChat{
 		ChatID: v.ID,
 	}
 }
 
-// IsChannel returns true for a channel.
+// IsChannel returns true if this effective chat is a channel.
+// Always returns false for Chat.
 func (*Chat) IsChannel() bool {
 	return false
 }
 
-// IsChat returns true for a chat.
+// IsChat returns true if this effective chat is a group chat.
+// Always returns true for Chat.
 func (*Chat) IsChat() bool {
 	return true
 }
 
-// IsUser returns true for a user.
+// IsUser returns true if this effective chat is a user (private chat).
+// Always returns false for Chat.
 func (*Chat) IsUser() bool {
 	return false
 }
 
+// Raw returns the underlying tg.Chat struct.
 func (c *Chat) Raw() *tg.Chat {
 	return &c.Chat
 }
