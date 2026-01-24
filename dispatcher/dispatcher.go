@@ -3,9 +3,9 @@ package dispatcher
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -14,7 +14,7 @@ import (
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/adapter"
-	"github.com/pageton/gotg/conversation"
+	"github.com/pageton/gotg/conv"
 	"github.com/pageton/gotg/storage"
 	"go.uber.org/multierr"
 )
@@ -47,7 +47,7 @@ type NativeDispatcher struct {
 	sender              *message.Sender
 	setReply            bool
 	setEntireReplyChain bool
-	convManager         *conversation.Manager
+	conv                *conv.Manager
 	// Panic handles all the panics that occur during handler execution.
 	Panic PanicHandler
 	// Error handles all the unknown errors which are returned by handler callback functions.
@@ -56,36 +56,62 @@ type NativeDispatcher struct {
 	handlerMap map[int][]Handler
 	// handlerGroups is used for internal functionality of NativeDispatcher.
 	handlerGroups []int
-	pStorage      *storage.PeerStorage
-	initwg        sync.WaitGroup
-	nextGroup     atomic.Int64
+	// handlerGroupsMu protects handlerGroups and handlerMap during registration
+	handlerGroupsMu sync.RWMutex
+	pStorage        *storage.PeerStorage
+	initwg          sync.WaitGroup
+	nextGroup       atomic.Int64
 }
 
 type PanicHandler func(*adapter.Context, *adapter.Update, string)
 type ErrorHandler func(*adapter.Context, *adapter.Update, string) error
 
 // MakeDispatcher creates new custom dispatcher which process and handles incoming updates.
+// NewNativeDispatcher creates a new native dispatcher for handling Telegram updates.
+//
+// The dispatcher manages update processing, handler registration and dispatching.
+//
+// Parameters:
+//   - setReply: Whether to set reply information for messages
+//   - setEntireReplyChain: Whether to set full reply chain (forwarded messages)
+//   - eHandler: Handler for unknown errors
+//   - pHandler: Handler for panic recovery
+//   - p: Peer storage for caching peers
+//
+// Returns:
+//   - A new NativeDispatcher instance configured and ready to use
+//
+// Example:
+//
+//	dp := dispatcher.NewNativeDispatcher(
+//	    true,   // set reply info
+//	    true,   // set reply chain
+//	    nil,   // default error handler
+//	    nil,   // default panic handler
+//	    peerStorage,
+//	)
 func NewNativeDispatcher(setReply bool, setEntireReplyChain bool, eHandler ErrorHandler, pHandler PanicHandler, p *storage.PeerStorage) *NativeDispatcher {
 	if eHandler == nil {
 		eHandler = defaultErrorHandler
 	}
+	// Pre-allocate handlerGroups with reasonable capacity to avoid early reallocations
 	nd := &NativeDispatcher{
 		pStorage:            p,
 		handlerMap:          make(map[int][]Handler),
-		handlerGroups:       make([]int, 0),
+		handlerGroups:       make([]int, 0, 8), // Pre-allocate for 8 groups
 		setReply:            setReply,
 		setEntireReplyChain: setEntireReplyChain,
 		Error:               eHandler,
 		Panic:               pHandler,
 	}
-	nd.convManager = conversation.NewManager(p, 45*time.Second)
+	nd.conv = conv.NewManager(p, 1*time.Minute)
 	nd.initwg.Add(1)
 	return nd
 }
 
-// ConversationManager exposes the underlying conversation manager instance.
-func (dp *NativeDispatcher) ConversationManager() *conversation.Manager {
-	return dp.convManager
+// ConvManager exposes the underlying conversation manager instance.
+func (dp *NativeDispatcher) ConvManager() *conv.Manager {
+	return dp.conv
 }
 
 func defaultErrorHandler(_ *adapter.Context, _ *adapter.Update, err string) error {
@@ -95,11 +121,12 @@ func defaultErrorHandler(_ *adapter.Context, _ *adapter.Update, err string) erro
 
 type entities tg.Entities
 
+// Optimized: Use nil maps instead of empty maps to avoid allocations
 func (u *entities) short() {
 	u.Short = true
-	u.Users = make(map[int64]*tg.User, 0)
-	u.Chats = make(map[int64]*tg.Chat, 0)
-	u.Channels = make(map[int64]*tg.Channel, 0)
+	u.Users = nil
+	u.Chats = nil
+	u.Channels = nil
 }
 
 func (dp *NativeDispatcher) Initialize(ctx context.Context, cancel context.CancelFunc, client *telegram.Client, self *tg.User) {
@@ -154,7 +181,8 @@ func (dp *NativeDispatcher) dispatch(ctx context.Context, e tg.Entities, update 
 	}
 	go func() {
 		if err := dp.handleUpdate(ctx, e, update); err != nil {
-			if !errors.Is(err, ContinueGroups) && !errors.Is(err, EndGroups) && !errors.Is(err, SkipCurrentGroup) {
+			// Optimized: Single error comparison using switch
+			if !isControlError(err) {
 				log.Println("dispatcher: update handler error:", err)
 			}
 		}
@@ -162,17 +190,20 @@ func (dp *NativeDispatcher) dispatch(ctx context.Context, e tg.Entities, update 
 	return nil
 }
 
+// isControlError checks if error is a control flow error (not a real error)
+// Optimized: Single function for all control error checks
+func isControlError(err error) bool {
+	return errors.Is(err, ContinueGroups) || errors.Is(err, EndGroups) || errors.Is(err, SkipCurrentGroup)
+}
+
 func (dp *NativeDispatcher) handleUpdate(ctx context.Context, e tg.Entities, update tg.UpdateClass) error {
-	c := adapter.NewContext(ctx, dp.client, dp.pStorage, dp.self, dp.sender, &e, dp.setReply, dp.convManager)
+	c := adapter.NewContext(ctx, dp.client, dp.pStorage, dp.self, dp.sender, &e, dp.setReply, dp.conv)
 	u := adapter.GetNewUpdate(c, update)
 	dp.handleUpdateRepliedToMessage(u, ctx)
-	if dp.routeConversation(u) {
-		return nil
-	}
 	var err error
 	defer func() {
 		if r := recover(); r != nil {
-			errorStack := fmt.Sprintf("%s\n", r) + string(debug.Stack())
+			errorStack := buildErrorStack(r)
 			if dp.Panic != nil {
 				dp.Panic(c, u, errorStack)
 				return
@@ -181,20 +212,30 @@ func (dp *NativeDispatcher) handleUpdate(ctx context.Context, e tg.Entities, upd
 			}
 		}
 	}()
-	for _, group := range dp.handlerGroups {
-		for _, handler := range dp.handlerMap[group] {
+
+	// Optimized: Read handler groups once per update (read lock)
+	dp.handlerGroupsMu.RLock()
+	groups := make([]int, len(dp.handlerGroups))
+	copy(groups, dp.handlerGroups)
+	dp.handlerGroupsMu.RUnlock()
+
+	for _, group := range groups {
+		handlers := dp.handlerMap[group]
+		for _, handler := range handlers {
 			err = handler.CheckUpdate(c, u)
-			if err == nil || errors.Is(err, ContinueGroups) {
+			// Optimized: Use direct error comparison instead of errors.Is for known sentinel errors
+			if err == nil || err == ContinueGroups {
 				continue
-			} else if errors.Is(err, EndGroups) {
+			} else if err == EndGroups {
 				return err
-			} else if errors.Is(err, SkipCurrentGroup) {
+			} else if err == SkipCurrentGroup {
 				break
-			} else if errors.Is(err, StopClient) {
+			} else if err == StopClient {
 				dp.cancel()
 				return nil
 			} else {
 				err = dp.Error(c, u, err.Error())
+				// Optimized: Direct comparison for sentinel errors
 				switch err {
 				case ContinueGroups:
 					continue
@@ -207,6 +248,33 @@ func (dp *NativeDispatcher) handleUpdate(ctx context.Context, e tg.Entities, upd
 		}
 	}
 	return err
+}
+
+// buildErrorStack builds error stack string efficiently using strings.Builder
+func buildErrorStack(r any) string {
+	stack := debug.Stack()
+
+	// Optimized: Use strings.Builder instead of concatenation
+	var sb strings.Builder
+	// Pre-allocate capacity based on stack size plus panic message
+	sb.Grow(len(stack) + 64)
+	sb.WriteString("panic: ")
+	sb.WriteString(interfaceToString(r))
+	sb.WriteString("\n")
+	sb.Write(stack)
+	return sb.String()
+}
+
+// interfaceToString converts interface{} to string efficiently
+func interfaceToString(v any) string {
+	if s, ok := v.(string); ok {
+		return s
+	}
+	if err, ok := v.(error); ok {
+		return err.Error()
+	}
+	// Fallback
+	return "unknown panic"
 }
 
 func (dp *NativeDispatcher) handleUpdateRepliedToMessage(u *adapter.Update, ctx context.Context) {
@@ -225,23 +293,6 @@ func (dp *NativeDispatcher) handleUpdateRepliedToMessage(u *adapter.Update, ctx 
 		}
 		msg = msg.ReplyToMessage
 	}
-}
-
-func (dp *NativeDispatcher) routeConversation(u *adapter.Update) bool {
-	if dp.convManager == nil || u == nil {
-		return false
-	}
-	msg := u.EffectiveMessage
-	if msg == nil {
-		return false
-	}
-	chatID := u.ChatID()
-	userID := u.UserID()
-	if chatID == 0 || userID == 0 {
-		return false
-	}
-	key := conversation.Key{ChatID: chatID, UserID: userID}
-	return dp.convManager.Route(key, msg)
 }
 
 func saveUsersPeers(u tg.UserClassArray, p *storage.PeerStorage) {

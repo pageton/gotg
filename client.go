@@ -16,7 +16,7 @@ import (
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/adapter"
-	"github.com/pageton/gotg/conversation"
+	"github.com/pageton/gotg/conv"
 	"github.com/pageton/gotg/dispatcher"
 	intErrors "github.com/pageton/gotg/errors"
 	"github.com/pageton/gotg/functions"
@@ -30,8 +30,8 @@ const VERSION = "v1.0.0-beta23"
 
 type Client struct {
 	// Dispatcher handlers the incoming updates and execute mapped handlers. It is recommended to use dispatcher.MakeDispatcher function for this field.
-	Dispatcher          dispatcher.Dispatcher
-	ConversationManager *conversation.Manager
+	Dispatcher  dispatcher.Dispatcher
+	ConvManager *conv.Manager
 	// PublicKeys of telegram.
 	//
 	// If not provided, embedded public keys will be used.
@@ -227,35 +227,35 @@ func NewClient(apiID int, apiHash string, clientType clientType, opts *ClientOpt
 	}
 
 	c := Client{
-		Resolver:            opts.Resolver,
-		PublicKeys:          opts.PublicKeys,
-		DC:                  opts.DC,
-		DCList:              opts.DCList,
-		MigrationTimeout:    opts.MigrationTimeout,
-		AckBatchSize:        opts.AckBatchSize,
-		AckInterval:         opts.AckInterval,
-		RetryInterval:       opts.RetryInterval,
-		MaxRetries:          opts.MaxRetries,
-		ExchangeTimeout:     opts.ExchangeTimeout,
-		DialTimeout:         opts.DialTimeout,
-		CompressThreshold:   opts.CompressThreshold,
-		DisableCopyright:    opts.DisableCopyright,
-		Logger:              opts.Logger,
-		SystemLangCode:      opts.SystemLangCode,
-		ClientLangCode:      opts.ClientLangCode,
-		NoAutoAuth:          opts.NoAutoAuth,
-		NoUpdates:           opts.NoUpdates,
-		authConversator:     opts.AuthConversator,
-		Dispatcher:          d,
-		ConversationManager: d.ConversationManager(),
-		PeerStorage:         peerStorage,
-		sessionStorage:      sessionStorage,
-		clientType:          clientType,
-		ctx:                 ctx,
-		autoFetchReply:      opts.AutoFetchReply,
-		cancel:              cancel,
-		apiID:               apiID,
-		apiHash:             apiHash,
+		Resolver:          opts.Resolver,
+		PublicKeys:        opts.PublicKeys,
+		DC:                opts.DC,
+		DCList:            opts.DCList,
+		MigrationTimeout:  opts.MigrationTimeout,
+		AckBatchSize:      opts.AckBatchSize,
+		AckInterval:       opts.AckInterval,
+		RetryInterval:     opts.RetryInterval,
+		MaxRetries:        opts.MaxRetries,
+		ExchangeTimeout:   opts.ExchangeTimeout,
+		DialTimeout:       opts.DialTimeout,
+		CompressThreshold: opts.CompressThreshold,
+		DisableCopyright:  opts.DisableCopyright,
+		Logger:            opts.Logger,
+		SystemLangCode:    opts.SystemLangCode,
+		ClientLangCode:    opts.ClientLangCode,
+		NoAutoAuth:        opts.NoAutoAuth,
+		NoUpdates:         opts.NoUpdates,
+		authConversator:   opts.AuthConversator,
+		Dispatcher:        d,
+		ConvManager:       d.ConvManager(),
+		PeerStorage:       peerStorage,
+		sessionStorage:    sessionStorage,
+		clientType:        clientType,
+		ctx:               ctx,
+		autoFetchReply:    opts.AutoFetchReply,
+		cancel:            cancel,
+		apiID:             apiID,
+		apiHash:           apiHash,
 	}
 
 	if opts.SendCodeOptions != nil {
@@ -410,7 +410,7 @@ func (c *Client) CreateContext() *adapter.Context {
 			},
 		},
 		c.autoFetchReply,
-		c.ConversationManager,
+		c.ConvManager,
 	)
 }
 

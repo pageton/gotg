@@ -9,7 +9,7 @@ import (
 
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/tg"
-	"github.com/pageton/gotg/conversation"
+	"github.com/pageton/gotg/conv"
 	"github.com/pageton/gotg/storage"
 	"github.com/pageton/gotg/types"
 )
@@ -35,10 +35,10 @@ type Context struct {
 	// original context of client.
 	context.Context
 
-	setReply      bool
-	random        *rand.Rand
-	PeerStorage   *storage.PeerStorage
-	Conversations *conversation.Manager
+	setReply    bool
+	random      *rand.Rand
+	PeerStorage *storage.PeerStorage
+	Conv        *conv.Manager
 	// Translator for i18n support
 	Translator interface {
 		Get(userID int64, key string, args ...any) string
@@ -75,17 +75,17 @@ type Update struct {
 }
 
 // NewContext creates a new Context object with provided parameters.
-func NewContext(ctx context.Context, client *tg.Client, peerStorage *storage.PeerStorage, self *tg.User, sender *message.Sender, entities *tg.Entities, setReply bool, conv *conversation.Manager) *Context {
+func NewContext(ctx context.Context, client *tg.Client, peerStorage *storage.PeerStorage, self *tg.User, sender *message.Sender, entities *tg.Entities, setReply bool, conv *conv.Manager) *Context {
 	return &Context{
-		Context:       ctx,
-		Raw:           client,
-		Self:          self,
-		Sender:        sender,
-		Entities:      entities,
-		random:        rand.New(rand.NewSource(time.Now().UnixNano())),
-		setReply:      setReply,
-		PeerStorage:   peerStorage,
-		Conversations: conv,
+		Context:     ctx,
+		Raw:         client,
+		Self:        self,
+		Sender:      sender,
+		Entities:    entities,
+		random:      rand.New(rand.NewSource(time.Now().UnixNano())),
+		setReply:    setReply,
+		PeerStorage: peerStorage,
+		Conv:        conv,
 	}
 }
 

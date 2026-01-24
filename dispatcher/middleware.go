@@ -1,7 +1,11 @@
 package dispatcher
 
 import (
+	"slices"
+
+	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/adapter"
+	"github.com/pageton/gotg/conv"
 	"github.com/pageton/gotg/i18n"
 	"golang.org/x/text/language"
 )
@@ -17,18 +21,6 @@ type I18nConfig struct {
 }
 
 // I18nMiddleware creates a middleware handler that adds i18n support to all updates.
-// The middleware runs in group 0 (before all other handlers) and initializes the translator.
-//
-// Example:
-//
-//	translator := i18n.NewTranslator(&i18n.LocaleConfig{
-//	    DefaultLang: language.English,
-//	    Session:     peerStorage,
-//	})
-//	dp.AddHandlerToGroup(I18nMiddleware(&I18nConfig{
-//	    Translator:         translator,
-//	    DetectFromTelegram: true,
-//	}), 0)
 func I18nMiddleware(config *I18nConfig) Handler {
 	return &i18nMiddlewareHandler{
 		config: config,
@@ -59,7 +51,6 @@ func (a *translatorAdapter) GetLang(userID int64) any {
 }
 
 // CheckUpdate initializes the translator for each update and passes it through.
-// This middleware does not consume the update - it always returns ContinueGroups.
 func (m *i18nMiddlewareHandler) CheckUpdate(ctx *adapter.Context, update *adapter.Update) error {
 	if m.config == nil || m.config.Translator == nil {
 		return ContinueGroups
@@ -80,4 +71,111 @@ func (m *i18nMiddlewareHandler) CheckUpdate(ctx *adapter.Context, update *adapte
 
 	// Continue processing the update
 	return ContinueGroups
+}
+
+type ConvOpts struct {
+	Manager        *conv.Manager
+	CancelKeywords []string
+	CancelReply    bool
+	CancelOpts     *adapter.ReplyOpts
+	CancelText     string
+}
+
+func Conv(opts ConvOpts) Handler {
+	return &conversationMiddlewareHandler{
+		manager:        opts.Manager,
+		cancelKeywords: opts.CancelKeywords,
+		cancelReply:    opts.CancelReply,
+		cancelOpts:     opts.CancelOpts,
+		cancelText:     opts.CancelText,
+	}
+}
+
+func ConvMiddleware(manager *conv.Manager, cancelKeywords ...string) Handler {
+	return Conv(ConvOpts{
+		Manager:        manager,
+		CancelKeywords: cancelKeywords,
+	})
+}
+
+type conversationMiddlewareHandler struct {
+	manager        *conv.Manager
+	cancelKeywords []string
+	cancelReply    bool
+	cancelOpts     *adapter.ReplyOpts
+	cancelText     string
+}
+
+func (m *conversationMiddlewareHandler) CheckUpdate(ctx *adapter.Context, update *adapter.Update) error {
+	if m.manager == nil || update.EffectiveMessage == nil {
+		return ContinueGroups
+	}
+
+	msg := update.EffectiveMessage
+	// Skip if it's a command
+	if msg.Message != nil && msg.Text != "" && len(msg.Text) > 0 && msg.Text[0] == '/' {
+		return ContinueGroups
+	}
+
+	chatID := update.ChatID()
+	userID := update.UserID()
+	if chatID == 0 {
+		return ContinueGroups
+	}
+
+	key := conv.Key{ChatID: chatID, UserID: userID}
+	state, err := m.manager.LoadState(key, update.EffectiveMessage, update)
+	if err != nil || state == nil {
+		return ContinueGroups
+	}
+
+	// Handle cancel keywords
+	if msg.Message != nil && msg.Text != "" && len(m.cancelKeywords) > 0 {
+		if slices.Contains(m.cancelKeywords, msg.Text) {
+			success, wasActive, _ := update.EndConv()
+			if success && wasActive && m.cancelText != "" {
+				if m.cancelReply {
+					_, _ = update.Reply(m.cancelText, m.cancelOpts)
+				} else {
+					_, _ = update.SendMessage(0, m.cancelText, m.cancelOpts)
+				}
+			}
+			return EndGroups
+		}
+	}
+
+	// Apply filter
+	if filter := m.manager.GetFilter(key); filter != nil {
+		if !filter(update.EffectiveMessage) {
+			return ContinueGroups
+		}
+	}
+
+	handler, ok := m.manager.GetStepHandler(state.Step())
+	if !ok {
+		return ContinueGroups
+	}
+
+	// Set up callbacks
+	state.SendFn = func(text string) error {
+		_, err := update.SendMessage(0, text, nil)
+		return err
+	}
+
+	state.ReplyFn = func(text string) error {
+		_, err := update.Reply(text, nil)
+		return err
+	}
+
+	state.MediaFn = func(media tg.InputMediaClass, caption string) error {
+		_, err := update.SendMedia(media, caption, nil)
+		return err
+	}
+
+	// Execute handler
+	if err := handler(state); err != nil {
+		return err
+	}
+
+	return EndGroups
 }
