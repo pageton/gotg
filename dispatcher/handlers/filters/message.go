@@ -45,7 +45,7 @@ func (*messageFilters) ChatType(chatType ChatType) MessageFilter {
 // Chat allows the types.Message update to process if it is from that particular chat.
 func (*messageFilters) Chat(chatID int64) MessageFilter {
 	return func(m *types.Message) bool {
-		return functions.GetChatIdFromPeer(m.PeerID) == chatID
+		return functions.GetChatIDFromPeer(m.PeerID) == chatID
 	}
 }
 
@@ -53,8 +53,6 @@ func (*messageFilters) Chat(chatID int64) MessageFilter {
 func (*messageFilters) Text(m *types.Message) bool {
 	return m.Text != ""
 }
-
-
 
 // Equal checks if the message text is equal to the provided text and returns true if matches.
 func (*messageFilters) Equal(text string) MessageFilter {
@@ -538,7 +536,7 @@ func (*messageFilters) RegexAdvanced(pattern string, opts *RegexOptions) Message
 	capacity := len(pattern) + 12
 	var sb strings.Builder
 	sb.Grow(capacity)
-	
+
 	if opts != nil {
 		if opts.IgnoreCase {
 			sb.WriteString("(?i)")
@@ -551,12 +549,13 @@ func (*messageFilters) RegexAdvanced(pattern string, opts *RegexOptions) Message
 		}
 	}
 	sb.WriteString(pattern)
-	
+
 	r := regexp.MustCompile(sb.String())
 	return func(m *types.Message) bool {
 		return r.MatchString(m.Text)
 	}
 }
+
 // RegexOptions holds optional parameters for Regex filter.
 type RegexOptions struct {
 	IgnoreCase bool
