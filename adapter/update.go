@@ -241,6 +241,26 @@ func (u *Update) ChatID() int64 {
 	return 0
 }
 
+// ChannelID returns the channel ID for this update.
+// For messages and callback queries, extracts from the peer ID.
+// Returns 0 if no channel can be determined.
+func (u *Update) ChannelID() int64 {
+	if channel := u.GetChannel(); channel != nil {
+		return channel.GetID()
+	}
+	// Fallback for callback queries - extract ID directly from peer
+	if u.CallbackQuery != nil && u.CallbackQuery.Peer != nil {
+		if peer, ok := u.CallbackQuery.Peer.(*tg.PeerChannel); ok {
+			return peer.ChannelID
+		}
+	}
+	// Fallback for channel participant updates
+	if u.ChannelParticipant != nil {
+		return u.ChannelParticipant.ChannelID
+	}
+	return 0
+}
+
 // MsgID returns the message ID for this update.
 // For messages, returns the message ID.
 // For callback queries, returns the message ID that triggered the callback.
