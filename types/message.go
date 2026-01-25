@@ -128,7 +128,7 @@ func (m *Message) SetRepliedToMessage(ctx context.Context, raw *tg.Client, p *st
 	if replyTo == 0 {
 		return errors.ErrMessageNotExist
 	}
-	chatID := functions.GetChatIdFromPeer(m.PeerID)
+	chatID := functions.GetChatIDFromPeer(m.PeerID)
 	msgs, err := functions.GetMessages(ctx, raw, p, chatID, []tg.InputMessageClass{
 		&tg.InputMessageID{
 			ID: replyTo,
@@ -142,15 +142,13 @@ func (m *Message) SetRepliedToMessage(ctx context.Context, raw *tg.Client, p *st
 }
 
 // Delete deletes the message.
+// Returns error if failed to delete.
 func (m *Message) Delete() error {
 	if m.RawClient == nil {
 		return fmt.Errorf("message has no client context")
 	}
-	_, err := m.RawClient.MessagesDeleteMessages(m.Ctx, &tg.MessagesDeleteMessagesRequest{
-		ID:     []int{m.ID},
-		Revoke: true,
-	})
-	return err
+	chatID := functions.GetChatIDFromPeer(m.PeerID)
+	return functions.DeleteMessages(m.Ctx, m.RawClient, m.PeerStorage, chatID, []int{m.ID})
 }
 
 // Edit edits the message text.
@@ -161,7 +159,7 @@ func (m *Message) Edit(text string, opts ...any) (*Message, error) {
 	if m.RawClient == nil {
 		return nil, fmt.Errorf("message has no client context")
 	}
-	chatID := functions.GetChatIdFromPeer(m.PeerID)
+	chatID := functions.GetChatIDFromPeer(m.PeerID)
 	peer := m.PeerStorage.GetInputPeerByID(chatID)
 
 	var ents []tg.MessageEntityClass
@@ -261,7 +259,7 @@ func (m *Message) EditCaption(caption string, opts ...any) (*Message, error) {
 	if m.RawClient == nil {
 		return nil, fmt.Errorf("message has no client context")
 	}
-	chatID := functions.GetChatIdFromPeer(m.PeerID)
+	chatID := functions.GetChatIDFromPeer(m.PeerID)
 	peer := m.PeerStorage.GetInputPeerByID(chatID)
 
 	var ents []tg.MessageEntityClass
@@ -352,7 +350,7 @@ func (m *Message) EditReplyMarkup(markup tg.ReplyMarkupClass) (*Message, error) 
 	if m.RawClient == nil {
 		return nil, fmt.Errorf("message has no client context")
 	}
-	chatID := functions.GetChatIdFromPeer(m.PeerID)
+	chatID := functions.GetChatIDFromPeer(m.PeerID)
 	peer := m.PeerStorage.GetInputPeerByID(chatID)
 
 	req := &tg.MessagesEditMessageRequest{
@@ -383,7 +381,7 @@ func (m *Message) Reply(text string, opts ...any) (*Message, error) {
 	if m.RawClient == nil {
 		return nil, fmt.Errorf("message has no client context")
 	}
-	chatID := functions.GetChatIdFromPeer(m.PeerID)
+	chatID := functions.GetChatIDFromPeer(m.PeerID)
 	peer := m.PeerStorage.GetInputPeerByID(chatID)
 
 	var ents []tg.MessageEntityClass
@@ -444,6 +442,7 @@ func (m *Message) Reply(text string, opts ...any) (*Message, error) {
 		Peer:     peer,
 		Message:  text,
 		Entities: ents,
+		RandomID: functions.GenerateRandomID(),
 	}
 
 	// Set reply to - either custom message ID, this message, or no reply
@@ -498,7 +497,7 @@ func (m *Message) ReplyMedia(media tg.InputMediaClass, caption string, opts ...a
 	if m.RawClient == nil {
 		return nil, fmt.Errorf("message has no client context")
 	}
-	chatID := functions.GetChatIdFromPeer(m.PeerID)
+	chatID := functions.GetChatIDFromPeer(m.PeerID)
 	peer := m.PeerStorage.GetInputPeerByID(chatID)
 
 	var ents []tg.MessageEntityClass
@@ -625,7 +624,7 @@ func (m *Message) EditMedia(media tg.InputMediaClass, opts ...any) (*Message, er
 	if m.RawClient == nil {
 		return nil, fmt.Errorf("message has no client context")
 	}
-	chatID := functions.GetChatIdFromPeer(m.PeerID)
+	chatID := functions.GetChatIDFromPeer(m.PeerID)
 	peer := m.PeerStorage.GetInputPeerByID(chatID)
 
 	// Extract opts for caption and entities
@@ -760,12 +759,8 @@ func (m *Message) Pin() error {
 	if m.RawClient == nil {
 		return fmt.Errorf("message has no client context")
 	}
-	chatID := functions.GetChatIdFromPeer(m.PeerID)
-	peer := m.PeerStorage.GetInputPeerByID(chatID)
-	_, err := m.RawClient.MessagesUpdatePinnedMessage(m.Ctx, &tg.MessagesUpdatePinnedMessageRequest{
-		Peer: peer,
-		ID:   m.ID,
-	})
+	chatID := functions.GetChatIDFromPeer(m.PeerID)
+	_, err := functions.PinMessage(m.Ctx, m.RawClient, m.PeerStorage, chatID, m.ID)
 	return err
 }
 
@@ -774,14 +769,8 @@ func (m *Message) Unpin() error {
 	if m.RawClient == nil {
 		return fmt.Errorf("message has no client context")
 	}
-	chatID := functions.GetChatIdFromPeer(m.PeerID)
-	peer := m.PeerStorage.GetInputPeerByID(chatID)
-	_, err := m.RawClient.MessagesUpdatePinnedMessage(m.Ctx, &tg.MessagesUpdatePinnedMessageRequest{
-		Peer:  peer,
-		ID:    m.ID,
-		Unpin: true,
-	})
-	return err
+	chatID := functions.GetChatIDFromPeer(m.PeerID)
+	return functions.UnpinMessage(m.Ctx, m.RawClient, m.PeerStorage, chatID, m.ID)
 }
 
 // UnpinAllMessages unpins all messages in this message's chat.
@@ -789,12 +778,8 @@ func (m *Message) UnpinAllMessages() error {
 	if m.RawClient == nil {
 		return fmt.Errorf("message has no client context")
 	}
-	chatID := functions.GetChatIdFromPeer(m.PeerID)
-	peer := m.PeerStorage.GetInputPeerByID(chatID)
-	_, err := m.RawClient.MessagesUnpinAllMessages(m.Ctx, &tg.MessagesUnpinAllMessagesRequest{
-		Peer: peer,
-	})
-	return err
+	chatID := functions.GetChatIDFromPeer(m.PeerID)
+	return functions.UnpinAllMessages(m.Ctx, m.RawClient, m.PeerStorage, chatID)
 }
 
 // Download downloads the media from this message to a file path.
@@ -910,15 +895,7 @@ func (m *Message) GetUser() (*tg.UserFull, error) {
 		return nil, fmt.Errorf("message has no client context")
 	}
 
-	user, err := m.RawClient.UsersGetFullUser(m.Ctx, &tg.InputUser{
-		UserID:     peerUser.UserID,
-		AccessHash: 0,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &user.FullUser, nil
+	return functions.GetUser(m.Ctx, m.RawClient, m.PeerStorage, peerUser.UserID)
 }
 
 // Photo returns the photo if message contains photo media, nil otherwise.
@@ -1375,7 +1352,7 @@ func (m *Message) Link() string {
 		return ""
 	}
 
-	chatID := functions.GetChatIdFromPeer(m.PeerID)
+	chatID := functions.GetChatIDFromPeer(m.PeerID)
 	if chatID == 0 {
 		return ""
 	}
