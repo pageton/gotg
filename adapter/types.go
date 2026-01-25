@@ -10,6 +10,7 @@ import (
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/conv"
+	"github.com/pageton/gotg/functions"
 	"github.com/pageton/gotg/storage"
 	"github.com/pageton/gotg/types"
 )
@@ -82,7 +83,7 @@ func NewContext(ctx context.Context, client *tg.Client, peerStorage *storage.Pee
 		Self:        self,
 		Sender:      sender,
 		Entities:    entities,
-		random:      rand.New(rand.NewSource(time.Now().UnixNano())),
+		random:      functions.RandGen,
 		setReply:    setReply,
 		PeerStorage: peerStorage,
 		Conv:        conv,
