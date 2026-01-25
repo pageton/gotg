@@ -3,6 +3,7 @@ package dispatcher
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"runtime/debug"
 	"strings"
@@ -59,8 +60,10 @@ type NativeDispatcher struct {
 	// handlerGroupsMu protects handlerGroups and handlerMap during registration
 	handlerGroupsMu sync.RWMutex
 	pStorage        *storage.PeerStorage
-	initwg          sync.WaitGroup
+	initwg          *sync.WaitGroup
 	nextGroup       atomic.Int64
+	// updateWg tracks all active update goroutines for proper cleanup
+	updateWg sync.WaitGroup
 }
 
 type PanicHandler func(*adapter.Context, *adapter.Update, string)
@@ -103,8 +106,41 @@ func NewNativeDispatcher(setReply bool, setEntireReplyChain bool, eHandler Error
 		setEntireReplyChain: setEntireReplyChain,
 		Error:               eHandler,
 		Panic:               pHandler,
+		initwg:              &sync.WaitGroup{},
 	}
 	nd.conv = conv.NewManager(p, 1*time.Minute)
+	nd.initwg.Add(1)
+	return nd
+}
+
+// NewNativeDispatcherWithInit returns a partially initialized dispatcher.
+// The WaitGroup will be in a "wait state" after this function.
+// Handlers can be added after this function returns, but dispatcher must be
+// fully initialized via Initialize() before processing updates (Issue #120).
+//
+// This pattern is used by AddHandler to wait for initialization completion
+// before incrementing the group counter, preventing the race condition.
+//
+// Returns:
+//   - A NativeDispatcher with initwg.Wait() set to 1
+//   - A NativeDispatcher struct (not yet fully initialized)
+//
+// Example:
+//
+//	// BAD: This causes race condition (Issue #120)
+//	dp := NewNativeDispatcher(...)
+//	dp.AddHandler(handler)  // Counter increments while initwg.Wait() still running
+//
+//	// GOOD: This prevents the race (Issue #120)
+//	dp, initWg := NewNativeDispatcherWithInit(...)
+//	dispatcher.Initialize(dp.initwg, ...)  // Waits for initwg
+//	dp.AddHandler(handler)  // Safe - initwg.Wait() is done
+func NewNativeDispatcherWithInit(setReply bool, setEntireReplyChain bool, eHandler ErrorHandler, pHandler PanicHandler, p *storage.PeerStorage, initwg *sync.WaitGroup) *NativeDispatcher {
+	if eHandler == nil {
+		eHandler = defaultErrorHandler
+	}
+	nd := NewNativeDispatcher(setReply, setEntireReplyChain, eHandler, pHandler, p)
+	nd.initwg = initwg
 	nd.initwg.Add(1)
 	return nd
 }
@@ -164,6 +200,15 @@ func (dp *NativeDispatcher) Handle(ctx context.Context, updates tg.UpdatesClass)
 	case *tg.UpdateShort:
 		upds = []tg.UpdateClass{u.Update}
 		e.short()
+	case *tg.UpdatesTooLong:
+		// When Telegram sends UpdatesTooLong, it means that update queue is too long.
+		// We need to call UpdatesGetDifference to reset and recover update state.
+		// This prevents client from becoming unresponsive (Issue #54).
+		_, err := dp.client.UpdatesGetDifference(ctx, &tg.UpdatesGetDifferenceRequest{})
+		if err != nil {
+			return fmt.Errorf("failed to get difference after UpdatesTooLong: %w", err)
+		}
+		return nil
 	default:
 		return nil
 	}
@@ -179,7 +224,9 @@ func (dp *NativeDispatcher) dispatch(ctx context.Context, e tg.Entities, update 
 	if update == nil {
 		return nil
 	}
+	dp.updateWg.Add(1)
 	go func() {
+		defer dp.updateWg.Done()
 		if err := dp.handleUpdate(ctx, e, update); err != nil {
 			// Optimized: Single error comparison using switch
 			if !isControlError(err) {
@@ -215,8 +262,7 @@ func (dp *NativeDispatcher) handleUpdate(ctx context.Context, e tg.Entities, upd
 
 	// Optimized: Read handler groups once per update (read lock)
 	dp.handlerGroupsMu.RLock()
-	groups := make([]int, len(dp.handlerGroups))
-	copy(groups, dp.handlerGroups)
+	groups := dp.handlerGroups // Use reference instead of copy
 	dp.handlerGroupsMu.RUnlock()
 
 	for _, group := range groups {
