@@ -5,6 +5,14 @@ import (
 	"github.com/pageton/gotg/storage"
 )
 
+// GetNewMessageUpdate extracts the new message from updates.
+//
+// Parameters:
+//   - msgData: The message data to populate
+//   - upds: The updates class to extract from
+//   - p: Peer storage for resolving peer references
+//
+// Returns the new message or nil.
 func GetNewMessageUpdate(msgData *tg.Message, upds tg.UpdatesClass, p *storage.PeerStorage) *tg.Message {
 	u, ok := upds.(*tg.UpdateShortSentMessage)
 	if ok {
@@ -30,6 +38,13 @@ func GetNewMessageUpdate(msgData *tg.Message, upds tg.UpdatesClass, p *storage.P
 	return nil
 }
 
+// GetEditMessageUpdate extracts the edited message from updates.
+//
+// Parameters:
+//   - upds: The updates class to extract from
+//   - p: Peer storage for resolving peer references
+//
+// Returns the edited message or nil.
 func GetEditMessageUpdate(upds tg.UpdatesClass, p *storage.PeerStorage) *tg.Message {
 	for _, update := range GetUpdateClassFromUpdatesClass(upds, p) {
 		switch u := update.(type) {
@@ -42,6 +57,13 @@ func GetEditMessageUpdate(upds tg.UpdatesClass, p *storage.PeerStorage) *tg.Mess
 	return nil
 }
 
+// GetUpdateClassFromUpdatesClass extracts update classes from updates.
+//
+// Parameters:
+//   - updates: The updates class to extract from
+//   - p: Peer storage for resolving peer references
+//
+// Returns list of update classes.
 func GetUpdateClassFromUpdatesClass(updates tg.UpdatesClass, p *storage.PeerStorage) (u []tg.UpdateClass) {
 	u, _, _ = getUpdateFromUpdates(updates, p)
 	return
@@ -62,6 +84,12 @@ func getUpdateFromUpdates(updates tg.UpdatesClass, p *storage.PeerStorage) ([]tg
 	}
 }
 
+// GetMessageFromMessageClass extracts message from message class.
+//
+// Parameters:
+//   - m: The message class to extract from
+//
+// Returns the message or nil.
 func GetMessageFromMessageClass(m tg.MessageClass) *tg.Message {
 	msg, ok := m.(*tg.Message)
 	if !ok {
@@ -70,9 +98,17 @@ func GetMessageFromMessageClass(m tg.MessageClass) *tg.Message {
 	return msg
 }
 
-// *************************************************
-// *****************INTERNAL-HELPERS****************
-
+// ReturnNewMessageWithError returns new message with error handling.
+//
+// Internal helper function.
+//
+// Parameters:
+//   - msgData: The message data to populate
+//   - upds: The updates class to extract from
+//   - p: Peer storage for resolving peer references
+//   - err: The error to check
+//
+// Returns the new message or error.
 func ReturnNewMessageWithError(msgData *tg.Message, upds tg.UpdatesClass, p *storage.PeerStorage, err error) (*tg.Message, error) {
 	if err != nil {
 		return nil, err
@@ -83,6 +119,16 @@ func ReturnNewMessageWithError(msgData *tg.Message, upds tg.UpdatesClass, p *sto
 	return GetNewMessageUpdate(msgData, upds, p), nil
 }
 
+// ReturnEditMessageWithError returns edited message with error handling.
+//
+// Internal helper function.
+//
+// Parameters:
+//   - p: Peer storage for resolving peer references
+//   - upds: The updates class to extract from
+//   - err: The error to check
+//
+// Returns the edited message or error.
 func ReturnEditMessageWithError(p *storage.PeerStorage, upds tg.UpdatesClass, err error) (*tg.Message, error) {
 	if err != nil {
 		return nil, err

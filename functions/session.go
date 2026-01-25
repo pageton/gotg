@@ -10,6 +10,11 @@ import (
 )
 
 // EncodeSessionToString encodes the provided session to a string in base64 using json bytes.
+//
+// Parameters:
+//   - session: The session object to encode
+//
+// Returns encoded session string or an error.
 func EncodeSessionToString(session *storage.Session) (string, error) {
 	var buf bytes.Buffer
 	encoder := base64.NewEncoder(base64.StdEncoding, &buf)
@@ -22,6 +27,11 @@ func EncodeSessionToString(session *storage.Session) (string, error) {
 }
 
 // DecodeStringToSession decodes the provided base64 encoded session string to session.Data.
+//
+// Parameters:
+//   - sessionString: The base64 encoded session string to decode
+//
+// Returns decoded session or an error.
 func DecodeStringToSession(sessionString string) (*storage.Session, error) {
 	// var sessionData session.Data
 	var sessionData storage.Session
