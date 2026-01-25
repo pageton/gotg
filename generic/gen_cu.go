@@ -132,7 +132,7 @@ func GetUser[chatUnion ChatUnion](ctx *adapter.Context, user chatUnion) (*tg.Use
 }
 
 // GetChatMember is a generic helper for adapter.Context.GetChatMember method.
-func GetChatMember[chatUnion ChatUnion](ctx *adapter.Context, chat, user chatUnion) (tg.ChannelParticipantClass, error) {
+func GetChatMember[chatUnion ChatUnion](ctx *adapter.Context, chat, user chatUnion) (*types.Participant, error) {
 
 	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
