@@ -9,6 +9,7 @@ import (
 
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/conv"
+	"github.com/pageton/gotg/functions"
 	"github.com/pageton/gotg/types"
 )
 
@@ -73,10 +74,7 @@ func (u *Update) StartConvWithData(step string, text string, data map[string]any
 func (u *Update) startConv(step string, text string, data map[string]any, opts ...*ConvOpts) (*types.Message, error) {
 	key := conv.Key{ChatID: u.ChatID(), UserID: u.UserID()}
 
-	var opt *ConvOpts
-	if len(opts) > 0 && opts[0] != nil {
-		opt = opts[0]
-	}
+	opt := functions.GetOptDef(&ConvOpts{}, opts...)
 
 	var payload []byte
 	if data != nil {
@@ -106,25 +104,27 @@ func (u *Update) sendConvMessage(text string, opt *ConvOpts) (*types.Message, er
 	}
 
 	if opt.Media != nil {
-		mediaOpts := &ReplyMediaOpts{
-			Markup:    opt.ReplyMarkup,
+		mediaOpts := &SendMediaOpts{
 			ParseMode: opt.ParseMode,
 			Caption:   opt.Caption,
 		}
+		// Use the ReplyMarkup field
+		mediaOpts.ReplyMarkup = opt.ReplyMarkup
 		if opt.Reply {
 			mediaOpts.ReplyMessageID = u.MsgID()
 		}
 		return u.SendMedia(opt.Media, text, mediaOpts)
 	}
 
-	replyOpts := &ReplyOpts{
-		Markup:    opt.ReplyMarkup,
+	sendOpts := &SendOpts{
 		ParseMode: opt.ParseMode,
 	}
+	// Use the ReplyMarkup field
+	sendOpts.ReplyMarkup = opt.ReplyMarkup
 	if opt.Reply {
-		replyOpts.ReplyMessageID = u.MsgID()
+		sendOpts.ReplyMessageID = u.MsgID()
 	}
-	return u.SendMessage(0, text, replyOpts)
+	return u.SendMessage(0, text, sendOpts)
 }
 
 // EndConv terminates the active conversation for the current chat and user.

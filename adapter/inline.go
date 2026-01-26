@@ -51,7 +51,11 @@ func (ctx *Context) GetInlineBotResults(chatID int64, botUsername string, reques
 			return nil, errors.New("provided username was invalid for a bot")
 		}
 	}
-	request.Peer, _ = ctx.ResolveInputPeerByID(chatID)
+	var err error
+	request.Peer, err = ctx.ResolveInputPeerByID(chatID)
+	if err != nil {
+		return nil, err
+	}
 	request.Bot = &tg.InputUser{
 		UserID:     bot.ID,
 		AccessHash: bot.AccessHash,
@@ -73,7 +77,11 @@ func (ctx *Context) SendInlineBotResult(chatID int64, request *tg.MessagesSendIn
 	}
 	request.RandomID = ctx.generateRandomID()
 	if request.Peer == nil {
-		request.Peer, _ = ctx.ResolveInputPeerByID(chatID)
+		var err error
+		request.Peer, err = ctx.ResolveInputPeerByID(chatID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return ctx.Raw.MessagesSendInlineBotResult(ctx, request)
 }
