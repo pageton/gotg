@@ -77,7 +77,7 @@ type ConvOpts struct {
 	Manager        *conv.Manager
 	CancelKeywords []string
 	CancelReply    bool
-	CancelOpts     *adapter.ReplyOpts
+	CancelOpts     *adapter.SendOpts
 	CancelText     string
 }
 
@@ -102,7 +102,7 @@ type conversationMiddlewareHandler struct {
 	manager        *conv.Manager
 	cancelKeywords []string
 	cancelReply    bool
-	cancelOpts     *adapter.ReplyOpts
+	cancelOpts     *adapter.SendOpts
 	cancelText     string
 }
 
