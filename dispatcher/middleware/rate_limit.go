@@ -65,6 +65,8 @@ func (rh *rateLimitHandler) CheckUpdate(ctx *adapter.Context, update *adapter.Up
 	key := rh.limiter.config.KeyFunc(update)
 
 	rh.limiter.mu.Lock()
+	defer rh.limiter.mu.Unlock()
+
 	bucket, exists := rh.limiter.tokens[key]
 	if !exists {
 		bucket = &tokenBucket{
@@ -82,11 +84,9 @@ func (rh *rateLimitHandler) CheckUpdate(ctx *adapter.Context, update *adapter.Up
 
 	if bucket.tokens >= 1 {
 		bucket.tokens--
-		rh.limiter.mu.Unlock()
 		return dispatcher.ContinueGroups
 	}
 
-	rh.limiter.mu.Unlock()
 	return dispatcher.SkipCurrentGroup
 }
 
