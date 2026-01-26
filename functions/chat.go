@@ -8,7 +8,21 @@ import (
 	"github.com/pageton/gotg/storage"
 )
 
-// GetChat returns full chat information for the provided chat ID.
+// GetFullChat returns full chat details for the provided chat ID.
+// Uses ChannelsGetFullChannel for channels or MessagesGetFullChat for groups.
+//
+// Example:
+//
+//	fullChat, err := functions.GetFullChat(ctx, client.Raw, client.PeerStorage, chatID)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	switch fc := fullChat.(type) {
+//	case *tg.ChannelFull:
+//	    fmt.Printf("About: %s\n", fc.About)
+//	case *tg.ChatFull:
+//	    fmt.Printf("Participants: %d\n", len(fc.Participants.(*tg.ChatParticipants).Participants))
+//	}
 //
 // Parameters:
 //   - ctx: Context for the API call
@@ -17,7 +31,7 @@ import (
 //   - chatID: The chat ID to get full information for
 //
 // Returns full chat information or an error.
-func GetChat(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, chatID int64) (tg.ChatFullClass, error) {
+func GetFullChat(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, chatID int64) (tg.ChatFullClass, error) {
 	inputPeer := GetInputPeerClassFromID(p, chatID)
 	if inputPeer == nil {
 		return nil, errors.ErrPeerNotFound
@@ -43,90 +57,69 @@ func GetChat(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, chatID
 	}
 }
 
-// AddChatMembers adds multiple users to a chat.
+// GetChat returns basic chat information for the provided chat ID.
+// Uses MessagesGetChats for efficient single-chat lookup.
+//
+// Example:
+//
+//	chat, err := functions.GetChat(ctx, client.Raw, chatID)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	fmt.Printf("Title: %s, Participants: %d\n",
+//	    chat.Title(), len(chat.ParticipantsCount))
 //
 // Parameters:
-//   - context: Context for the API call
-//   - client: The raw Telegram client
-//   - chatPeer: The chat peer to add users to
-//   - users: List of users to add
-//   - forwardLimit: Maximum number of messages to forward from old chat
+//   - ctx: Context for the API call
+//   - raw: The raw Telegram client
+//   - chatID: The chat ID to get basic information for
 //
-// Returns true if successful, or an error.
-func AddChatMembers(context context.Context, client *tg.Client, chatPeer tg.InputPeerClass, users []tg.InputUserClass, forwardLimit int) (bool, error) {
-	switch c := chatPeer.(type) {
-	case *tg.InputPeerChat:
-		for _, user := range users {
-			user, ok := user.(*tg.InputUser)
-			if ok {
-				_, err := client.MessagesAddChatUser(context, &tg.MessagesAddChatUserRequest{
-					ChatID: c.ChatID,
-					UserID: &tg.InputUser{
-						UserID:     user.UserID,
-						AccessHash: user.AccessHash,
-					},
-					FwdLimit: forwardLimit,
-				})
-				if err != nil {
-					return false, err
-				}
-			}
-		}
-		return true, nil
+// Returns basic Chat or Channel information (no full details).
+func GetChat(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, chatID int64) (tg.ChatClass, error) {
+	inputPeer := GetInputPeerClassFromID(p, chatID)
+	if inputPeer == nil {
+		return nil, errors.ErrPeerNotFound
+	}
+	switch peer := inputPeer.(type) {
 	case *tg.InputPeerChannel:
-		_, err := client.ChannelsInviteToChannel(context, &tg.ChannelsInviteToChannelRequest{
-			Channel: &tg.InputChannel{
-				ChannelID:  c.ChannelID,
-				AccessHash: c.AccessHash,
+		chatsClass, err := raw.ChannelsGetChannels(ctx, []tg.InputChannelClass{
+			&tg.InputChannel{
+				ChannelID:  peer.ChannelID,
+				AccessHash: peer.AccessHash,
 			},
-			Users: users,
 		})
-		return err == nil, err
-	}
-	return false, nil
-}
-
-// ArchiveChats moves chats to the archive folder (folder ID 1).
-//
-// Parameters:
-//   - ctx: Context for the API call
-//   - client: The raw Telegram client
-//   - peers: List of peers to archive
-//
-// Returns true if successful, or an error.
-func ArchiveChats(ctx context.Context, client *tg.Client, peers []tg.InputPeerClass) (bool, error) {
-	var folderPeers = make([]tg.InputFolderPeer, len(peers))
-	for n, peer := range peers {
-		folderPeers[n] = tg.InputFolderPeer{
-			Peer:     peer,
-			FolderID: 1,
+		if err != nil {
+			return nil, err
 		}
-	}
-	_, err := client.FoldersEditPeerFolders(ctx, folderPeers)
-	return err == nil, err
-}
-
-// UnarchiveChats moves chats out of the archive folder (folder ID 0).
-//
-// Parameters:
-//   - ctx: Context for the API call
-//   - client: The raw Telegram client
-//   - peers: List of peers to unarchive
-//
-// Returns true if successful, or an error.
-func UnarchiveChats(ctx context.Context, client *tg.Client, peers []tg.InputPeerClass) (bool, error) {
-	var folderPeers = make([]tg.InputFolderPeer, len(peers))
-	for n, peer := range peers {
-		folderPeers[n] = tg.InputFolderPeer{
-			Peer:     peer,
-			FolderID: 0,
+		chat, ok := chatsClass.MapChats().First()
+		if !ok {
+			return nil, errors.ErrPeerNotFound
 		}
+		return chat, nil
+	case *tg.InputPeerChat:
+		chatsClass, err := raw.MessagesGetChats(ctx, []int64{chatID})
+		if err != nil {
+			return nil, err
+		}
+		chat, ok := chatsClass.MapChats().First()
+		if !ok {
+			return nil, errors.ErrPeerNotFound
+		}
+		return chat, nil
+	default:
+		return nil, errors.ErrNotChat
 	}
-	_, err := client.FoldersEditPeerFolders(ctx, folderPeers)
-	return err == nil, err
 }
 
 // CreateChannel creates a new channel (supergroup or broadcast).
+//
+// Example:
+//
+//	channel, err := functions.CreateChannel(ctx, client.Raw, client.PeerStorage, "My Channel", "Channel description", false)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	fmt.Printf("Created channel ID: %d\n", channel.ID)
 //
 // Parameters:
 //   - ctx: Context for the API call
@@ -147,10 +140,28 @@ func CreateChannel(ctx context.Context, client *tg.Client, p *storage.PeerStorag
 		return nil, err
 	}
 	_, chats, _ := getUpdateFromUpdates(udps, p)
-	return chats[0].(*tg.Channel), nil
+	if len(chats) == 0 {
+		return nil, errors.ErrPeerNotFound
+	}
+	channel, ok := chats[0].(*tg.Channel)
+	if !ok {
+		return nil, errors.ErrNotChat
+	}
+	return channel, nil
 }
 
 // CreateChat creates a new group chat.
+//
+// Example:
+//
+//	users := []tg.InputUserClass{
+//	    &tg.InputUser{UserID: 12345678, AccessHash: 1234567890},
+//	}
+//	chat, err := functions.CreateChat(ctx, client.Raw, client.PeerStorage, "My Group", users)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	fmt.Printf("Created chat ID: %d\n", chat.ID)
 //
 // Parameters:
 //   - ctx: Context for the API call
@@ -169,152 +180,12 @@ func CreateChat(ctx context.Context, client *tg.Client, p *storage.PeerStorage, 
 		return nil, err
 	}
 	_, chats, _ := getUpdateFromUpdates(udps.Updates, p)
-	return chats[0].(*tg.Chat), nil
-}
-
-// BanChatMember bans a user from a chat until the specified date.
-//
-// Parameters:
-//   - ctx: Context for the API call
-//   - client: The raw Telegram client
-//   - chatPeer: The chat peer to ban user from
-//   - userPeer: The user peer to ban
-//   - untilDate: Unix timestamp until when the ban is active (0 for permanent)
-//
-// Returns updates confirming the action or an error.
-func BanChatMember(ctx context.Context, client *tg.Client, chatPeer tg.InputPeerClass, userPeer *tg.InputPeerUser, untilDate int) (tg.UpdatesClass, error) {
-	switch c := chatPeer.(type) {
-	case *tg.InputPeerChannel:
-		return client.ChannelsEditBanned(ctx, &tg.ChannelsEditBannedRequest{
-			Channel: &tg.InputChannel{
-				ChannelID:  c.ChannelID,
-				AccessHash: c.AccessHash,
-			},
-			Participant: userPeer,
-			BannedRights: tg.ChatBannedRights{
-				UntilDate:    untilDate,
-				ViewMessages: true,
-				SendMessages: true,
-				SendMedia:    true,
-				SendStickers: true,
-				SendGifs:     true,
-				SendGames:    true,
-				SendInline:   true,
-				EmbedLinks:   true,
-			},
-		})
-	case *tg.InputPeerChat:
-		return client.MessagesDeleteChatUser(ctx, &tg.MessagesDeleteChatUserRequest{
-			ChatID: c.ChatID,
-			UserID: &tg.InputUser{
-				UserID:     userPeer.UserID,
-				AccessHash: userPeer.AccessHash,
-			},
-		})
-	default:
-		return &tg.Updates{}, nil
+	if len(chats) == 0 {
+		return nil, errors.ErrPeerNotFound
 	}
-}
-
-// UnbanChatMember unbans a previously banned user from a channel.
-//
-// Parameters:
-//   - ctx: Context for the API call
-//   - client: The raw Telegram client
-//   - chatPeer: The channel peer to unban user from
-//   - userPeer: The user peer to unban
-//
-// Returns true if successful, or an error.
-func UnbanChatMember(ctx context.Context, client *tg.Client, chatPeer *tg.InputPeerChannel, userPeer *tg.InputPeerUser) (bool, error) {
-	_, err := client.ChannelsEditBanned(ctx, &tg.ChannelsEditBannedRequest{
-		Channel: &tg.InputChannel{
-			ChannelID:  chatPeer.ChannelID,
-			AccessHash: chatPeer.AccessHash,
-		},
-		Participant: userPeer,
-		BannedRights: tg.ChatBannedRights{
-			UntilDate: 0,
-		},
-	})
-	return err == nil, err
-}
-
-// PromoteChatMember promotes a user to admin in a chat.
-//
-// Parameters:
-//   - ctx: Context for the API call
-//   - client: The raw Telegram client
-//   - chat: The chat peer storage
-//   - user: The user peer storage to promote
-//   - rights: Admin rights to grant
-//   - title: Custom admin rank/title
-//
-// Returns true if successful, or an error.
-func PromoteChatMember(ctx context.Context, client *tg.Client, chat, user *storage.Peer, rights tg.ChatAdminRights, title string) (bool, error) {
-	rights.Other = true
-	if chat.AccessHash != 0 {
-		_, err := client.ChannelsEditAdmin(ctx, &tg.ChannelsEditAdminRequest{
-			Channel: &tg.InputChannel{
-				ChannelID:  chat.GetID(),
-				AccessHash: chat.AccessHash,
-			},
-			UserID: &tg.InputUser{
-				UserID:     user.ID,
-				AccessHash: user.AccessHash,
-			},
-			AdminRights: rights,
-			Rank:        title,
-		})
-		return err == nil, err
-	} else {
-		_, err := client.MessagesEditChatAdmin(ctx, &tg.MessagesEditChatAdminRequest{
-			ChatID: chat.GetID(),
-			UserID: &tg.InputUser{
-				UserID:     user.ID,
-				AccessHash: user.AccessHash,
-			},
-			IsAdmin: true,
-		})
-		return err == nil, err
+	chat, ok := chats[0].(*tg.Chat)
+	if !ok {
+		return nil, errors.ErrNotChat
 	}
-}
-
-// DemoteChatMember demotes an admin to regular member in a chat.
-//
-// Parameters:
-//   - ctx: Context for the API call
-//   - client: The raw Telegram client
-//   - chat: The chat peer storage
-//   - user: The user peer storage to demote
-//   - rights: Admin rights to remove (set to empty)
-//   - title: Custom admin rank/title to remove
-//
-// Returns true if successful, or an error.
-func DemoteChatMember(ctx context.Context, client *tg.Client, chat, user *storage.Peer, rights tg.ChatAdminRights, title string) (bool, error) {
-	rights.Other = false
-	if chat.AccessHash != 0 {
-		_, err := client.ChannelsEditAdmin(ctx, &tg.ChannelsEditAdminRequest{
-			Channel: &tg.InputChannel{
-				ChannelID:  chat.GetID(),
-				AccessHash: chat.AccessHash,
-			},
-			UserID: &tg.InputUser{
-				UserID:     user.ID,
-				AccessHash: user.AccessHash,
-			},
-			AdminRights: rights,
-			Rank:        title,
-		})
-		return err == nil, err
-	} else {
-		_, err := client.MessagesEditChatAdmin(ctx, &tg.MessagesEditChatAdminRequest{
-			ChatID: chat.GetID(),
-			UserID: &tg.InputUser{
-				UserID:     user.ID,
-				AccessHash: user.AccessHash,
-			},
-			IsAdmin: false,
-		})
-		return err == nil, err
-	}
+	return chat, nil
 }
