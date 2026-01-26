@@ -6,48 +6,9 @@ import (
 	"strings"
 
 	"github.com/gotd/td/tg"
-	mtp_errors "github.com/pageton/gotg/errors"
+	"github.com/pageton/gotg/errors"
 	"github.com/pageton/gotg/storage"
 )
-
-// GetUserByID fetches a user by ID from Telegram API.
-//
-// Parameters:
-//   - ctx: Context for the API call
-//   - raw: The raw Telegram client
-//   - p: Peer storage for resolving peer references
-//   - userID: The user ID to fetch
-//
-// Returns user object or an error.
-func GetUserByID(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, userID int64) (*tg.User, error) {
-	inputPeer := GetInputPeerClassFromID(p, userID)
-	if inputPeer == nil {
-		return nil, mtp_errors.ErrPeerNotFound
-	}
-
-	switch peer := inputPeer.(type) {
-	case *tg.InputPeerUser:
-		users, err := raw.UsersGetUsers(ctx, []tg.InputUserClass{
-			&tg.InputUser{
-				UserID:     peer.UserID,
-				AccessHash: peer.AccessHash,
-			},
-		})
-		if err != nil {
-			return nil, err
-		}
-		if len(users) == 0 {
-			return nil, mtp_errors.ErrPeerNotFound
-		}
-		user, ok := users[0].(*tg.User)
-		if !ok {
-			return nil, mtp_errors.ErrPeerNotFound
-		}
-		return user, nil
-	default:
-		return nil, mtp_errors.ErrNotUser
-	}
-}
 
 const (
 	Admin      = "admin"
@@ -72,7 +33,7 @@ const (
 func GetChatMember(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, chatID, userID int64) (tg.ChannelParticipantClass, error) {
 	inputPeer := GetInputPeerClassFromID(p, chatID)
 	if inputPeer == nil {
-		return nil, mtp_errors.ErrPeerNotFound
+		return nil, errors.ErrPeerNotFound
 	}
 
 	switch peer := inputPeer.(type) {
@@ -98,7 +59,7 @@ func GetChatMember(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, 
 	case *tg.InputPeerChat, *tg.InputPeerUser:
 		return nil, fmt.Errorf("get chat member for chats not implemented yet")
 	default:
-		return nil, mtp_errors.ErrNotChat
+		return nil, errors.ErrNotChat
 	}
 }
 
