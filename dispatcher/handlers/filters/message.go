@@ -192,169 +192,6 @@ func (*messageFilters) Forwarded(m *types.Message) bool {
 	return m.FwdFrom.Date != 0
 }
 
-// Mention returns true if the Message contains a mention.
-func (*messageFilters) Mention(m *types.Message) bool {
-	for _, entity := range m.Entities {
-		if _, ok := entity.(*tg.MessageEntityMention); ok {
-			return true
-		}
-	}
-	return false
-}
-
-// Hashtag returns true if the Message contains a hashtag.
-func (*messageFilters) Hashtag(m *types.Message) bool {
-	for _, entity := range m.Entities {
-		if _, ok := entity.(*tg.MessageEntityHashtag); ok {
-			return true
-		}
-	}
-	return false
-}
-
-// Cashtag returns true if the Message contains a cashtag.
-func (*messageFilters) Cashtag(m *types.Message) bool {
-	for _, entity := range m.Entities {
-		if _, ok := entity.(*tg.MessageEntityCashtag); ok {
-			return true
-		}
-	}
-	return false
-}
-
-// BotCommand returns true if the Message contains a bot command.
-func (*messageFilters) BotCommand(m *types.Message) bool {
-	for _, entity := range m.Entities {
-		if _, ok := entity.(*tg.MessageEntityBotCommand); ok {
-			return true
-		}
-	}
-	return false
-}
-
-// Url returns true if the Message contains a URL.
-func (*messageFilters) Url(m *types.Message) bool {
-	for _, entity := range m.Entities {
-		if _, ok := entity.(*tg.MessageEntityURL); ok {
-			return true
-		}
-		if _, ok := entity.(*tg.MessageEntityTextURL); ok {
-			return true
-		}
-	}
-	return false
-}
-
-// Email returns true if the Message contains an email.
-func (*messageFilters) Email(m *types.Message) bool {
-	for _, entity := range m.Entities {
-		if _, ok := entity.(*tg.MessageEntityEmail); ok {
-			return true
-		}
-	}
-	return false
-}
-
-// PhoneNumber returns true if the Message contains a phone number.
-func (*messageFilters) PhoneNumber(m *types.Message) bool {
-	for _, entity := range m.Entities {
-		if _, ok := entity.(*tg.MessageEntityPhone); ok {
-			return true
-		}
-	}
-	return false
-}
-
-// Bold returns true if the Message contains bold formatting.
-func (*messageFilters) Bold(m *types.Message) bool {
-	for _, entity := range m.Entities {
-		if _, ok := entity.(*tg.MessageEntityBold); ok {
-			return true
-		}
-	}
-	return false
-}
-
-// Italic returns true if the Message contains italic formatting.
-func (*messageFilters) Italic(m *types.Message) bool {
-	for _, entity := range m.Entities {
-		if _, ok := entity.(*tg.MessageEntityItalic); ok {
-			return true
-		}
-	}
-	return false
-}
-
-// Underline returns true if the Message contains underline formatting.
-func (*messageFilters) Underline(m *types.Message) bool {
-	for _, entity := range m.Entities {
-		if _, ok := entity.(*tg.MessageEntityUnderline); ok {
-			return true
-		}
-	}
-	return false
-}
-
-// Strike returns true if the Message contains strikethrough formatting.
-func (*messageFilters) Strike(m *types.Message) bool {
-	for _, entity := range m.Entities {
-		if _, ok := entity.(*tg.MessageEntityStrike); ok {
-			return true
-		}
-	}
-	return false
-}
-
-// Code returns true if the Message contains code formatting.
-func (*messageFilters) Code(m *types.Message) bool {
-	for _, entity := range m.Entities {
-		if _, ok := entity.(*tg.MessageEntityCode); ok {
-			return true
-		}
-	}
-	return false
-}
-
-// Pre returns true if the Message contains pre-formatted text.
-func (*messageFilters) Pre(m *types.Message) bool {
-	for _, entity := range m.Entities {
-		if pre, ok := entity.(*tg.MessageEntityPre); ok && pre != nil {
-			return true
-		}
-	}
-	return false
-}
-
-// Spoiler returns true if the Message contains spoiler formatting.
-func (*messageFilters) Spoiler(m *types.Message) bool {
-	for _, entity := range m.Entities {
-		if spoiler, ok := entity.(*tg.MessageEntitySpoiler); ok && spoiler != nil {
-			return true
-		}
-	}
-	return false
-}
-
-// Blockquote returns true if the Message contains blockquote formatting.
-func (*messageFilters) Blockquote(m *types.Message) bool {
-	for _, entity := range m.Entities {
-		if quote, ok := entity.(*tg.MessageEntityBlockquote); ok && quote != nil {
-			return true
-		}
-	}
-	return false
-}
-
-// CustomEmoji returns true if the Message contains a custom emoji.
-func (*messageFilters) CustomEmoji(m *types.Message) bool {
-	for _, entity := range m.Entities {
-		if emoji, ok := entity.(*tg.MessageEntityCustomEmoji); ok && emoji != nil {
-			return true
-		}
-	}
-	return false
-}
-
 // Game returns true if the Message is a game.
 func (*messageFilters) Game(m *types.Message) bool {
 	game, ok := m.Media.(*tg.MessageMediaGame)
@@ -426,15 +263,6 @@ func (*messageFilters) MediaGroup(m *types.Message) bool {
 	return m.GroupedID != 0
 }
 
-// Service returns true if the Message is a service message.
-// Service messages include: left_chat_member, new_chat_title, new_chat_photo, delete_chat_photo,
-// group_chat_created, supergroup_chat_created, channel_chat_created, migrate_to_chat_id,
-// migrate_from_chat_id, pinned_message, game_high_score, video_chat_started, video_chat_ended,
-// video_chat_members_invited, or has_media_spoiler.
-func (*messageFilters) Service(m *types.Message) bool {
-	return m.IsService
-}
-
 func (*messageFilters) MinLength(minLength int) MessageFilter {
 	return func(m *types.Message) bool {
 		return len(m.Text) >= minLength
@@ -479,42 +307,6 @@ func (*messageFilters) ViaBot(m *types.Message) bool {
 	return m.ViaBotID != 0
 }
 
-// VideoChatStarted returns true if a video chat was started with this message.
-func (*messageFilters) VideoChatStarted(m *types.Message) bool {
-	if !m.IsService {
-		return false
-	}
-	_, ok := m.Action.(*tg.MessageActionGroupCallScheduled)
-	return ok
-}
-
-// VideoChatEnded returns true if a video chat ended with this message.
-func (*messageFilters) VideoChatEnded(m *types.Message) bool {
-	if !m.IsService {
-		return false
-	}
-	action, ok := m.Action.(*tg.MessageActionGroupCall)
-	return ok && action.Duration > 0
-}
-
-// VideoChatMembersInvited returns true if members were invited to a video chat.
-func (*messageFilters) VideoChatMembersInvited(m *types.Message) bool {
-	if !m.IsService {
-		return false
-	}
-	_, ok := m.Action.(*tg.MessageActionInviteToGroupCall)
-	return ok
-}
-
-// GameHighScore returns true if a game high score was achieved with this message.
-func (*messageFilters) GameHighScore(m *types.Message) bool {
-	if !m.IsService {
-		return false
-	}
-	_, ok := m.Action.(*tg.MessageActionGameScore)
-	return ok
-}
-
 // HasMediaSpoiler returns true if the message media has a spoiler.
 func (*messageFilters) HasMediaSpoiler(m *types.Message) bool {
 	if m.Media == nil {
@@ -530,9 +322,7 @@ func (*messageFilters) HasMediaSpoiler(m *types.Message) bool {
 }
 
 // RegexAdvanced returns a Regex filter with options.
-// Optimized: Uses strings.Builder instead of string concatenation
 func (*messageFilters) RegexAdvanced(pattern string, opts *RegexOptions) MessageFilter {
-	// Pre-calculate capacity: pattern + potential flags (max 12 chars for "(?i)(?m)(?s)")
 	capacity := len(pattern) + 12
 	var sb strings.Builder
 	sb.Grow(capacity)
@@ -624,54 +414,6 @@ func (*messageFilters) SelfDestruction(m *types.Message) bool {
 	return false
 }
 
-func (*messageFilters) Giveaway(m *types.Message) bool {
-	if m.IsService {
-		_, ok := m.Action.(*tg.MessageActionGiveawayLaunch)
-		return ok
-	}
-	return false
-}
-
-func (*messageFilters) GiveawayWinners(m *types.Message) bool {
-	if m.IsService {
-		_, ok := m.Action.(*tg.MessageActionGiveawayResults)
-		return ok
-	}
-	return false
-}
-
-func (*messageFilters) GiftCode(m *types.Message) bool {
-	if m.IsService {
-		_, ok := m.Action.(*tg.MessageActionGiftCode)
-		return ok
-	}
-	return false
-}
-
-func (*messageFilters) Gift(m *types.Message) bool {
-	if m.IsService {
-		_, ok := m.Action.(*tg.MessageActionGiftPremium)
-		return ok
-	}
-	return false
-}
-
-func (*messageFilters) UsersShared(m *types.Message) bool {
-	if m.IsService {
-		_, ok := m.Action.(*tg.MessageActionRequestedPeer)
-		return ok
-	}
-	return false
-}
-
-func (*messageFilters) ChatShared(m *types.Message) bool {
-	if m.IsService {
-		_, ok := m.Action.(*tg.MessageActionRequestedPeer)
-		return ok
-	}
-	return false
-}
-
 func (*messageFilters) Private(m *types.Message) bool {
 	_, ok := m.PeerID.(*tg.PeerUser)
 	return ok
@@ -688,98 +430,6 @@ func (*messageFilters) Channel(m *types.Message) bool {
 	return ok
 }
 
-func (*messageFilters) Forum(m *types.Message) bool {
-	if !m.IsService {
-		return false
-	}
-	_, ok := m.Action.(*tg.MessageActionTopicCreate)
-	return ok
-}
-
 func (*messageFilters) Story(m *types.Message) bool {
 	return false
-}
-
-func (*messageFilters) NewChatMembers(m *types.Message) bool {
-	if !m.IsService {
-		return false
-	}
-	_, ok := m.Action.(*tg.MessageActionChatAddUser)
-	return ok
-}
-
-func (*messageFilters) LeftChatMember(m *types.Message) bool {
-	if !m.IsService {
-		return false
-	}
-	_, ok := m.Action.(*tg.MessageActionChatDeleteUser)
-	return ok
-}
-
-func (*messageFilters) NewChatTitle(m *types.Message) bool {
-	if !m.IsService {
-		return false
-	}
-	_, ok := m.Action.(*tg.MessageActionChatEditTitle)
-	return ok
-}
-
-func (*messageFilters) NewChatPhoto(m *types.Message) bool {
-	if !m.IsService {
-		return false
-	}
-	_, ok := m.Action.(*tg.MessageActionChatEditPhoto)
-	return ok
-}
-
-func (*messageFilters) DeleteChatPhoto(m *types.Message) bool {
-	if !m.IsService {
-		return false
-	}
-	_, ok := m.Action.(*tg.MessageActionChatDeletePhoto)
-	return ok
-}
-
-func (*messageFilters) GroupChatCreated(m *types.Message) bool {
-	if !m.IsService {
-		return false
-	}
-	_, ok := m.Action.(*tg.MessageActionChatCreate)
-	return ok
-}
-
-func (*messageFilters) SupergroupChatCreated(m *types.Message) bool {
-	if !m.IsService {
-		return false
-	}
-	_, ok := m.Action.(*tg.MessageActionChannelCreate)
-	return ok
-}
-
-func (*messageFilters) ChannelChatCreated(m *types.Message) bool {
-	if !m.IsService {
-		return false
-	}
-	_, ok := m.Action.(*tg.MessageActionChannelCreate)
-	return ok
-}
-
-func (*messageFilters) MigrateToChatID(m *types.Message) bool {
-	if !m.IsService {
-		return false
-	}
-	_, ok := m.Action.(*tg.MessageActionChatMigrateTo)
-	return ok
-}
-
-func (*messageFilters) MigrateFromChatID(m *types.Message) bool {
-	if !m.IsService {
-		return false
-	}
-	_, ok := m.Action.(*tg.MessageActionChannelMigrateFrom)
-	return ok
-}
-
-func (*messageFilters) PinnedMessage(m *types.Message) bool {
-	return m.Pinned
 }
