@@ -1,0 +1,194 @@
+package dispatcher
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log"
+	"runtime/debug"
+	"strings"
+
+	"github.com/gotd/td/tg"
+	"github.com/pageton/gotg/adapter"
+	"github.com/pageton/gotg/storage"
+	"go.uber.org/multierr"
+)
+
+// Handle function handles all the incoming updates, map entities and dispatches updates for further handling.
+func (dp *NativeDispatcher) Handle(ctx context.Context, updates tg.UpdatesClass) error {
+	dp.initwg.Wait()
+	var (
+		e    entities
+		upds []tg.UpdateClass
+	)
+	switch u := updates.(type) {
+	case *tg.Updates:
+		upds = u.Updates
+		e.Users = u.MapUsers().NotEmptyToMap()
+		chats := u.MapChats()
+		e.Chats = chats.ChatToMap()
+		e.Channels = chats.ChannelToMap()
+		saveUsersPeers(u.Users, dp.pStorage)
+		saveChatsPeers(u.Chats, dp.pStorage)
+	case *tg.UpdatesCombined:
+		upds = u.Updates
+		e.Users = u.MapUsers().NotEmptyToMap()
+		chats := u.MapChats()
+		e.Chats = chats.ChatToMap()
+		e.Channels = chats.ChannelToMap()
+		saveUsersPeers(u.Users, dp.pStorage)
+		saveChatsPeers(u.Chats, dp.pStorage)
+	case *tg.UpdateShort:
+		upds = []tg.UpdateClass{u.Update}
+		e.short()
+	case *tg.UpdatesTooLong:
+		_, err := dp.client.UpdatesGetDifference(ctx, &tg.UpdatesGetDifferenceRequest{})
+		if err != nil {
+			return fmt.Errorf("failed to get difference after UpdatesTooLong: %w", err)
+		}
+		return nil
+	default:
+		return nil
+	}
+
+	var err error
+	for _, update := range upds {
+		multierr.AppendInto(&err, dp.dispatch(ctx, tg.Entities(e), update))
+	}
+	return err
+}
+
+func (dp *NativeDispatcher) dispatch(ctx context.Context, e tg.Entities, update tg.UpdateClass) error {
+	if update == nil {
+		return nil
+	}
+	dp.updateWg.Add(1)
+	go func() {
+		defer dp.updateWg.Done()
+		if err := dp.handleUpdate(ctx, e, update); err != nil {
+			if !isControlError(err) {
+				log.Println("dispatcher: update handler error:", err)
+			}
+		}
+	}()
+	return nil
+}
+
+func isControlError(err error) bool {
+	return errors.Is(err, ContinueGroups) || errors.Is(err, EndGroups) || errors.Is(err, SkipCurrentGroup)
+}
+
+func (dp *NativeDispatcher) handleUpdate(ctx context.Context, e tg.Entities, update tg.UpdateClass) error {
+	c := adapter.NewContext(ctx, dp.client, dp.pStorage, dp.self, dp.sender, &e, dp.setReply, dp.conv)
+	u := adapter.GetNewUpdate(c, update)
+	dp.handleUpdateRepliedToMessage(u, ctx)
+	var err error
+	defer func() {
+		if r := recover(); r != nil {
+			errorStack := buildErrorStack(r)
+			if dp.Panic != nil {
+				dp.Panic(c, u, errorStack)
+				return
+			} else {
+				log.Println(errorStack)
+			}
+		}
+	}()
+
+	dp.handlerGroupsMu.RLock()
+	groups := dp.handlerGroups
+	dp.handlerGroupsMu.RUnlock()
+
+	for _, group := range groups {
+		handlers := dp.handlerMap[group]
+		for _, handler := range handlers {
+			err = handler.CheckUpdate(c, u)
+			if err == nil || err == ContinueGroups {
+				continue
+			} else if err == EndGroups {
+				return err
+			} else if err == SkipCurrentGroup {
+				break
+			} else if err == StopClient {
+				dp.cancel()
+				return nil
+			} else {
+				err = dp.Error(c, u, err.Error())
+				switch err {
+				case ContinueGroups:
+					continue
+				case EndGroups:
+					return err
+				case SkipCurrentGroup:
+					break
+				}
+			}
+		}
+	}
+	return err
+}
+
+func buildErrorStack(r any) string {
+	stack := debug.Stack()
+
+	var sb strings.Builder
+	sb.Grow(len(stack) + 64)
+	sb.WriteString("panic: ")
+	sb.WriteString(interfaceToString(r))
+	sb.WriteString("\n")
+	sb.Write(stack)
+	return sb.String()
+}
+
+func interfaceToString(v any) string {
+	if s, ok := v.(string); ok {
+		return s
+	}
+	if err, ok := v.(error); ok {
+		return err.Error()
+	}
+	return "unknown panic"
+}
+
+func (dp *NativeDispatcher) handleUpdateRepliedToMessage(u *adapter.Update, ctx context.Context) {
+	msg := u.EffectiveMessage
+	if msg == nil || !dp.setReply {
+		return
+	}
+	for {
+		if msg.Message.ReplyTo == nil {
+			return
+		}
+
+		_ = msg.SetRepliedToMessage(ctx, dp.client, dp.pStorage)
+		if !dp.setEntireReplyChain {
+			return
+		}
+		msg = msg.ReplyToMessage
+	}
+}
+
+func saveUsersPeers(u tg.UserClassArray, p *storage.PeerStorage) {
+	for _, user := range u {
+		c, ok := user.AsNotEmpty()
+		if !ok || c.Min {
+			continue
+		}
+		p.AddPeer(c.ID, c.AccessHash, storage.TypeUser, c.Username)
+	}
+}
+
+func saveChatsPeers(u tg.ChatClassArray, p *storage.PeerStorage) {
+	for _, chat := range u {
+		channel, ok := chat.(*tg.Channel)
+		if ok && !channel.Min {
+			p.AddPeer(channel.ID, channel.AccessHash, storage.TypeChannel, channel.Username)
+			continue
+		}
+		chat, ok := chat.(*tg.Chat)
+		if !ok {
+			continue
+		}
+		p.AddPeer(chat.ID, storage.DefaultAccessHash, storage.TypeChat, storage.DefaultUsername)
+	}
+}
