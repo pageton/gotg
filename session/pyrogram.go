@@ -60,6 +60,10 @@ func decodeStringSession(data []byte) (*session.Data, error) {
 	// | 256  | bytes  | Auth Key    |
 	// | 8    | bytes  | User ID     |
 	// | 1    | bool   | Is Bot      |
+	if len(data) < 262 {
+		return nil, errors.Errorf("session data too short: expected at least 262 bytes, got %d", len(data))
+	}
+
 	dc := data[0]
 	testMode := data[5] == 1
 	var key Key
