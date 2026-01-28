@@ -77,7 +77,10 @@ func (u *Update) SendMessage(chatID int64, text string, opts ...*SendOpts) (*typ
 		messageText = text
 	}
 
-	// Build request from opt fields
+	if len(opt.Entities) > 0 {
+		entities = opt.Entities
+	}
+
 	req := &tg.MessagesSendMessageRequest{
 		Message:                messageText,
 		Entities:               entities,
@@ -91,7 +94,6 @@ func (u *Update) SendMessage(chatID int64, text string, opts ...*SendOpts) (*typ
 		AllowPaidFloodskip:     opt.AllowPaidFloodskip,
 	}
 
-	// Set optional fields if provided
 	if opt.ReplyMarkup != nil {
 		req.ReplyMarkup = opt.ReplyMarkup
 	}
@@ -133,7 +135,11 @@ func (u *Update) SendMessage(chatID int64, text string, opts ...*SendOpts) (*typ
 		}
 	}
 
-	return u.Ctx.SendMessage(chatID, req)
+	connID := opt.BusinessConnectionID
+	if connID == "" {
+		connID = u.ConnectionID()
+	}
+	return u.Ctx.SendMessage(chatID, req, connID)
 }
 
 // SendMedia sends media (photo, document, video, etc.) to the chat associated with this update.
@@ -211,14 +217,23 @@ func (u *Update) SendMedia(media tg.InputMediaClass, caption string, opts ...*Se
 		captionText = opt.Caption
 	}
 
-	// Build request from opt fields
-	req := &tg.MessagesSendMediaRequest{
-		Media:    media,
-		Message:  captionText,
-		Entities: entities,
+	if len(opt.Entities) > 0 {
+		entities = opt.Entities
 	}
 
-	// Set optional fields if provided
+	req := &tg.MessagesSendMediaRequest{
+		Media:                  media,
+		Message:                captionText,
+		Entities:               entities,
+		Silent:                 opt.Silent,
+		Background:             opt.Background,
+		ClearDraft:             opt.ClearDraft,
+		Noforwards:             opt.Noforwards,
+		UpdateStickersetsOrder: opt.UpdateStickersetsOrder,
+		InvertMedia:            opt.InvertMedia,
+		AllowPaidFloodskip:     opt.AllowPaidFloodskip,
+	}
+
 	if opt.ReplyMarkup != nil {
 		req.ReplyMarkup = opt.ReplyMarkup
 	}
@@ -243,27 +258,6 @@ func (u *Update) SendMedia(media tg.InputMediaClass, caption string, opts ...*Se
 	if opt.Effect != 0 {
 		req.Effect = opt.Effect
 	}
-	if opt.AllowPaidFloodskip {
-		req.AllowPaidFloodskip = opt.AllowPaidFloodskip
-	}
-	if opt.Silent {
-		req.Silent = opt.Silent
-	}
-	if opt.Background {
-		req.Background = opt.Background
-	}
-	if opt.ClearDraft {
-		req.ClearDraft = opt.ClearDraft
-	}
-	if opt.Noforwards {
-		req.Noforwards = opt.Noforwards
-	}
-	if opt.UpdateStickersetsOrder {
-		req.UpdateStickersetsOrder = opt.UpdateStickersetsOrder
-	}
-	if opt.InvertMedia {
-		req.InvertMedia = opt.InvertMedia
-	}
 	if opt.AllowPaidStars != 0 {
 		req.AllowPaidStars = opt.AllowPaidStars
 	}
@@ -271,14 +265,17 @@ func (u *Update) SendMedia(media tg.InputMediaClass, caption string, opts ...*Se
 		req.SuggestedPost = opt.SuggestedPost
 	}
 
-	// Add ReplyTo if ReplyMessageID is set
 	if opt.ReplyMessageID != 0 {
 		req.ReplyTo = &tg.InputReplyToMessage{
 			ReplyToMsgID: opt.ReplyMessageID,
 		}
 	}
 
-	return u.Ctx.SendMedia(chatID, req)
+	connID := opt.BusinessConnectionID
+	if connID == "" {
+		connID = u.ConnectionID()
+	}
+	return u.Ctx.SendMedia(chatID, req, connID)
 }
 
 // SendMultiMedia sends multiple media items as an album to the chat associated with this update.
@@ -361,20 +358,45 @@ func (u *Update) SendMultiMedia(media []tg.InputMediaClass, opts ...*SendMediaOp
 	}
 
 	req := &tg.MessagesSendMultiMediaRequest{
-		MultiMedia: inputMedia,
-		// Copy flags from embedded struct
-		Silent:       opt.Silent,
-		ClearDraft:   opt.ClearDraft,
-		Noforwards:   opt.Noforwards,
-		ScheduleDate: int(opt.ScheduleDate),
+		MultiMedia:             inputMedia,
+		Silent:                 opt.Silent,
+		Background:             opt.Background,
+		ClearDraft:             opt.ClearDraft,
+		Noforwards:             opt.Noforwards,
+		UpdateStickersetsOrder: opt.UpdateStickersetsOrder,
+		InvertMedia:            opt.InvertMedia,
+		AllowPaidFloodskip:     opt.AllowPaidFloodskip,
+		ScheduleDate:           opt.ScheduleDate,
 	}
 
-	// Add ReplyTo if ReplyMessageID is set
+	if opt.Peer != nil {
+		req.Peer = opt.Peer
+	}
+	if opt.ReplyTo != nil {
+		req.ReplyTo = opt.ReplyTo
+	}
+	if opt.SendAs != nil {
+		req.SendAs = opt.SendAs
+	}
+	if opt.QuickReplyShortcut != nil {
+		req.QuickReplyShortcut = opt.QuickReplyShortcut
+	}
+	if opt.Effect != 0 {
+		req.Effect = opt.Effect
+	}
+	if opt.AllowPaidStars != 0 {
+		req.AllowPaidStars = opt.AllowPaidStars
+	}
+
 	if opt.ReplyMessageID != 0 {
 		req.ReplyTo = &tg.InputReplyToMessage{
 			ReplyToMsgID: opt.ReplyMessageID,
 		}
 	}
 
-	return u.Ctx.SendMultiMedia(chatID, req)
+	connID := opt.BusinessConnectionID
+	if connID == "" {
+		connID = u.ConnectionID()
+	}
+	return u.Ctx.SendMultiMedia(chatID, req, connID)
 }

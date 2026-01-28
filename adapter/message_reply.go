@@ -63,6 +63,10 @@ func (u *Update) Reply(Text any, Opts ...*SendOpts) (*types.Message, error) {
 		text = message
 	}
 
+	if len(opts.Entities) > 0 {
+		entities = opts.Entities
+	}
+
 	req := &tg.MessagesSendMessageRequest{
 		Message:                text,
 		Entities:               entities,
@@ -114,13 +118,17 @@ func (u *Update) Reply(Text any, Opts ...*SendOpts) (*types.Message, error) {
 		req.ReplyTo = &tg.InputReplyToMessage{
 			ReplyToMsgID: opts.ReplyMessageID,
 		}
-	} else if req.ReplyTo == nil && u.EffectiveMessage != nil && !opts.WithoutReply {
+	} else if req.ReplyTo == nil && u.HasMessage() && !opts.WithoutReply {
 		req.ReplyTo = &tg.InputReplyToMessage{
 			ReplyToMsgID: u.EffectiveMessage.ID,
 		}
 	}
 
-	return u.Ctx.SendMessage(chatID, req)
+	connID := opts.BusinessConnectionID
+	if connID == "" {
+		connID = u.ConnectionID()
+	}
+	return u.Ctx.SendMessage(chatID, req, connID)
 }
 
 // ReplyMedia sends a media reply to the current update's message.
@@ -175,10 +183,21 @@ func (u *Update) ReplyMedia(Media tg.InputMediaClass, Opts ...*SendMediaOpts) (*
 		caption = opts.Caption
 	}
 
+	if len(opts.Entities) > 0 {
+		entities = opts.Entities
+	}
+
 	req := &tg.MessagesSendMediaRequest{
-		Media:    Media,
-		Message:  caption,
-		Entities: entities,
+		Media:                  Media,
+		Message:                caption,
+		Entities:               entities,
+		Silent:                 opts.Silent,
+		Background:             opts.Background,
+		ClearDraft:             opts.ClearDraft,
+		Noforwards:             opts.Noforwards,
+		UpdateStickersetsOrder: opts.UpdateStickersetsOrder,
+		InvertMedia:            opts.InvertMedia,
+		AllowPaidFloodskip:     opts.AllowPaidFloodskip,
 	}
 
 	if opts.ReplyMarkup != nil {
@@ -205,27 +224,6 @@ func (u *Update) ReplyMedia(Media tg.InputMediaClass, Opts ...*SendMediaOpts) (*
 	if opts.Effect != 0 {
 		req.Effect = opts.Effect
 	}
-	if opts.AllowPaidFloodskip {
-		req.AllowPaidFloodskip = opts.AllowPaidFloodskip
-	}
-	if opts.Silent {
-		req.Silent = opts.Silent
-	}
-	if opts.Background {
-		req.Background = opts.Background
-	}
-	if opts.ClearDraft {
-		req.ClearDraft = opts.ClearDraft
-	}
-	if opts.Noforwards {
-		req.Noforwards = opts.Noforwards
-	}
-	if opts.UpdateStickersetsOrder {
-		req.UpdateStickersetsOrder = opts.UpdateStickersetsOrder
-	}
-	if opts.InvertMedia {
-		req.InvertMedia = opts.InvertMedia
-	}
 	if opts.AllowPaidStars != 0 {
 		req.AllowPaidStars = opts.AllowPaidStars
 	}
@@ -237,13 +235,17 @@ func (u *Update) ReplyMedia(Media tg.InputMediaClass, Opts ...*SendMediaOpts) (*
 		req.ReplyTo = &tg.InputReplyToMessage{
 			ReplyToMsgID: opts.ReplyMessageID,
 		}
-	} else if req.ReplyTo == nil && u.EffectiveMessage != nil && !opts.WithoutReply {
+	} else if req.ReplyTo == nil && u.HasMessage() && !opts.WithoutReply {
 		req.ReplyTo = &tg.InputReplyToMessage{
 			ReplyToMsgID: u.EffectiveMessage.ID,
 		}
 	}
 
-	return u.Ctx.SendMedia(chatID, req)
+	connID := opts.BusinessConnectionID
+	if connID == "" {
+		connID = u.ConnectionID()
+	}
+	return u.Ctx.SendMedia(chatID, req, connID)
 }
 
 // ReplyMediaWithFileID sends a media reply to the current update's message using a fileID string.

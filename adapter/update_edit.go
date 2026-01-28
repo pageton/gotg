@@ -18,17 +18,17 @@ import (
 //   - chatID: The target chat ID (use 0 to use the current update's chat)
 //   - messageID: The ID of the message to edit
 //   - text: New message text
-//   - opts: Optional SendOpts for entities, reply markup, etc.
+//   - opts: Optional EditOpts for entities, reply markup, etc.
 //
 // Returns the edited Message or an error.
 //
 // Example:
 //
 //	msg, err := u.EditMessage(0, 123, "Updated text")  // Edit in current chat
-//	msg, err := u.EditMessage(chatID, 123, "<b>Updated</b>", &SendOpts{
+//	msg, err := u.EditMessage(chatID, 123, "<b>Updated</b>", &EditOpts{
 //	    ParseMode: "HTML",
 //	})
-func (u *Update) EditMessage(chatID int64, messageID int, text string, opts ...*SendOpts) (*types.Message, error) {
+func (u *Update) EditMessage(chatID int64, messageID int, text string, opts ...*EditOpts) (*types.Message, error) {
 	if chatID == 0 {
 		chatID = u.ChatID()
 	}
@@ -36,7 +36,7 @@ func (u *Update) EditMessage(chatID int64, messageID int, text string, opts ...*
 		return nil, fmt.Errorf("no chat found")
 	}
 
-	opt := functions.GetOptDef(&SendOpts{}, opts...)
+	opt := functions.GetOptDef(&EditOpts{}, opts...)
 
 	parseMode := opt.ParseMode
 	if parseMode == "" {
@@ -69,17 +69,37 @@ func (u *Update) EditMessage(chatID int64, messageID int, text string, opts ...*
 	}
 
 	req := &tg.MessagesEditMessageRequest{
-		ID:        messageID,
-		Message:   messageText,
-		Entities:  entities,
-		NoWebpage: opt.NoWebpage,
+		ID:                   messageID,
+		Message:              messageText,
+		Entities:             entities,
+		NoWebpage:            opt.NoWebpage,
+		InvertMedia:          opt.InvertMedia,
+		ScheduleDate:         opt.ScheduleDate,
+		ScheduleRepeatPeriod: opt.ScheduleRepeatPeriod,
+		QuickReplyShortcutID: opt.QuickReplyShortcutID,
 	}
 
+	if opt.Peer != nil {
+		req.Peer = opt.Peer
+	}
+	if opt.ID != 0 {
+		req.ID = opt.ID
+	}
+	if opt.Media != nil {
+		req.Media = opt.Media
+	}
 	if opt.ReplyMarkup != nil {
 		req.ReplyMarkup = opt.ReplyMarkup
 	}
+	if len(opt.Entities) > 0 {
+		req.Entities = opt.Entities
+	}
 
-	return u.Ctx.EditMessage(chatID, req)
+	connID := opt.BusinessConnectionID
+	if connID == "" {
+		connID = u.ConnectionID()
+	}
+	return u.Ctx.EditMessage(chatID, req, connID)
 }
 
 // EditMessageMedia edits the media of a specific message in the specified chat.
@@ -91,7 +111,7 @@ func (u *Update) EditMessage(chatID int64, messageID int, text string, opts ...*
 //   - messageID: The ID of the message to edit
 //   - media: The new media (tg.InputMediaClass)
 //   - caption: New caption text
-//   - opts: Optional SendMediaOpts
+//   - opts: Optional EditMediaOpts
 //
 // Returns the edited Message or an error.
 //
@@ -105,7 +125,7 @@ func (u *Update) EditMessage(chatID int64, messageID int, text string, opts ...*
 //
 //	media, _ := types.InputMediaFromFileID(fileID, "caption")
 //	msg, err := u.EditMessageMedia(chatID, 123, media, "caption")
-func (u *Update) EditMessageMedia(chatID int64, messageID int, media tg.InputMediaClass, caption string, opts ...*SendMediaOpts) (*types.Message, error) {
+func (u *Update) EditMessageMedia(chatID int64, messageID int, media tg.InputMediaClass, caption string, opts ...*EditMediaOpts) (*types.Message, error) {
 	if chatID == 0 {
 		chatID = u.ChatID()
 	}
@@ -113,7 +133,7 @@ func (u *Update) EditMessageMedia(chatID int64, messageID int, media tg.InputMed
 		return nil, fmt.Errorf("no chat found")
 	}
 
-	opt := functions.GetOptDef(&SendMediaOpts{}, opts...)
+	opt := functions.GetOptDef(&EditMediaOpts{}, opts...)
 
 	parseMode := opt.ParseMode
 	if parseMode == "" {
@@ -150,15 +170,36 @@ func (u *Update) EditMessageMedia(chatID int64, messageID int, media tg.InputMed
 	}
 
 	req := &tg.MessagesEditMessageRequest{
-		ID:       messageID,
-		Media:    media,
-		Message:  captionText,
-		Entities: entities,
+		ID:                   messageID,
+		Media:                media,
+		Message:              captionText,
+		Entities:             entities,
+		NoWebpage:            opt.NoWebpage,
+		InvertMedia:          opt.InvertMedia,
+		ScheduleDate:         opt.ScheduleDate,
+		ScheduleRepeatPeriod: opt.ScheduleRepeatPeriod,
+		QuickReplyShortcutID: opt.QuickReplyShortcutID,
 	}
 
+	if opt.Peer != nil {
+		req.Peer = opt.Peer
+	}
+	if opt.ID != 0 {
+		req.ID = opt.ID
+	}
+	if opt.Media != nil {
+		req.Media = opt.Media
+	}
 	if opt.ReplyMarkup != nil {
 		req.ReplyMarkup = opt.ReplyMarkup
 	}
+	if len(opt.Entities) > 0 {
+		req.Entities = opt.Entities
+	}
 
-	return u.Ctx.EditMessage(chatID, req)
+	connID := opt.BusinessConnectionID
+	if connID == "" {
+		connID = u.ConnectionID()
+	}
+	return u.Ctx.EditMessage(chatID, req, connID)
 }

@@ -16,15 +16,17 @@ import (
 //   - request: Telegram's MessagesSendMessageRequest containing message content
 //
 // Returns the sent Message or an error.
-func (ctx *Context) SendMessage(chatID int64, request *tg.MessagesSendMessageRequest) (*types.Message, error) {
-	message, err := functions.SendMessage(ctx.Context, ctx.Raw, ctx.PeerStorage, chatID, request)
+func (ctx *Context) SendMessage(chatID int64, request *tg.MessagesSendMessageRequest, businessConnectionID ...string) (*types.Message, error) {
+	message, err := functions.SendMessage(ctx.Context, ctx.Raw, ctx.PeerStorage, chatID, request, businessConnectionID...)
 	if err != nil {
+		ctx.emitOutgoing(ActionSend, StatusFailed, nil, 0, chatID, request.Peer, err)
 		return nil, err
 	}
 	msg := types.ConstructMessageWithContext(message, ctx.Context, ctx.Raw, ctx.PeerStorage, ctx.Self.ID)
 	if ctx.setReply {
 		_ = msg.SetRepliedToMessage(ctx.Context, ctx.Raw, ctx.PeerStorage)
 	}
+	ctx.emitOutgoing(ActionSend, StatusSucceeded, msg, message.ID, chatID, request.Peer, nil)
 	return msg, nil
 }
 
@@ -38,15 +40,17 @@ func (ctx *Context) SendMessage(chatID int64, request *tg.MessagesSendMessageReq
 //   - request: Telegram's MessagesSendMediaRequest containing media and metadata
 //
 // Returns the sent Message or an error.
-func (ctx *Context) SendMedia(chatID int64, request *tg.MessagesSendMediaRequest) (*types.Message, error) {
-	message, err := functions.SendMedia(ctx.Context, ctx.Raw, ctx.PeerStorage, chatID, request)
+func (ctx *Context) SendMedia(chatID int64, request *tg.MessagesSendMediaRequest, businessConnectionID ...string) (*types.Message, error) {
+	message, err := functions.SendMedia(ctx.Context, ctx.Raw, ctx.PeerStorage, chatID, request, businessConnectionID...)
 	if err != nil {
+		ctx.emitOutgoing(ActionSend, StatusFailed, nil, 0, chatID, request.Peer, err)
 		return nil, err
 	}
 	msg := types.ConstructMessageWithContext(message, ctx.Context, ctx.Raw, ctx.PeerStorage, ctx.Self.ID)
 	if ctx.setReply {
 		_ = msg.SetRepliedToMessage(ctx.Context, ctx.Raw, ctx.PeerStorage)
 	}
+	ctx.emitOutgoing(ActionSend, StatusSucceeded, msg, message.ID, chatID, request.Peer, nil)
 	return msg, nil
 }
 
@@ -82,8 +86,8 @@ func (ctx *Context) SendReaction(chatID int64, request *tg.MessagesSendReactionR
 //   - request: Telegram's MessagesSendMultiMediaRequest containing media items
 //
 // Returns the sent Message album or an error.
-func (ctx *Context) SendMultiMedia(chatID int64, request *tg.MessagesSendMultiMediaRequest) (*types.Message, error) {
-	message, err := functions.SendMultiMedia(ctx.Context, ctx.Raw, ctx.PeerStorage, chatID, request)
+func (ctx *Context) SendMultiMedia(chatID int64, request *tg.MessagesSendMultiMediaRequest, businessConnectionID ...string) (*types.Message, error) {
+	message, err := functions.SendMultiMedia(ctx.Context, ctx.Raw, ctx.PeerStorage, chatID, request, businessConnectionID...)
 	if err != nil {
 		return nil, err
 	}
