@@ -2,11 +2,11 @@ package adapter
 
 import (
 	"context"
-	"time"
 
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/conv"
+	"github.com/pageton/gotg/log"
 	"github.com/pageton/gotg/storage"
 	"github.com/pageton/gotg/types"
 )
@@ -35,6 +35,9 @@ type Context struct {
 	setReply    bool
 	PeerStorage *storage.PeerStorage
 	Conv        *conv.Manager
+	OnOutgoing  func(*FakeOutgoingUpdate)
+	// Logger is the logger instance passed from the dispatcher.
+	Logger *log.Logger
 	// Translator for i18n support
 	Translator interface {
 		Get(userID int64, key string, args ...any) string
@@ -58,6 +61,30 @@ type Update struct {
 	ChatParticipant *tg.UpdateChatParticipant
 	// ChannelParticipant is the tg.UpdateChannelParticipant of current update.
 	ChannelParticipant *tg.UpdateChannelParticipant
+	// ChosenInlineResult is the tg.UpdateBotInlineSend of current update.
+	ChosenInlineResult *tg.UpdateBotInlineSend
+	// DeletedMessages is the tg.UpdateDeleteMessages of current update.
+	DeletedMessages *tg.UpdateDeleteMessages
+	// DeletedChannelMessages is the tg.UpdateDeleteChannelMessages of current update.
+	DeletedChannelMessages *tg.UpdateDeleteChannelMessages
+	// MessageReaction is the tg.UpdateBotMessageReaction of current update.
+	MessageReaction *tg.UpdateBotMessageReaction
+	// ChatBoost is the tg.UpdateBotChatBoost of current update.
+	ChatBoost *tg.UpdateBotChatBoost
+	// BusinessConnection is the tg.UpdateBotBusinessConnect of current update.
+	BusinessConnection *tg.UpdateBotBusinessConnect
+	// BusinessMessage is the tg.UpdateBotNewBusinessMessage of current update.
+	BusinessMessage *tg.UpdateBotNewBusinessMessage
+	// BusinessEditedMessage is the tg.UpdateBotEditBusinessMessage of current update.
+	BusinessEditedMessage *tg.UpdateBotEditBusinessMessage
+	// BusinessDeletedMessages is the tg.UpdateBotDeleteBusinessMessage of current update.
+	BusinessDeletedMessages *tg.UpdateBotDeleteBusinessMessage
+	// BusinessCallbackQuery is the tg.UpdateBusinessBotCallbackQuery of current update.
+	BusinessCallbackQuery *tg.UpdateBusinessBotCallbackQuery
+	// EffectiveOutgoing contains metadata for synthetic outgoing updates (send/edit/delete).
+	EffectiveOutgoing *FakeOutgoingUpdate
+	// Log is the logger for this update. Use u.Log.Info("msg", "key", val) etc.
+	Log *log.Logger
 	// UpdateClass is the current update in raw form.
 	UpdateClass tg.UpdateClass
 	// Entities of an update, i.e. mapped users, chats and channels.
@@ -68,10 +95,12 @@ type Update struct {
 	Self *tg.User
 	// Context of the current update.
 	Ctx *Context
+	// IsEdited indicates the effective message was an edit, not a new message.
+	IsEdited bool
 }
 
 // NewContext creates a new Context object with provided parameters.
-func NewContext(ctx context.Context, client *tg.Client, peerStorage *storage.PeerStorage, self *tg.User, sender *message.Sender, entities *tg.Entities, setReply bool, conv *conv.Manager) *Context {
+func NewContext(ctx context.Context, client *tg.Client, peerStorage *storage.PeerStorage, self *tg.User, sender *message.Sender, entities *tg.Entities, setReply bool, conv *conv.Manager, logger *log.Logger) *Context {
 	return &Context{
 		Context:     ctx,
 		Raw:         client,
@@ -81,6 +110,7 @@ func NewContext(ctx context.Context, client *tg.Client, peerStorage *storage.Pee
 		setReply:    setReply,
 		PeerStorage: peerStorage,
 		Conv:        conv,
+		Logger:      logger,
 	}
 }
 
@@ -91,57 +121,31 @@ func GetNewUpdate(ctx *Context, update tg.UpdateClass) *Update {
 		Entities:    ctx.Entities,
 		Ctx:         ctx,
 		Self:        ctx.Self,
+		Log:         ctx.Logger,
 	}
 	switch update := update.(type) {
 	case *tg.UpdateNewMessage:
 		m := update.GetMessage()
 		u.EffectiveMessage = types.ConstructMessageWithContext(m, ctx.Context, ctx.Raw, ctx.PeerStorage, ctx.Self.ID)
-		diff, err := ctx.Raw.UpdatesGetDifference(ctx.Context, &tg.UpdatesGetDifferenceRequest{
-			Pts:  update.Pts - 1,
-			Date: int(time.Now().Unix()),
-		})
-		// Silently add caught entities to *tg.Entities
-		if err == nil {
-			if value, ok := diff.(*tg.UpdatesDifference); ok {
-				for _, vu := range value.Chats {
-					switch chat := vu.(type) {
-					case *tg.Chat:
-						ctx.Entities.Chats[chat.ID] = chat
-						if ctx.PeerStorage.GetPeerByID(chat.ID) != nil {
-							continue
-						}
-						ctx.PeerStorage.AddPeer(chat.ID, storage.DefaultAccessHash, storage.TypeChat, storage.DefaultUsername)
-					case *tg.Channel:
-						ctx.Entities.Channels[chat.ID] = chat
-						if chat.Min || ctx.PeerStorage.GetPeerByID(chat.ID) != nil {
-							continue
-						}
-						ctx.PeerStorage.AddPeer(chat.ID, chat.AccessHash, storage.TypeChannel, chat.Username)
-					}
-				}
-				for _, vu := range value.Users {
-					user, ok := vu.AsNotEmpty()
-					if !ok {
-						continue
-					}
-					ctx.Entities.Users[user.ID] = user
-					if user.Min || ctx.PeerStorage.GetPeerByID(user.ID) != nil {
-						continue
-					}
-					ctx.PeerStorage.AddPeer(user.ID, user.AccessHash, storage.TypeUser, user.Username)
-				}
-			}
-		}
 		u.fillUserIDFromMessage(ctx.Self.ID)
-	case message.AnswerableMessageUpdate:
+	case *tg.UpdateEditMessage:
 		m := update.GetMessage()
 		u.EffectiveMessage = types.ConstructMessageWithContext(m, ctx.Context, ctx.Raw, ctx.PeerStorage, ctx.Self.ID)
+		u.IsEdited = true
+		u.fillUserIDFromMessage(ctx.Self.ID)
+	case *tg.UpdateEditChannelMessage:
+		m := update.GetMessage()
+		u.EffectiveMessage = types.ConstructMessageWithContext(m, ctx.Context, ctx.Raw, ctx.PeerStorage, ctx.Self.ID)
+		u.IsEdited = true
 		u.fillUserIDFromMessage(ctx.Self.ID)
 	case *tg.UpdateBotCallbackQuery:
 		u.CallbackQuery = update
 		u.userID = update.UserID
 	case *tg.UpdateBotInlineQuery:
 		u.InlineQuery = update
+		u.userID = update.UserID
+	case *tg.UpdateBotInlineSend:
+		u.ChosenInlineResult = update
 		u.userID = update.UserID
 	case *tg.UpdatePendingJoinRequests:
 		u.ChatJoinRequest = update
@@ -151,6 +155,39 @@ func GetNewUpdate(ctx *Context, update tg.UpdateClass) *Update {
 	case *tg.UpdateChannelParticipant:
 		u.ChannelParticipant = update
 		u.userID = update.UserID
+	case *tg.UpdateDeleteMessages:
+		u.DeletedMessages = update
+	case *tg.UpdateDeleteChannelMessages:
+		u.DeletedChannelMessages = update
+	case *tg.UpdateBotMessageReaction:
+		u.MessageReaction = update
+	case *tg.UpdateBotChatBoost:
+		u.ChatBoost = update
+	case *tg.UpdateBotBusinessConnect:
+		u.BusinessConnection = update
+	case *tg.UpdateBotNewBusinessMessage:
+		u.BusinessMessage = update
+		m := update.GetMessage()
+		u.EffectiveMessage = types.ConstructMessageWithContext(m, ctx.Context, ctx.Raw, ctx.PeerStorage, ctx.Self.ID)
+		u.fillUserIDFromMessage(ctx.Self.ID)
+	case *tg.UpdateBotEditBusinessMessage:
+		u.BusinessEditedMessage = update
+		m := update.GetMessage()
+		u.EffectiveMessage = types.ConstructMessageWithContext(m, ctx.Context, ctx.Raw, ctx.PeerStorage, ctx.Self.ID)
+		u.IsEdited = true
+		u.fillUserIDFromMessage(ctx.Self.ID)
+	case *tg.UpdateBotDeleteBusinessMessage:
+		u.BusinessDeletedMessages = update
+	case *tg.UpdateBusinessBotCallbackQuery:
+		u.BusinessCallbackQuery = update
+		u.userID = update.UserID
+	case message.AnswerableMessageUpdate:
+		m := update.GetMessage()
+		u.EffectiveMessage = types.ConstructMessageWithContext(m, ctx.Context, ctx.Raw, ctx.PeerStorage, ctx.Self.ID)
+		u.fillUserIDFromMessage(ctx.Self.ID)
+	}
+	if u.EffectiveMessage == nil {
+		u.EffectiveMessage = &types.Message{Message: &tg.Message{}}
 	}
 	return u
 }

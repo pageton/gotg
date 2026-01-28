@@ -7,6 +7,15 @@ import (
 	"github.com/pageton/gotg/types"
 )
 
+func (u *Update) HasMessage() bool {
+	return u.EffectiveMessage != nil && u.EffectiveMessage.ID != 0
+}
+
+// IsBot returns true if the current session belongs to a bot account.
+func (u *Update) IsBot() bool {
+	return u.Self != nil && u.Self.Bot
+}
+
 // Args parses and returns the arguments from the update.
 // For messages, splits the message text by whitespace.
 // For callback queries, splits the callback data by whitespace.
@@ -14,7 +23,7 @@ import (
 // Returns an empty slice if no applicable content exists.
 func (u *Update) Args() []string {
 	switch {
-	case u.EffectiveMessage != nil:
+	case u.HasMessage():
 		return strings.Fields(u.EffectiveMessage.Text)
 	case u.CallbackQuery != nil:
 		return strings.Fields(string(u.CallbackQuery.Data))
@@ -55,7 +64,7 @@ func (u *Update) GetChat() *types.Chat {
 		peer tg.PeerClass
 	)
 	switch {
-	case u.EffectiveMessage != nil:
+	case u.HasMessage():
 		peer = u.EffectiveMessage.PeerID
 	case u.CallbackQuery != nil:
 		peer = u.CallbackQuery.Peer
@@ -94,7 +103,7 @@ func (u *Update) GetChannel() *types.Channel {
 		peer tg.PeerClass
 	)
 	switch {
-	case u.EffectiveMessage != nil:
+	case u.HasMessage():
 		peer = u.EffectiveMessage.PeerID
 	case u.CallbackQuery != nil:
 		peer = u.CallbackQuery.Peer
@@ -133,7 +142,7 @@ func (u *Update) GetUserChat() *types.User {
 		peer tg.PeerClass
 	)
 	switch {
-	case u.EffectiveMessage != nil:
+	case u.HasMessage():
 		peer = u.EffectiveMessage.PeerID
 	case u.CallbackQuery != nil:
 		peer = u.CallbackQuery.Peer
@@ -179,7 +188,7 @@ func (u *Update) EffectiveChat() types.EffectiveChat {
 // EffectiveReply returns the message that this message is replying to.
 // It lazily fetches the reply message if not already populated.
 func (u *Update) EffectiveReply() *types.Message {
-	if u.EffectiveMessage == nil {
+	if !u.HasMessage() {
 		return nil
 	}
 
@@ -193,16 +202,57 @@ func (u *Update) EffectiveReply() *types.Message {
 
 // IsReply returns true if the effective message is a reply to another message.
 func (u *Update) IsReply() bool {
-	if u.EffectiveMessage == nil {
+	if !u.HasMessage() {
 		return false
 	}
 	return u.EffectiveMessage.ReplyTo != nil
 }
 
+// IsOutgoing returns true if the effective message was sent by this client (self).
+// Works for both user accounts (via tg.Message.Out) and bot accounts
+// (via FromID == Self.ID fallback, since bots always receive Out=false).
+func (u *Update) IsOutgoing() bool {
+	if !u.HasMessage() {
+		return false
+	}
+	return u.EffectiveMessage.IsOutgoing()
+}
+
+// IsIncoming returns true if the effective message was sent by another user
+// (not by this client). This is the inverse of IsOutgoing.
+func (u *Update) IsIncoming() bool {
+	return !u.IsOutgoing()
+}
+
+// ConnectionID returns the business connection ID for this update.
+// Returns empty string if the update is not business-related.
+func (u *Update) ConnectionID() string {
+	switch {
+	case u.BusinessConnection != nil:
+		return u.BusinessConnection.Connection.ConnectionID
+	case u.BusinessMessage != nil:
+		return u.BusinessMessage.ConnectionID
+	case u.BusinessEditedMessage != nil:
+		return u.BusinessEditedMessage.ConnectionID
+	case u.BusinessDeletedMessages != nil:
+		return u.BusinessDeletedMessages.ConnectionID
+	case u.BusinessCallbackQuery != nil:
+		return u.BusinessCallbackQuery.ConnectionID
+	default:
+		return ""
+	}
+}
+
+// IsBusinessUpdate returns true if this update originated from a business connection.
+func (u *Update) IsBusinessUpdate() bool {
+	return u.ConnectionID() != ""
+}
+
 // fillUserIDFromMessage populates the userID field by extracting the user ID
 // from various update types. Used internally during update construction.
 func (u *Update) fillUserIDFromMessage(selfUserID int64) {
-	if m := u.EffectiveMessage; m != nil {
+	if u.HasMessage() {
+		m := u.EffectiveMessage
 		if userPeer, ok := m.FromID.(*tg.PeerUser); ok {
 			u.userID = userPeer.UserID
 			return
@@ -267,7 +317,7 @@ func (u *Update) ChannelID() int64 {
 // Returns 0 if no message ID exists.
 func (u *Update) MsgID() int {
 	switch {
-	case u.EffectiveMessage != nil:
+	case u.HasMessage():
 		return u.EffectiveMessage.ID
 	case u.CallbackQuery != nil:
 		return u.CallbackQuery.MsgID
@@ -279,7 +329,7 @@ func (u *Update) MsgID() int {
 // MessageID returns the message ID for this update (alias for MsgID).
 func (u *Update) MessageID() int {
 	switch {
-	case u.EffectiveMessage != nil:
+	case u.HasMessage():
 		return u.EffectiveMessage.ID
 	case u.CallbackQuery != nil:
 		return u.CallbackQuery.MsgID
@@ -345,7 +395,7 @@ func (u *Update) Usernames() []tg.Username {
 // Text returns the text content of the effective message.
 // Returns an empty string if no message exists.
 func (u *Update) Text() string {
-	if u.EffectiveMessage == nil {
+	if !u.HasMessage() {
 		return ""
 	}
 	return u.EffectiveMessage.Text

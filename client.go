@@ -13,9 +13,9 @@ import (
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/conv"
 	"github.com/pageton/gotg/dispatcher"
+	gotglog "github.com/pageton/gotg/log"
 	"github.com/pageton/gotg/session"
 	"github.com/pageton/gotg/storage"
-	"go.uber.org/zap"
 )
 
 const VERSION = "v1.0.0-beta23"
@@ -57,8 +57,7 @@ type Client struct {
 	CompressThreshold int
 	// Whether to show the copyright line in console or no.
 	DisableCopyright bool
-	// Logger is instance of zap.Logger. No logs by default.
-	Logger *zap.Logger
+	Logger           *gotglog.Logger
 	// Session info of the authenticated user, use session.NewSession function to fill this field.
 	sessionStorage tdSession.Storage
 	// Self contains details of logged in user in the form of *tg.User.
@@ -82,6 +81,7 @@ type Client struct {
 	ctx             context.Context
 	err             error
 	autoFetchReply  bool
+	outgoing        bool
 	cancel          context.CancelFunc
 	running         bool
 	*telegram.Client
@@ -90,8 +90,6 @@ type Client struct {
 }
 
 type ClientOpts struct {
-	// Logger is instance of zap.Logger. No logs by default.
-	Logger *zap.Logger
 	// Whether to store session and peer storage in memory or not
 	//
 	// Note: Sessions and Peers won't be persistent if this field is set to true.
@@ -175,6 +173,12 @@ type ClientOpts struct {
 	NoAutoAuth bool
 	// NoUpdates is a flag to disable updates.
 	NoUpdates bool
+	// SendOutgoing enables synthetic outgoing updates for send/edit/delete.
+	// When true, sent messages are re-dispatched through handlers with Out=true.
+	SendOutgoing bool
+	// LogConfig configures the built-in gotg logger attached to each Update.
+	// If nil, DefaultConfig() is used (info level, color, timestamps, no caller).
+	LogConfig *gotglog.Config
 	// SendCodeOptions allows overriding AuthSendCode behavior.
 	SendCodeOptions *auth.SendCodeOptions
 	// Only usable by Users not bots
@@ -184,6 +188,9 @@ type ClientOpts struct {
 	// WaitOnPeersFromDialogs is a flag to enable waiting on
 	// PeersFromDialogs to complete during client start
 	WaitOnPeersFromDialogs bool
+	// MaxConcurrentUpdates limits parallel update handler goroutines.
+	// Default 1000 when 0.
+	MaxConcurrentUpdates int
 }
 
 // NewClient creates a new gotg client and logs in to telegram.
@@ -210,7 +217,17 @@ func NewClient(apiID int, apiHash string, clientType clientType, opts *ClientOpt
 		opts.AuthConversator = BasicConversator()
 	}
 
-	d := dispatcher.NewNativeDispatcher(opts.AutoFetchReply, opts.FetchEntireReplyChain, opts.ErrorHandler, opts.PanicHandler, peerStorage)
+	var logger *gotglog.Logger
+	if opts.LogConfig != nil {
+		logger = gotglog.New(*opts.LogConfig)
+	} else {
+		logger = gotglog.Default()
+	}
+
+	d := dispatcher.NewNativeDispatcher(opts.AutoFetchReply, opts.FetchEntireReplyChain, opts.ErrorHandler, opts.PanicHandler, peerStorage, logger, opts.SendOutgoing)
+	if opts.MaxConcurrentUpdates > 0 {
+		d.SetMaxConcurrentUpdates(opts.MaxConcurrentUpdates)
+	}
 
 	for i, middleware := range opts.DispatcherMiddlewares {
 		d.AddHandlerToGroup(middleware, i)
@@ -230,7 +247,7 @@ func NewClient(apiID int, apiHash string, clientType clientType, opts *ClientOpt
 		DialTimeout:       opts.DialTimeout,
 		CompressThreshold: opts.CompressThreshold,
 		DisableCopyright:  opts.DisableCopyright,
-		Logger:            opts.Logger,
+		Logger:            logger,
 		SystemLangCode:    opts.SystemLangCode,
 		ClientLangCode:    opts.ClientLangCode,
 		NoAutoAuth:        opts.NoAutoAuth,
@@ -243,6 +260,7 @@ func NewClient(apiID int, apiHash string, clientType clientType, opts *ClientOpt
 		clientType:        clientType,
 		ctx:               ctx,
 		autoFetchReply:    opts.AutoFetchReply,
+		outgoing:          opts.SendOutgoing,
 		cancel:            cancel,
 		apiID:             apiID,
 		apiHash:           apiHash,

@@ -63,7 +63,9 @@ func (dp *NativeDispatcher) dispatch(ctx context.Context, e tg.Entities, update 
 		return nil
 	}
 	dp.updateWg.Add(1)
+	dp.updateSem <- struct{}{}
 	go func() {
+		defer func() { <-dp.updateSem }()
 		defer dp.updateWg.Done()
 		if err := dp.handleUpdate(ctx, e, update); err != nil {
 			if !isControlError(err) {
@@ -74,13 +76,47 @@ func (dp *NativeDispatcher) dispatch(ctx context.Context, e tg.Entities, update 
 	return nil
 }
 
+func isSyntheticOutgoing(update tg.UpdateClass) bool {
+	u, ok := update.(*tg.UpdateNewMessage)
+	if !ok {
+		return false
+	}
+	m, ok := u.Message.(*tg.Message)
+	if !ok {
+		return false
+	}
+	return m.Out && u.Pts == 0
+}
+
 func isControlError(err error) bool {
 	return errors.Is(err, ContinueGroups) || errors.Is(err, EndGroups) || errors.Is(err, SkipCurrentGroup)
 }
 
 func (dp *NativeDispatcher) handleUpdate(ctx context.Context, e tg.Entities, update tg.UpdateClass) error {
-	c := adapter.NewContext(ctx, dp.client, dp.pStorage, dp.self, dp.sender, &e, dp.setReply, dp.conv)
+	c := adapter.NewContext(ctx, dp.client, dp.pStorage, dp.self, dp.sender, &e, dp.setReply, dp.conv, dp.logger)
+	if dp.outgoing && !isSyntheticOutgoing(update) {
+		c.OnOutgoing = func(ou *adapter.FakeOutgoingUpdate) {
+			if ou.Message == nil || ou.Message.Message == nil {
+				return
+			}
+			ou.Message.Out = true
+			msg := ou.Message.Message
+			dp.pendingOutgoing.Store(msg, ou)
+			synth := &tg.UpdateNewMessage{
+				Message: msg,
+				Pts:     0,
+			}
+			dp.dispatch(ctx, e, synth)
+		}
+	}
 	u := adapter.GetNewUpdate(c, update)
+	if isSyntheticOutgoing(update) {
+		if m, ok := update.(*tg.UpdateNewMessage); ok {
+			if val, loaded := dp.pendingOutgoing.LoadAndDelete(m.Message); loaded {
+				u.EffectiveOutgoing = val.(*adapter.FakeOutgoingUpdate)
+			}
+		}
+	}
 	dp.handleUpdateRepliedToMessage(u, ctx)
 	var err error
 	defer func() {
@@ -151,10 +187,10 @@ func interfaceToString(v any) string {
 }
 
 func (dp *NativeDispatcher) handleUpdateRepliedToMessage(u *adapter.Update, ctx context.Context) {
-	msg := u.EffectiveMessage
-	if msg == nil || !dp.setReply {
+	if !u.HasMessage() || !dp.setReply {
 		return
 	}
+	msg := u.EffectiveMessage
 	for {
 		if msg.Message.ReplyTo == nil {
 			return

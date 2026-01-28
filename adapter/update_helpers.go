@@ -5,6 +5,7 @@ import (
 	"html"
 
 	"github.com/gotd/td/tg"
+	"github.com/pageton/gotg/functions"
 )
 
 // Mention generates an HTML mention link for a Telegram user.
@@ -56,6 +57,12 @@ func (u *Update) Delete() error {
 // Returns nil if no user exists or on error.
 func (u *Update) GetFullUser() (*tg.UserFull, error) {
 	return u.Ctx.GetFullUser(u.UserID())
+}
+
+// GetUser fetches user information for the effective user.
+// Returns nil if no user exists or on error.
+func (u *Update) GetUser() (*tg.User, error) {
+	return u.Ctx.GetUser(u.UserID())
 }
 
 // Pin pins the effective message in the chat.
@@ -129,4 +136,14 @@ func (u *Update) GetChatInviteLink(req ...*tg.MessagesExportChatInviteRequest) (
 		return nil, fmt.Errorf("no chat found")
 	}
 	return u.Ctx.GetChatInviteLink(chatID, req...)
+}
+
+// DumpValue returns the raw UpdateClass for JSON serialization.
+func (u *Update) DumpValue() any {
+	return u.UpdateClass
+}
+
+// Dump returns pretty-printed JSON of any value with optional key prefix.
+func (u *Update) Dump(val any, key ...string) string {
+	return functions.Dump(val, key...)
 }

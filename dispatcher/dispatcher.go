@@ -13,6 +13,7 @@ import (
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/adapter"
 	"github.com/pageton/gotg/conv"
+	gotglog "github.com/pageton/gotg/log"
 	"github.com/pageton/gotg/storage"
 )
 
@@ -44,7 +45,9 @@ type NativeDispatcher struct {
 	sender              *message.Sender
 	setReply            bool
 	setEntireReplyChain bool
+	outgoing            bool
 	conv                *conv.Manager
+	logger              *gotglog.Logger
 	Panic               PanicHandler
 	Error               ErrorHandler
 	handlerMap          map[int][]Handler
@@ -54,6 +57,8 @@ type NativeDispatcher struct {
 	initwg              *sync.WaitGroup
 	nextGroup           atomic.Int64
 	updateWg            sync.WaitGroup
+	pendingOutgoing     sync.Map
+	updateSem           chan struct{}
 }
 
 type PanicHandler func(*adapter.Context, *adapter.Update, string)
@@ -82,9 +87,12 @@ type ErrorHandler func(*adapter.Context, *adapter.Update, string) error
 //	    nil,   // default panic handler
 //	    peerStorage,
 //	)
-func NewNativeDispatcher(setReply bool, setEntireReplyChain bool, eHandler ErrorHandler, pHandler PanicHandler, p *storage.PeerStorage) *NativeDispatcher {
+func NewNativeDispatcher(setReply bool, setEntireReplyChain bool, eHandler ErrorHandler, pHandler PanicHandler, p *storage.PeerStorage, logger *gotglog.Logger, outgoing bool) *NativeDispatcher {
 	if eHandler == nil {
 		eHandler = defaultErrorHandler
+	}
+	if logger == nil {
+		logger = gotglog.Default()
 	}
 	nd := &NativeDispatcher{
 		pStorage:            p,
@@ -92,9 +100,12 @@ func NewNativeDispatcher(setReply bool, setEntireReplyChain bool, eHandler Error
 		handlerGroups:       make([]int, 0, 8),
 		setReply:            setReply,
 		setEntireReplyChain: setEntireReplyChain,
+		outgoing:            outgoing,
 		Error:               eHandler,
 		Panic:               pHandler,
+		logger:              logger,
 		initwg:              &sync.WaitGroup{},
+		updateSem:           make(chan struct{}, 1000),
 	}
 	nd.conv = conv.NewManager(p, 1*time.Minute)
 	nd.initwg.Add(1)
@@ -123,14 +134,20 @@ func NewNativeDispatcher(setReply bool, setEntireReplyChain bool, eHandler Error
 //	dp, initWg := NewNativeDispatcherWithInit(...)
 //	dispatcher.Initialize(dp.initwg, ...)  // Waits for initwg
 //	dp.AddHandler(handler)  // Safe - initwg.Wait() is done
-func NewNativeDispatcherWithInit(setReply bool, setEntireReplyChain bool, eHandler ErrorHandler, pHandler PanicHandler, p *storage.PeerStorage, initwg *sync.WaitGroup) *NativeDispatcher {
+func NewNativeDispatcherWithInit(setReply bool, setEntireReplyChain bool, eHandler ErrorHandler, pHandler PanicHandler, p *storage.PeerStorage, logger *gotglog.Logger, outgoing bool, initwg *sync.WaitGroup) *NativeDispatcher {
 	if eHandler == nil {
 		eHandler = defaultErrorHandler
 	}
-	nd := NewNativeDispatcher(setReply, setEntireReplyChain, eHandler, pHandler, p)
+	nd := NewNativeDispatcher(setReply, setEntireReplyChain, eHandler, pHandler, p, logger, outgoing)
 	nd.initwg = initwg
 	nd.initwg.Add(1)
 	return nd
+}
+
+// SetMaxConcurrentUpdates overrides the default (1000) limit on goroutines
+// processing updates concurrently. Must be called before Initialize.
+func (dp *NativeDispatcher) SetMaxConcurrentUpdates(n int) {
+	dp.updateSem = make(chan struct{}, n)
 }
 
 // ConvManager exposes the underlying conversation manager instance.
