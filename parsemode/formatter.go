@@ -1,7 +1,7 @@
 package parsemode
 
 import (
-	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/gotd/td/tg"
@@ -33,56 +33,8 @@ func NewFormatHelper(mode FormatterMode) *FormatHelper {
 	return &FormatHelper{mode: mode}
 }
 
-func escapeMarkdownV2(text string) string {
-	escapeMap := map[rune]string{
-		'_': "\\_",
-		'*': "\\*",
-		'[': "\\[",
-		']': "\\]",
-		'(': "\\(",
-		')': "\\)",
-		'~': "\\~",
-		'`': "\\`",
-		'>': "\\>",
-		'#': "\\#",
-		'+': "\\+",
-		'-': "\\-",
-		'=': "\\=",
-		'|': "\\|",
-		'{': "\\{",
-		'}': "\\}",
-		'.': "\\.",
-		'!': "\\!",
-	}
-	var result strings.Builder
-	for _, r := range text {
-		if escaped, ok := escapeMap[r]; ok {
-			result.WriteString(escaped)
-		} else {
-			result.WriteString(string(r))
-		}
-	}
-	return result.String()
-}
-
-func escapeHTML(text string) string {
-	var result strings.Builder
-	for _, r := range text {
-		switch r {
-		case '&':
-			result.WriteString("&amp;")
-		case '<':
-			result.WriteString("&lt;")
-		case '>':
-			result.WriteString("&gt;")
-		case '"':
-			result.WriteString("&quot;")
-		default:
-			result.WriteString(string(r))
-		}
-	}
-	return result.String()
-}
+var escapeMarkdownV2 = EscapeMarkdownV2
+var escapeHTML = EscapeHTML
 
 // Bold formats text as bold.
 func (h *FormatHelper) Bold(text string) FormattedText {
@@ -91,7 +43,7 @@ func (h *FormatHelper) Bold(text string) FormattedText {
 	case FormatterMarkdown:
 		escapedText = escapeMarkdownV2(text)
 		return FormattedText{
-			Text: fmt.Sprintf("*%s*", escapedText),
+			Text: "*" + escapedText + "*",
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityBold{Offset: 0, Length: len(text)},
 			},
@@ -99,7 +51,7 @@ func (h *FormatHelper) Bold(text string) FormattedText {
 	case FormatterHTML:
 		escapedText = escapeHTML(text)
 		return FormattedText{
-			Text: fmt.Sprintf("<b>%s</b>", escapedText),
+			Text: "<b>" + escapedText + "</b>",
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityBold{Offset: 0, Length: len(text)},
 			},
@@ -116,7 +68,7 @@ func (h *FormatHelper) Italic(text string) FormattedText {
 	case FormatterMarkdown:
 		escapedText := escapeMarkdownV2(text)
 		return FormattedText{
-			Text: fmt.Sprintf("_%s_", escapedText),
+			Text: "_" + escapedText + "_",
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityItalic{Offset: 0, Length: len(text)},
 			},
@@ -124,7 +76,7 @@ func (h *FormatHelper) Italic(text string) FormattedText {
 	case FormatterHTML:
 		escapedText := escapeHTML(text)
 		return FormattedText{
-			Text: fmt.Sprintf("<i>%s</i>", escapedText),
+			Text: "<i>" + escapedText + "</i>",
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityItalic{Offset: 0, Length: len(text)},
 			},
@@ -141,7 +93,7 @@ func (h *FormatHelper) Underline(text string) FormattedText {
 	case FormatterMarkdown:
 		escapedText := escapeMarkdownV2(text)
 		return FormattedText{
-			Text: fmt.Sprintf("__%s__", escapedText),
+			Text: "__" + escapedText + "__",
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityUnderline{Offset: 0, Length: len(text)},
 			},
@@ -149,7 +101,7 @@ func (h *FormatHelper) Underline(text string) FormattedText {
 	case FormatterHTML:
 		escapedText := escapeHTML(text)
 		return FormattedText{
-			Text: fmt.Sprintf("<u>%s</u>", escapedText),
+			Text: "<u>" + escapedText + "</u>",
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityUnderline{Offset: 0, Length: len(text)},
 			},
@@ -166,7 +118,7 @@ func (h *FormatHelper) Strikethrough(text string) FormattedText {
 	case FormatterMarkdown:
 		escapedText := escapeMarkdownV2(text)
 		return FormattedText{
-			Text: fmt.Sprintf("~%s~", escapedText),
+			Text: "~" + escapedText + "~",
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityStrike{Offset: 0, Length: len(text)},
 			},
@@ -174,7 +126,7 @@ func (h *FormatHelper) Strikethrough(text string) FormattedText {
 	case FormatterHTML:
 		escapedText := escapeHTML(text)
 		return FormattedText{
-			Text: fmt.Sprintf("<s>%s</s>", escapedText),
+			Text: "<s>" + escapedText + "</s>",
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityStrike{Offset: 0, Length: len(text)},
 			},
@@ -191,7 +143,7 @@ func (h *FormatHelper) Spoiler(text string) FormattedText {
 	case FormatterMarkdown:
 		escapedText := escapeMarkdownV2(text)
 		return FormattedText{
-			Text: fmt.Sprintf("||%s||", escapedText),
+			Text: "||" + escapedText + "||",
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntitySpoiler{Offset: 0, Length: len(text)},
 			},
@@ -199,7 +151,7 @@ func (h *FormatHelper) Spoiler(text string) FormattedText {
 	case FormatterHTML:
 		escapedText := escapeHTML(text)
 		return FormattedText{
-			Text: fmt.Sprintf("<span class=\"tg-spoiler\">%s</span>", escapedText),
+			Text: `<span class="tg-spoiler">` + escapedText + "</span>",
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntitySpoiler{Offset: 0, Length: len(text)},
 			},
@@ -215,7 +167,7 @@ func (h *FormatHelper) Code(text string) FormattedText {
 	switch h.mode {
 	case FormatterMarkdown:
 		return FormattedText{
-			Text: fmt.Sprintf("`%s`", text),
+			Text: "`" + text + "`",
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityCode{Offset: 0, Length: len(text)},
 			},
@@ -223,7 +175,7 @@ func (h *FormatHelper) Code(text string) FormattedText {
 	case FormatterHTML:
 		escapedText := escapeHTML(text)
 		return FormattedText{
-			Text: fmt.Sprintf("<code>%s</code>", escapedText),
+			Text: "<code>" + escapedText + "</code>",
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityCode{Offset: 0, Length: len(text)},
 			},
@@ -245,14 +197,14 @@ func (h *FormatHelper) PreWithLanguage(text, language string) FormattedText {
 	case FormatterMarkdown:
 		if language != "" {
 			return FormattedText{
-				Text: fmt.Sprintf("```%s\n%s\n```", language, text),
+				Text: "```" + language + "\n" + text + "\n```",
 				Entities: []tg.MessageEntityClass{
 					&tg.MessageEntityPre{Offset: 0, Length: len(text), Language: language},
 				},
 			}
 		}
 		return FormattedText{
-			Text: fmt.Sprintf("```\n%s\n```", text),
+			Text: "```\n" + text + "\n```",
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityPre{Offset: 0, Length: len(text), Language: ""},
 			},
@@ -261,14 +213,14 @@ func (h *FormatHelper) PreWithLanguage(text, language string) FormattedText {
 		escapedText := escapeHTML(text)
 		if language != "" {
 			return FormattedText{
-				Text: fmt.Sprintf(`<pre><code class="language-%s">%s</code></pre>`, language, escapedText),
+				Text: `<pre><code class="language-` + language + `">` + escapedText + "</code></pre>",
 				Entities: []tg.MessageEntityClass{
 					&tg.MessageEntityPre{Offset: 0, Length: len(text), Language: language},
 				},
 			}
 		}
 		return FormattedText{
-			Text: fmt.Sprintf("<pre>%s</pre>", escapedText),
+			Text: "<pre>" + escapedText + "</pre>",
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityPre{Offset: 0, Length: len(text), Language: ""},
 			},
@@ -285,7 +237,7 @@ func (h *FormatHelper) TextLink(text, url string) FormattedText {
 	case FormatterMarkdown:
 		escapedText := escapeMarkdownV2(text)
 		return FormattedText{
-			Text: fmt.Sprintf("[%s](%s)", escapedText, url),
+			Text: "[" + escapedText + "](" + url + ")",
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityTextURL{Offset: 0, Length: len(text), URL: url},
 			},
@@ -293,7 +245,7 @@ func (h *FormatHelper) TextLink(text, url string) FormattedText {
 	case FormatterHTML:
 		escapedText := escapeHTML(text)
 		return FormattedText{
-			Text: fmt.Sprintf(`<a href="%s">%s</a>`, url, escapedText),
+			Text: `<a href="` + url + `">` + escapedText + "</a>",
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityTextURL{Offset: 0, Length: len(text), URL: url},
 			},
@@ -306,12 +258,12 @@ func (h *FormatHelper) TextLink(text, url string) FormattedText {
 
 // Mention creates an inline mention of a user.
 func (h *FormatHelper) Mention(text string, userID int64) FormattedText {
-	url := fmt.Sprintf("tg://user?id=%d", userID)
+	url := "tg://user?id=" + strconv.FormatInt(userID, 10)
 	switch h.mode {
 	case FormatterMarkdown:
 		escapedText := escapeMarkdownV2(text)
 		return FormattedText{
-			Text: fmt.Sprintf("[%s](%s)", escapedText, url),
+			Text: "[" + escapedText + "](" + url + ")",
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityTextURL{Offset: 0, Length: len(text), URL: url},
 			},
@@ -319,7 +271,7 @@ func (h *FormatHelper) Mention(text string, userID int64) FormattedText {
 	case FormatterHTML:
 		escapedText := escapeHTML(text)
 		return FormattedText{
-			Text: fmt.Sprintf(`<a href="%s">%s</a>`, url, escapedText),
+			Text: `<a href="` + url + `">` + escapedText + "</a>",
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityTextURL{Offset: 0, Length: len(text), URL: url},
 			},
@@ -332,18 +284,19 @@ func (h *FormatHelper) Mention(text string, userID int64) FormattedText {
 
 // CustomEmoji creates a custom emoji.
 func (h *FormatHelper) CustomEmoji(emoji string, emojiID int64) FormattedText {
-	url := fmt.Sprintf("tg://emoji?id=%d", emojiID)
+	idStr := strconv.FormatInt(emojiID, 10)
+	url := "tg://emoji?id=" + idStr
 	switch h.mode {
 	case FormatterMarkdown:
 		return FormattedText{
-			Text: fmt.Sprintf("[%s](%s)", emoji, url),
+			Text: "[" + emoji + "](" + url + ")",
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityCustomEmoji{Offset: 0, Length: len(emoji), DocumentID: emojiID},
 			},
 		}
 	case FormatterHTML:
 		return FormattedText{
-			Text: fmt.Sprintf(`<tg-emoji emoji-id="%d">%s</tg-emoji>`, emojiID, emoji),
+			Text: `<tg-emoji emoji-id="` + idStr + `">` + emoji + "</tg-emoji>",
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityCustomEmoji{Offset: 0, Length: len(emoji), DocumentID: emojiID},
 			},
@@ -359,7 +312,7 @@ func (h *FormatHelper) Blockquote(text string) FormattedText {
 	switch h.mode {
 	case FormatterMarkdown:
 		return FormattedText{
-			Text: fmt.Sprintf(">%s", text),
+			Text: ">" + text,
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityBlockquote{Offset: 0, Length: len(text)},
 			},
@@ -367,7 +320,7 @@ func (h *FormatHelper) Blockquote(text string) FormattedText {
 	case FormatterHTML:
 		escapedText := escapeHTML(text)
 		return FormattedText{
-			Text: fmt.Sprintf("<blockquote>%s</blockquote>", escapedText),
+			Text: "<blockquote>" + escapedText + "</blockquote>",
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityBlockquote{Offset: 0, Length: len(text)},
 			},
@@ -383,7 +336,7 @@ func (h *FormatHelper) ExpandableBlockquote(text string) FormattedText {
 	switch h.mode {
 	case FormatterMarkdown:
 		return FormattedText{
-			Text: fmt.Sprintf(">%s||", text),
+			Text: ">" + text + "||",
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityBlockquote{Offset: 0, Length: len(text), Collapsed: true},
 			},
@@ -391,7 +344,7 @@ func (h *FormatHelper) ExpandableBlockquote(text string) FormattedText {
 	case FormatterHTML:
 		escapedText := escapeHTML(text)
 		return FormattedText{
-			Text: fmt.Sprintf(`<blockquote expandable>%s</blockquote>`, escapedText),
+			Text: "<blockquote expandable>" + escapedText + "</blockquote>",
 			Entities: []tg.MessageEntityClass{
 				&tg.MessageEntityBlockquote{Offset: 0, Length: len(text), Collapsed: true},
 			},
@@ -412,14 +365,20 @@ func Combine(formatted ...FormattedText) FormattedText {
 		return formatted[0]
 	}
 
-	result := FormattedText{
-		Text:     "",
-		Entities: make([]tg.MessageEntityClass, 0),
+	totalLen := 0
+	totalEntities := 0
+	for _, f := range formatted {
+		totalLen += len(f.Text)
+		totalEntities += len(f.Entities)
 	}
+
+	var sb strings.Builder
+	sb.Grow(totalLen)
+	allEntities := make([]tg.MessageEntityClass, 0, totalEntities)
 
 	currentOffset := 0
 	for _, f := range formatted {
-		result.Text += f.Text
+		sb.WriteString(f.Text)
 		for _, entity := range f.Entities {
 			switch e := entity.(type) {
 			case *tg.MessageEntityBold:
@@ -443,10 +402,13 @@ func Combine(formatted ...FormattedText) FormattedText {
 			case *tg.MessageEntityBlockquote:
 				e.Offset += currentOffset
 			}
-			result.Entities = append(result.Entities, entity)
+			allEntities = append(allEntities, entity)
 		}
 		currentOffset += len(f.Text)
 	}
 
-	return result
+	return FormattedText{
+		Text:     sb.String(),
+		Entities: allEntities,
+	}
 }

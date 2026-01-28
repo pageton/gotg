@@ -19,6 +19,7 @@ type PeerStorage struct {
 	peerLock   *sync.RWMutex
 	inMemory   bool
 	SqlSession *gorm.DB
+	writeCh    chan *Peer
 }
 
 // NewPeerStorage creates a new peer storage instance with two-tier caching.
@@ -67,8 +68,15 @@ func NewPeerStorage(dialector gorm.Dialector, inMemory bool) *PeerStorage {
 		p.SqlSession = db
 		dB, _ := db.DB()
 		dB.SetMaxOpenConns(100)
+		dB.SetMaxIdleConns(10)
+		dB.SetConnMaxLifetime(30 * time.Minute)
+		dB.SetConnMaxIdleTime(5 * time.Minute)
 		_ = p.SqlSession.AutoMigrate(&Session{}, &Peer{}, &ConvState{})
 	}
 	p.peerCache = cacher.NewCacher[int64, *Peer](opts)
+	if !inMemory {
+		p.writeCh = make(chan *Peer, 256)
+		go p.startWriter()
+	}
 	return &p
 }

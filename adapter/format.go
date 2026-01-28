@@ -1,8 +1,9 @@
 package adapter
 
 import (
-	"fmt"
-	"strings"
+	"strconv"
+
+	"github.com/pageton/gotg/parsemode"
 )
 
 // FormatHelper provides text formatting convenience methods.
@@ -21,9 +22,9 @@ func (u *Update) Format(mode string) *FormatHelper {
 func (f *FormatHelper) Bold(text string) string {
 	switch f.mode {
 	case HTML:
-		return fmt.Sprintf("<b>%s</b>", text)
+		return "<b>" + text + "</b>"
 	case Markdown, MarkdownV2:
-		return fmt.Sprintf("*%s*", escapeMarkdownV2(text))
+		return "*" + escapeMarkdownV2(text) + "*"
 	}
 	return text
 }
@@ -32,9 +33,9 @@ func (f *FormatHelper) Bold(text string) string {
 func (f *FormatHelper) Italic(text string) string {
 	switch f.mode {
 	case HTML:
-		return fmt.Sprintf("<i>%s</i>", text)
+		return "<i>" + text + "</i>"
 	case Markdown, MarkdownV2:
-		return fmt.Sprintf("_%s_", escapeMarkdownV2(text))
+		return "_" + escapeMarkdownV2(text) + "_"
 	}
 	return text
 }
@@ -43,9 +44,9 @@ func (f *FormatHelper) Italic(text string) string {
 func (f *FormatHelper) Underline(text string) string {
 	switch f.mode {
 	case HTML:
-		return fmt.Sprintf("<u>%s</u>", text)
+		return "<u>" + text + "</u>"
 	case Markdown, MarkdownV2:
-		return fmt.Sprintf("__%s__", escapeMarkdownV2(text))
+		return "__" + escapeMarkdownV2(text) + "__"
 	}
 	return text
 }
@@ -54,9 +55,9 @@ func (f *FormatHelper) Underline(text string) string {
 func (f *FormatHelper) Strikethrough(text string) string {
 	switch f.mode {
 	case HTML:
-		return fmt.Sprintf("<s>%s</s>", text)
+		return "<s>" + text + "</s>"
 	case Markdown, MarkdownV2:
-		return fmt.Sprintf("~%s~", escapeMarkdownV2(text))
+		return "~" + escapeMarkdownV2(text) + "~"
 	}
 	return text
 }
@@ -65,9 +66,9 @@ func (f *FormatHelper) Strikethrough(text string) string {
 func (f *FormatHelper) Spoiler(text string) string {
 	switch f.mode {
 	case HTML:
-		return fmt.Sprintf("<tg-spoiler>%s</tg-spoiler>", text)
+		return "<tg-spoiler>" + text + "</tg-spoiler>"
 	case Markdown, MarkdownV2:
-		return fmt.Sprintf("||%s||", escapeMarkdownV2(text))
+		return "||" + escapeMarkdownV2(text) + "||"
 	}
 	return text
 }
@@ -76,9 +77,9 @@ func (f *FormatHelper) Spoiler(text string) string {
 func (f *FormatHelper) Code(text string) string {
 	switch f.mode {
 	case HTML:
-		return fmt.Sprintf("<code>%s</code>", text)
+		return "<code>" + text + "</code>"
 	case Markdown, MarkdownV2:
-		return fmt.Sprintf("`%s`", text)
+		return "`" + text + "`"
 	}
 	return text
 }
@@ -93,14 +94,14 @@ func (f *FormatHelper) PreWithLanguage(text, language string) string {
 	switch f.mode {
 	case HTML:
 		if language != "" {
-			return fmt.Sprintf("<pre><code class=\"language-%s\">%s</code></pre>", language, text)
+			return `<pre><code class="language-` + language + `">` + text + "</code></pre>"
 		}
-		return fmt.Sprintf("<pre>%s</pre>", text)
+		return "<pre>" + text + "</pre>"
 	case Markdown, MarkdownV2:
 		if language != "" {
-			return fmt.Sprintf("```%s\n%s\n```", language, text)
+			return "```" + language + "\n" + text + "\n```"
 		}
-		return fmt.Sprintf("```\n%s\n```", text)
+		return "```\n" + text + "\n```"
 	}
 	return text
 }
@@ -109,27 +110,28 @@ func (f *FormatHelper) PreWithLanguage(text, language string) string {
 func (f *FormatHelper) Link(text, url string) string {
 	switch f.mode {
 	case HTML:
-		return fmt.Sprintf("<a href='%s'>%s</a>", url, text)
+		return "<a href='" + url + "'>" + text + "</a>"
 	case Markdown, MarkdownV2:
-		return fmt.Sprintf("[%s](%s)", escapeMarkdownV2(text), url)
+		return "[" + escapeMarkdownV2(text) + "](" + url + ")"
 	}
-	return fmt.Sprintf("%s: %s", text, url)
+	return text + ": " + url
 }
 
 // Mention creates a mention link for a Telegram user.
 func (f *FormatHelper) Mention(displayName string, userID int64) string {
-	link := fmt.Sprintf("tg://user?id=%d", userID)
+	link := "tg://user?id=" + strconv.FormatInt(userID, 10)
 	return f.Link(displayName, link)
 }
 
 // CustomEmoji creates a custom emoji link.
 func (f *FormatHelper) CustomEmoji(emoji string, emojiID int64) string {
+	idStr := strconv.FormatInt(emojiID, 10)
 	switch f.mode {
 	case HTML:
-		return fmt.Sprintf("<tg-emoji emoji-id=\"%d\">%s</tg-emoji>", emojiID, emoji)
+		return `<tg-emoji emoji-id="` + idStr + `">` + emoji + "</tg-emoji>"
 	case Markdown, MarkdownV2:
-		link := fmt.Sprintf("tg://emoji?id=%d", emojiID)
-		return fmt.Sprintf("[%s](%s)", emoji, link)
+		link := "tg://emoji?id=" + idStr
+		return "[" + emoji + "](" + link + ")"
 	}
 	return emoji
 }
@@ -138,9 +140,9 @@ func (f *FormatHelper) CustomEmoji(emoji string, emojiID int64) string {
 func (f *FormatHelper) Blockquote(text string) string {
 	switch f.mode {
 	case HTML:
-		return fmt.Sprintf("<blockquote>%s</blockquote>", text)
+		return "<blockquote>" + text + "</blockquote>"
 	case Markdown, MarkdownV2:
-		return fmt.Sprintf(">%s", text)
+		return ">" + text
 	}
 	return text
 }
@@ -149,42 +151,11 @@ func (f *FormatHelper) Blockquote(text string) string {
 func (f *FormatHelper) ExpandableBlockquote(text string) string {
 	switch f.mode {
 	case HTML:
-		return fmt.Sprintf("<blockquote expandable>%s</blockquote>", text)
+		return "<blockquote expandable>" + text + "</blockquote>"
 	case Markdown, MarkdownV2:
-		return fmt.Sprintf(">%s||", text)
+		return ">" + text + "||"
 	}
 	return text
 }
 
-// escapeMarkdownV2 escapes special characters for MarkdownV2.
-func escapeMarkdownV2(text string) string {
-	escapeMap := map[rune]string{
-		'_': "\\_",
-		'*': "\\*",
-		'[': "\\[",
-		']': "\\]",
-		'(': "\\(",
-		')': "\\)",
-		'~': "\\~",
-		'`': "\\`",
-		'>': "\\>",
-		'#': "\\#",
-		'+': "\\+",
-		'-': "\\-",
-		'=': "\\=",
-		'|': "\\|",
-		'{': "\\{",
-		'}': "\\}",
-		'.': "\\.",
-		'!': "\\!",
-	}
-	var result strings.Builder
-	for _, r := range text {
-		if escaped, ok := escapeMap[r]; ok {
-			result.WriteString(escaped)
-		} else {
-			result.WriteString(string(r))
-		}
-	}
-	return result.String()
-}
+var escapeMarkdownV2 = parsemode.EscapeMarkdownV2
