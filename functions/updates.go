@@ -33,6 +33,8 @@ func GetNewMessageUpdate(msgData *tg.Message, upds tg.UpdatesClass, p *storage.P
 			return GetMessageFromMessageClass(u.Message)
 		case *tg.UpdateNewScheduledMessage:
 			return GetMessageFromMessageClass(u.Message)
+		case *tg.UpdateBotNewBusinessMessage:
+			return GetMessageFromMessageClass(u.Message)
 		}
 	}
 	return nil
@@ -51,6 +53,8 @@ func GetEditMessageUpdate(upds tg.UpdatesClass, p *storage.PeerStorage) *tg.Mess
 		case *tg.UpdateEditMessage:
 			return GetMessageFromMessageClass(u.Message)
 		case *tg.UpdateEditChannelMessage:
+			return GetMessageFromMessageClass(u.Message)
+		case *tg.UpdateBotEditBusinessMessage:
 			return GetMessageFromMessageClass(u.Message)
 		}
 	}
