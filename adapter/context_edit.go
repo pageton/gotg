@@ -16,15 +16,17 @@ import (
 //   - request: Telegram's MessagesEditMessageRequest with edits to apply
 //
 // Returns the edited Message or an error.
-func (ctx *Context) EditMessage(chatID int64, request *tg.MessagesEditMessageRequest) (*types.Message, error) {
-	message, err := functions.EditMessage(ctx.Context, ctx.Raw, ctx.PeerStorage, chatID, request)
+func (ctx *Context) EditMessage(chatID int64, request *tg.MessagesEditMessageRequest, businessConnectionID ...string) (*types.Message, error) {
+	message, err := functions.EditMessage(ctx.Context, ctx.Raw, ctx.PeerStorage, chatID, request, businessConnectionID...)
 	if err != nil {
+		ctx.emitOutgoing(ActionEdit, StatusFailed, nil, request.ID, chatID, request.Peer, err)
 		return nil, err
 	}
 	msg := types.ConstructMessageWithContext(message, ctx.Context, ctx.Raw, ctx.PeerStorage, ctx.Self.ID)
 	if ctx.setReply {
 		_ = msg.SetRepliedToMessage(ctx.Context, ctx.Raw, ctx.PeerStorage)
 	}
+	ctx.emitOutgoing(ActionEdit, StatusSucceeded, msg, message.ID, chatID, request.Peer, nil)
 	return msg, nil
 }
 

@@ -3,10 +3,30 @@ package functions
 import (
 	"context"
 
+	"github.com/gotd/td/bin"
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/errors"
 	"github.com/pageton/gotg/storage"
 )
+
+func invokeWithBusinessConnection(ctx context.Context, raw *tg.Client, connectionID string, request bin.Object) (tg.UpdatesClass, error) {
+	var result tg.UpdatesBox
+	err := raw.Invoker().Invoke(ctx, &tg.InvokeWithBusinessConnectionRequest{
+		ConnectionID: connectionID,
+		Query:        request,
+	}, &result)
+	if err != nil {
+		return nil, err
+	}
+	return result.Updates, nil
+}
+
+func getFirstString(s []string) string {
+	if len(s) > 0 {
+		return s[0]
+	}
+	return ""
+}
 
 // SendMessage sends a text message to a chat.
 //
@@ -18,7 +38,7 @@ import (
 //   - request: The message send request parameters
 //
 // Returns the sent message or an error.
-func SendMessage(ctx context.Context, raw *tg.Client, peerStorage *storage.PeerStorage, chatID int64, request *tg.MessagesSendMessageRequest) (*tg.Message, error) {
+func SendMessage(ctx context.Context, raw *tg.Client, peerStorage *storage.PeerStorage, chatID int64, request *tg.MessagesSendMessageRequest, businessConnectionID ...string) (*tg.Message, error) {
 	var err error
 	if request == nil {
 		request = &tg.MessagesSendMessageRequest{}
@@ -32,7 +52,13 @@ func SendMessage(ctx context.Context, raw *tg.Client, peerStorage *storage.PeerS
 	}
 	var m = &tg.Message{}
 	m.Message = request.Message
-	u, err := raw.MessagesSendMessage(ctx, request)
+	var u tg.UpdatesClass
+	connID := getFirstString(businessConnectionID)
+	if connID != "" {
+		u, err = invokeWithBusinessConnection(ctx, raw, connID, request)
+	} else {
+		u, err = raw.MessagesSendMessage(ctx, request)
+	}
 	message, err := ReturnNewMessageWithError(m, u, peerStorage, err)
 	if err != nil {
 		return nil, err
@@ -50,7 +76,7 @@ func SendMessage(ctx context.Context, raw *tg.Client, peerStorage *storage.PeerS
 //   - request: The media send request parameters
 //
 // Returns the sent message or an error.
-func SendMedia(ctx context.Context, raw *tg.Client, peerStorage *storage.PeerStorage, chatID int64, request *tg.MessagesSendMediaRequest) (*tg.Message, error) {
+func SendMedia(ctx context.Context, raw *tg.Client, peerStorage *storage.PeerStorage, chatID int64, request *tg.MessagesSendMediaRequest, businessConnectionID ...string) (*tg.Message, error) {
 	var err error
 	if request == nil {
 		request = &tg.MessagesSendMediaRequest{}
@@ -62,10 +88,15 @@ func SendMedia(ctx context.Context, raw *tg.Client, peerStorage *storage.PeerSto
 			return nil, err
 		}
 	}
-
 	var m = &tg.Message{}
 	m.Message = request.Message
-	u, err := raw.MessagesSendMedia(ctx, request)
+	var u tg.UpdatesClass
+	connID := getFirstString(businessConnectionID)
+	if connID != "" {
+		u, err = invokeWithBusinessConnection(ctx, raw, connID, request)
+	} else {
+		u, err = raw.MessagesSendMedia(ctx, request)
+	}
 	message, err := ReturnNewMessageWithError(m, u, peerStorage, err)
 	if err != nil {
 		return nil, err
@@ -113,7 +144,7 @@ func SendReaction(ctx context.Context, raw *tg.Client, peerStorage *storage.Peer
 //   - request: The multi-media send request parameters
 //
 // Returns the sent message or an error.
-func SendMultiMedia(ctx context.Context, raw *tg.Client, peerStorage *storage.PeerStorage, chatID int64, request *tg.MessagesSendMultiMediaRequest) (*tg.Message, error) {
+func SendMultiMedia(ctx context.Context, raw *tg.Client, peerStorage *storage.PeerStorage, chatID int64, request *tg.MessagesSendMultiMediaRequest, businessConnectionID ...string) (*tg.Message, error) {
 	var err error
 	if request == nil {
 		request = &tg.MessagesSendMultiMediaRequest{}
@@ -124,7 +155,13 @@ func SendMultiMedia(ctx context.Context, raw *tg.Client, peerStorage *storage.Pe
 			return nil, err
 		}
 	}
-	u, err := raw.MessagesSendMultiMedia(ctx, request)
+	var u tg.UpdatesClass
+	connID := getFirstString(businessConnectionID)
+	if connID != "" {
+		u, err = invokeWithBusinessConnection(ctx, raw, connID, request)
+	} else {
+		u, err = raw.MessagesSendMultiMedia(ctx, request)
+	}
 	message, err := ReturnNewMessageWithError(&tg.Message{}, u, peerStorage, err)
 	if err != nil {
 		return nil, err

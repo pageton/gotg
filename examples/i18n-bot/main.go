@@ -78,7 +78,7 @@ func start(update *adapter.Update) error {
 		Button(update.T("btn_menu"), "menu").
 		Build()
 	_, err := update.Reply(text, &adapter.SendOpts{
-		ParseMode: adapter.Markdown,
+		ParseMode:   adapter.Markdown,
 		ReplyMarkup: kbd,
 	})
 	return err
@@ -151,7 +151,7 @@ func languageCallback(u *adapter.Update) error {
 	u.Answer(u.T("success"))
 
 	// Try without markdown parsing first
-	_, err := u.Edit(text, &adapter.SendOpts{
+	_, err := u.Edit(text, &adapter.EditOpts{
 		ParseMode: adapter.ModeNone,
 	})
 

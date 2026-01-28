@@ -2,9 +2,9 @@ package session
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 
+	"github.com/bytedance/sonic"
 	"github.com/gotd/td/session"
 	"github.com/gotd/td/session/tdesktop"
 	"github.com/pageton/gotg/functions"
@@ -99,7 +99,7 @@ func (s *PyrogramSessionConstructor) loadSession() (sessionName, []byte, error) 
 	if err != nil {
 		return sessionNameString(s.name), nil, err
 	}
-	data, err := json.Marshal(jsonData{
+	data, err := sonic.Marshal(jsonData{
 		Version: storage.LatestVersion,
 		Data:    *sd,
 	})
@@ -138,7 +138,7 @@ func (s *TelethonSessionConstructor) loadSession() (sessionName, []byte, error) 
 	if err != nil {
 		return sessionNameString(s.name), nil, err
 	}
-	data, err := json.Marshal(jsonData{
+	data, err := sonic.Marshal(jsonData{
 		Version: storage.LatestVersion,
 		Data:    *sd,
 	})
@@ -220,7 +220,7 @@ func (s *TdataSessionConstructor) loadSession() (sessionName, []byte, error) {
 	if err := loader.Save(ctx, sd); err != nil {
 		return sessionNameString(s.name), nil, err
 	}
-	data, err := json.Marshal(jsonData{
+	data, err := sonic.Marshal(jsonData{
 		Version: storage.LatestVersion,
 		Data:    *sd,
 	})
@@ -258,7 +258,7 @@ func (s *GramjsSessionConstructor) loadSession() (sessionName, []byte, error) {
 	if err != nil {
 		return sessionNameString(s.name), nil, err
 	}
-	data, err := json.Marshal(jsonData{
+	data, err := sonic.Marshal(jsonData{
 		Version: storage.LatestVersion,
 		Data:    *sd,
 	})

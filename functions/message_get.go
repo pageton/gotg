@@ -244,7 +244,7 @@ func ForwardMessages(ctx context.Context, raw *tg.Client, p *storage.PeerStorage
 //   - request: The edit message request parameters
 //
 // Returns the edited message or an error.
-func EditMessage(ctx context.Context, raw *tg.Client, peerStorage *storage.PeerStorage, chatID int64, request *tg.MessagesEditMessageRequest) (*tg.Message, error) {
+func EditMessage(ctx context.Context, raw *tg.Client, peerStorage *storage.PeerStorage, chatID int64, request *tg.MessagesEditMessageRequest, businessConnectionID ...string) (*tg.Message, error) {
 	var err error
 	if request == nil {
 		request = &tg.MessagesEditMessageRequest{}
@@ -255,7 +255,13 @@ func EditMessage(ctx context.Context, raw *tg.Client, peerStorage *storage.PeerS
 			return nil, err
 		}
 	}
-	upds, err := raw.MessagesEditMessage(ctx, request)
+	var upds tg.UpdatesClass
+	connID := getFirstString(businessConnectionID)
+	if connID != "" {
+		upds, err = invokeWithBusinessConnection(ctx, raw, connID, request)
+	} else {
+		upds, err = raw.MessagesEditMessage(ctx, request)
+	}
 	if err != nil {
 		return nil, err
 	}

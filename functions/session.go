@@ -3,9 +3,9 @@ package functions
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
 	"strings"
 
+	"github.com/bytedance/sonic"
 	"github.com/pageton/gotg/storage"
 )
 
@@ -18,7 +18,7 @@ import (
 func EncodeSessionToString(session *storage.Session) (string, error) {
 	var buf bytes.Buffer
 	encoder := base64.NewEncoder(base64.StdEncoding, &buf)
-	err := json.NewEncoder(encoder).Encode(session)
+	err := sonic.ConfigDefault.NewEncoder(encoder).Encode(session)
 	if err != nil {
 		return "", err
 	}
@@ -35,5 +35,5 @@ func EncodeSessionToString(session *storage.Session) (string, error) {
 func DecodeStringToSession(sessionString string) (*storage.Session, error) {
 	// var sessionData session.Data
 	var sessionData storage.Session
-	return &sessionData, json.NewDecoder(base64.NewDecoder(base64.StdEncoding, strings.NewReader(sessionString))).Decode(&sessionData)
+	return &sessionData, sonic.ConfigDefault.NewDecoder(base64.NewDecoder(base64.StdEncoding, strings.NewReader(sessionString))).Decode(&sessionData)
 }

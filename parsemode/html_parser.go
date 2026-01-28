@@ -21,9 +21,35 @@ func isValidTelegramURL(href string) bool {
 		return true
 	case "javascript", "data", "vbscript", "file":
 		return false
+	case "":
+		// No scheme - could be a protocol-relative URL or domain-only URL
+		// (e.g., "t.me/username" or "//example.com/path")
+		return true
 	default:
 		return false
 	}
+}
+
+// normalizeURL ensures a URL has a proper scheme for Telegram.
+// Protocol-less URLs like "t.me/username" get "https://" prepended.
+func normalizeURL(href string) string {
+	if href == "" {
+		return href
+	}
+	u, err := url.Parse(href)
+	if err != nil {
+		return href
+	}
+	if u.Scheme == "" && u.Host == "" && !strings.HasPrefix(href, "//") {
+		// Looks like "t.me/username" - no scheme and parsed as path only
+		// Prepend https:// to make it a valid URL
+		return "https://" + href
+	}
+	if strings.HasPrefix(href, "//") {
+		// Protocol-relative URL like "//example.com/path"
+		return "https:" + href
+	}
+	return href
 }
 
 // HTMLParser implements the Parser interface for HTML formatting.

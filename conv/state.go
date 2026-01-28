@@ -1,7 +1,9 @@
 package conv
 
 import (
-	"encoding/json"
+	"log"
+
+	"github.com/bytedance/sonic"
 	"sync"
 	"time"
 
@@ -40,7 +42,9 @@ func newState(raw *storage.ConvState, m *Manager) *State {
 		manager: m,
 	}
 	if len(raw.Payload) > 0 {
-		_ = json.Unmarshal(raw.Payload, &s.data)
+		if err := sonic.Unmarshal(raw.Payload, &s.data); err != nil {
+			log.Printf("conv: failed to unmarshal state payload for step %q: %v", raw.Step, err)
+		}
 	}
 	return s
 }
@@ -115,7 +119,7 @@ func (s *State) save() error {
 	if !s.dirty {
 		return nil
 	}
-	payload, err := json.Marshal(s.data)
+	payload, err := sonic.Marshal(s.data)
 	if err != nil {
 		return err
 	}
@@ -140,6 +144,10 @@ func (s *State) Next(step string, text string, opts ...*NextOpts) error {
 
 	if err := s.manager.SetStateWithOpts(s.Key(), step, s.raw.Payload, timeout, filter); err != nil {
 		return err
+	}
+
+	if text == "" {
+		return nil
 	}
 
 	if reply && s.ReplyFn != nil {

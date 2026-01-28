@@ -3,7 +3,6 @@ package functions
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/errors"
@@ -46,8 +45,7 @@ func GetChatMember(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, 
 			Participant: GetInputPeerClassFromID(p, userID),
 		})
 		if err != nil {
-			// Handle USER_NOT_PARTICIPANT error - return left status
-			if strings.Contains(err.Error(), tg.ErrUserNotParticipant) {
+			if tg.IsUserNotParticipant(err) {
 				return &tg.ChannelParticipantLeft{
 					Peer: &tg.PeerUser{UserID: userID},
 				}, nil

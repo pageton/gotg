@@ -155,7 +155,7 @@ func (m *Message) GiveawayResults() *tg.MessageMediaGiveawayResults {
 
 // Story returns the story if message contains story media, nil otherwise.
 func (m *Message) Story() *tg.MessageMediaStory {
-	if m.Media == nil {
+	if m == nil || m.Message == nil || m.Media == nil {
 		return nil
 	}
 	if story, ok := m.Media.(*tg.MessageMediaStory); ok {

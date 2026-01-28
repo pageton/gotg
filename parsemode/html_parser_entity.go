@@ -116,6 +116,8 @@ func (p *HTMLParser) parseAnchorTag(tag tag) tg.MessageEntityClass {
 		}
 	}
 
+	href = normalizeURL(href)
+
 	switch {
 	case href == "":
 		return &tg.MessageEntityURL{

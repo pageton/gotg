@@ -101,6 +101,15 @@ func (m *Message) Link() string {
 	return fmt.Sprintf("https://t.me/c/%d/%d", strippedID, m.ID)
 }
 
+// IsForward returns true if the message was forwarded from another chat.
+func (m *Message) IsForward() bool {
+	if m == nil || m.Message == nil {
+		return false
+	}
+	_, ok := m.GetFwdFrom()
+	return ok
+}
+
 func stripChannelPrefix(id int64) int64 {
 	if id < 0 {
 		id = -id

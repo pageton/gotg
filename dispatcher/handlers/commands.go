@@ -4,8 +4,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/pageton/gotg/dispatcher/handlers/filters"
 	"github.com/pageton/gotg/adapter"
+	"github.com/pageton/gotg/dispatcher/handlers/filters"
 )
 
 // Command handler is executed when the update consists of tg.Message provided it is a command and satisfies all the conditions.
@@ -58,20 +58,20 @@ func (c Command) CheckUpdate(ctx *adapter.Context, u *adapter.Update) error {
 	if m == nil || m.Text == "" {
 		return nil
 	}
-	if !c.Outgoing && m.Out {
+	if !c.Outgoing && m.IsOutgoing() {
 		return nil
 	}
 	if c.UpdateFilters != nil && !c.UpdateFilters(u) {
 		return nil
 	}
-	
+
 	// Optimized: Parse command without allocating new strings
 	// Instead of strings.Fields() + strings.ToLower(), do inline parsing
 	text := m.Text
 	if len(text) == 0 {
 		return nil
 	}
-	
+
 	// Find first space (end of first word/command)
 	end := len(text)
 	for i, r := range text {
@@ -80,11 +80,11 @@ func (c Command) CheckUpdate(ctx *adapter.Context, u *adapter.Update) error {
 			break
 		}
 	}
-	
+
 	// Extract first word and convert to lowercase in-place
 	firstWord := text[:end]
 	arg := toLowerInline(firstWord)
-	
+
 	// Check each prefix
 	for _, prefix := range c.Prefix {
 		if len(arg) > 0 && arg[0] == byte(prefix) {
@@ -118,11 +118,11 @@ func toLowerInline(s string) string {
 			break
 		}
 	}
-	
+
 	if !needsConversion {
 		return s
 	}
-	
+
 	// Convert in-place using a byte slice
 	b := make([]byte, len(s))
 	for i := 0; i < len(s); i++ {

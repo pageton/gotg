@@ -45,7 +45,7 @@ func (c *Client) initTelegramClient(
 		UpdateHandler:     c.Dispatcher,
 		NoUpdates:         c.NoUpdates,
 		SessionStorage:    c.sessionStorage,
-		Logger:            c.Logger,
+		Logger:            c.Logger.ZapLogger(),
 		Device:            *device,
 		Middlewares:       middlewares,
 	})
@@ -156,6 +156,7 @@ func (c *Client) CreateContext() *adapter.Context {
 		},
 		c.autoFetchReply,
 		c.ConvManager,
+		nil,
 	)
 }
 
@@ -187,6 +188,12 @@ func (c *Client) Start(opts *ClientOpts) error {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func(c *Client) {
+		defer func() {
+			if r := recover(); r != nil {
+				c.err = fmt.Errorf("panic in client: %v", r)
+				wg.Done()
+			}
+		}()
 		if opts.RunMiddleware == nil {
 			c.err = c.Run(c.ctx, c.initialize(&wg))
 		} else {

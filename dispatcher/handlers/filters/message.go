@@ -287,7 +287,7 @@ func (*messageFilters) FromScheduled(m *types.Message) bool {
 
 // LinkedChannel returns true if the Message was automatically forwarded from a linked channel.
 func (*messageFilters) LinkedChannel(m *types.Message) bool {
-	return m.Post && !m.Out
+	return m.Post && !m.IsOutgoing()
 }
 
 // ReplyKeyboard returns true if the Message has a reply keyboard markup.
@@ -397,11 +397,11 @@ func (*messageFilters) SenderChat(m *types.Message) bool {
 }
 
 func (*messageFilters) Incoming(m *types.Message) bool {
-	return !m.Out
+	return !m.IsOutgoing()
 }
 
 func (*messageFilters) Outgoing(m *types.Message) bool {
-	return m.Out
+	return m.IsOutgoing()
 }
 
 func (*messageFilters) SelfDestruction(m *types.Message) bool {

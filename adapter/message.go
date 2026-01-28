@@ -31,6 +31,7 @@ type SendOpts struct {
 	ParseMode              string
 	WithoutReply           bool
 	ReplyMessageID         int
+	BusinessConnectionID   string
 }
 
 // SendMediaOpts contains optional parameters for sending media.
@@ -60,12 +61,12 @@ type SendMediaOpts struct {
 	ParseMode              string
 	WithoutReply           bool
 	ReplyMessageID         int
+	BusinessConnectionID   string
 }
 
 // EditOpts contains optional parameters for editing messages.
 // Clones all fields from tg.MessagesEditMessageRequest.
 type EditOpts struct {
-	Flags                int
 	NoWebpage            bool
 	InvertMedia          bool
 	Peer                 tg.InputPeerClass
@@ -78,12 +79,12 @@ type EditOpts struct {
 	ScheduleRepeatPeriod int
 	QuickReplyShortcutID int
 	ParseMode            string
+	BusinessConnectionID string
 }
 
 // EditMediaOpts contains optional parameters for editing media messages.
 // Clones all fields from tg.MessagesEditMessageRequest.
 type EditMediaOpts struct {
-	Flags                int
 	NoWebpage            bool
 	InvertMedia          bool
 	Peer                 tg.InputPeerClass
@@ -97,4 +98,5 @@ type EditMediaOpts struct {
 	QuickReplyShortcutID int
 	Caption              string
 	ParseMode            string
+	BusinessConnectionID string
 }

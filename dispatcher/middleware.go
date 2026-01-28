@@ -107,7 +107,7 @@ type conversationMiddlewareHandler struct {
 }
 
 func (m *conversationMiddlewareHandler) CheckUpdate(ctx *adapter.Context, update *adapter.Update) error {
-	if m.manager == nil || update.EffectiveMessage == nil {
+	if m.manager == nil || !update.HasMessage() {
 		return ContinueGroups
 	}
 

@@ -10,17 +10,31 @@ var (
 	Message             = messageFilters{}
 	CallbackQuery       = callbackQueryFilters{}
 	InlineQuery         = inlineQuery{}
+	ChosenInlineResult  = chosenInlineResult{}
 	PendingJoinRequests = pendingJoinRequests{}
 	ChatMemberUpdated   = chatMemberUpdated{}
+	DeletedMessage      = deletedMessage{}
+	MessageReaction     = messageReaction{}
+	ChatBoost           = chatBoost{}
+	BusinessConn        = businessConnection{}
+	BusinessDeletedMsg  = businessDeletedMsg{}
+	BusinessCallbackQry = businessCallbackQuery{}
 )
 
 type (
-	UpdateFilter              func(u *adapter.Update) bool
-	MessageFilter             func(m *types.Message) bool
-	CallbackQueryFilter       func(cbq *tg.UpdateBotCallbackQuery) bool
-	InlineQueryFilter         func(iq *tg.UpdateBotInlineQuery) bool
-	PendingJoinRequestsFilter func(cjr *tg.UpdatePendingJoinRequests) bool
-	ChatMemberUpdatedFilter   func(u *adapter.Update) bool
+	UpdateFilter                 func(u *adapter.Update) bool
+	MessageFilter                func(m *types.Message) bool
+	CallbackQueryFilter          func(cbq *tg.UpdateBotCallbackQuery) bool
+	InlineQueryFilter            func(iq *tg.UpdateBotInlineQuery) bool
+	ChosenInlineResultFilter     func(cir *tg.UpdateBotInlineSend) bool
+	PendingJoinRequestsFilter    func(cjr *tg.UpdatePendingJoinRequests) bool
+	ChatMemberUpdatedFilter      func(u *adapter.Update) bool
+	DeletedMessageFilter         func(u *adapter.Update) bool
+	MessageReactionFilter        func(mr *tg.UpdateBotMessageReaction) bool
+	ChatBoostFilter              func(cb *tg.UpdateBotChatBoost) bool
+	BusinessConnectionFilter     func(bc *tg.UpdateBotBusinessConnect) bool
+	BusinessDeletedMessageFilter func(bd *tg.UpdateBotDeleteBusinessMessage) bool
+	BusinessCallbackQueryFilter  func(bq *tg.UpdateBusinessBotCallbackQuery) bool
 )
 
 type AndFilter struct {
@@ -63,7 +77,15 @@ func Private(u *adapter.Update) bool {
 }
 
 func Incoming(u *adapter.Update) bool {
-	return !u.EffectiveMessage.Out
+	return !u.IsOutgoing()
+}
+
+func Outgoing(u *adapter.Update) bool {
+	return u.IsOutgoing()
+}
+
+func Business(u *adapter.Update) bool {
+	return u.IsBusinessUpdate()
 }
 
 func (a AndFilter) Call(u *adapter.Update) bool {

@@ -283,12 +283,14 @@ func TestHTMLParser_Parse_Link(t *testing.T) {
 		input    string
 		wantText string
 		wantType any
+		wantURL  string
 	}{
 		{
 			name:     "url link",
 			input:    `<a href="https://example.com">link</a>`,
 			wantText: "link",
 			wantType: &tg.MessageEntityTextURL{},
+			wantURL:  "https://example.com",
 		},
 		{
 			name:     "email link",
@@ -302,6 +304,27 @@ func TestHTMLParser_Parse_Link(t *testing.T) {
 			wantText: "url",
 			wantType: &tg.MessageEntityURL{},
 		},
+		{
+			name:     "protocol-less t.me link",
+			input:    `<a href="t.me/l9l9l">Team David</a>`,
+			wantText: "Team David",
+			wantType: &tg.MessageEntityTextURL{},
+			wantURL:  "https://t.me/l9l9l",
+		},
+		{
+			name:     "protocol-less domain link",
+			input:    `<a href="example.com/path">link</a>`,
+			wantText: "link",
+			wantType: &tg.MessageEntityTextURL{},
+			wantURL:  "https://example.com/path",
+		},
+		{
+			name:     "protocol-relative link",
+			input:    `<a href="//example.com/path">link</a>`,
+			wantText: "link",
+			wantType: &tg.MessageEntityTextURL{},
+			wantURL:  "https://example.com/path",
+		},
 	}
 
 	for _, tt := range tests {
@@ -313,6 +336,12 @@ func TestHTMLParser_Parse_Link(t *testing.T) {
 
 			entity := result.Entities[0]
 			assert.IsType(t, tt.wantType, entity)
+
+			if tt.wantURL != "" {
+				if textURL, ok := entity.(*tg.MessageEntityTextURL); ok {
+					assert.Equal(t, tt.wantURL, textURL.URL)
+				}
+			}
 		})
 	}
 }

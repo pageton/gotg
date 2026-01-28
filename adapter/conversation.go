@@ -4,9 +4,9 @@
 package adapter
 
 import (
-	"encoding/json"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/conv"
 	"github.com/pageton/gotg/functions"
@@ -78,7 +78,7 @@ func (u *Update) startConv(step string, text string, data map[string]any, opts .
 
 	var payload []byte
 	if data != nil {
-		payload, _ = json.Marshal(data)
+		payload, _ = sonic.Marshal(data)
 	}
 
 	var timeout time.Duration

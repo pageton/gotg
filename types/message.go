@@ -151,14 +151,35 @@ func (m *Message) Delete() error {
 	return functions.DeleteMessages(m.Ctx, m.RawClient, m.PeerStorage, chatID, []int{m.ID})
 }
 
+// IsOutgoing returns true if the message was sent by this client (self).
+// It checks the native tg.Message.Out flag first, then falls back to
+// comparing the sender's user ID with SelfID. This fallback is necessary
+// because bot accounts always receive Out=false from Telegram's MTProto.
+func (m *Message) IsOutgoing() bool {
+	if m == nil || m.Message == nil {
+		return false
+	}
+	if m.Out {
+		return true
+	}
+	if m.SelfID == 0 {
+		return false
+	}
+	// For bot accounts, Out is always false. Fall back to sender comparison.
+	if uid := m.UserID(); uid != 0 {
+		return uid == m.SelfID
+	}
+	// FromID nil in private chats means the message is from the session owner.
+	if m.FromID == nil {
+		if _, ok := m.PeerID.(*tg.PeerUser); ok {
+			return true
+		}
+	}
+	return false
+}
+
 // UserID returns the user ID of the message sender.
 // Returns 0 if the message has no sender or sender is not a user.
-//
-// Example:
-//
-//	if userID := m.UserID(); userID != 0 {
-//		fmt.Printf("Sender ID: %d\n", userID)
-//	}
 func (m *Message) UserID() int64 {
 	if m == nil || m.Message == nil {
 		return 0
