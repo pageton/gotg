@@ -8,7 +8,7 @@ require (
 	github.com/AnimeKaizoku/cacher v1.0.3
 	github.com/bytedance/sonic v1.15.0
 	github.com/go-faster/errors v0.7.1
-	github.com/gotd/td v0.137.0
+	github.com/gotd/td v0.138.0
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/multierr v1.11.0
