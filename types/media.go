@@ -133,4 +133,3 @@ func InputMediaFromFileID(fileIDStr string, caption string) (tg.InputMediaClass,
 		return nil, fmt.Errorf("unsupported file type: %v", fid.Type)
 	}
 }
-

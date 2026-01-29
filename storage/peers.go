@@ -135,7 +135,7 @@ func (p *PeerStorage) GetInputPeerByUsername(userName string) tg.InputPeerClass 
 }
 
 func (p *PeerStorage) cachePeers(id int64) *Peer {
-	var peer = Peer{}
+	peer := Peer{}
 	p.SqlSession.Where("id = ?", id).Find(&peer)
 	p.peerCache.Set(id, &peer)
 	return &peer

@@ -208,27 +208,27 @@ func TestMarkdownParser_Parse_Blockquote(t *testing.T) {
 	parser := NewMarkdownParser()
 
 	tests := []struct {
-		name         string
-		input        string
-		wantText     string
+		name          string
+		input         string
+		wantText      string
 		wantCollapsed bool
 	}{
 		{
-			name:     "single line",
-			input:    "> hello",
-			wantText: "hello",
+			name:          "single line",
+			input:         "> hello",
+			wantText:      "hello",
 			wantCollapsed: false,
 		},
 		{
-			name:     "collapsed",
-			input:    ">>> hello",
-			wantText: "hello",
+			name:          "collapsed",
+			input:         ">>> hello",
+			wantText:      "hello",
 			wantCollapsed: true,
 		},
 		{
-			name:     "multiple lines",
-			input:    "> hello\n> world",
-			wantText: "hello\nworld",
+			name:          "multiple lines",
+			input:         "> hello\n> world",
+			wantText:      "hello\nworld",
 			wantCollapsed: false,
 		},
 	}

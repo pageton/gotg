@@ -7,10 +7,10 @@ import (
 
 func TestGetOpt(t *testing.T) {
 	tests := []struct {
-		name     string
-		opts     []int
-		want     int
-		wantOk   bool
+		name   string
+		opts   []int
+		want   int
+		wantOk bool
 	}{
 		{
 			name:   "no options",
@@ -63,10 +63,10 @@ func TestGetOpt(t *testing.T) {
 
 func TestGetOptDef(t *testing.T) {
 	tests := []struct {
-		name  string
-		def   int
-		opts  []int
-		want  int
+		name string
+		def  int
+		opts []int
+		want int
 	}{
 		{
 			name: "no options - returns default",

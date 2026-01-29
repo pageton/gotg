@@ -25,7 +25,7 @@ func (dp *NativeDispatcher) AddHandler(h Handler) {
 func (dp *NativeDispatcher) AddHandlerToGroup(h Handler, group int) {
 	dp.handlerGroupsMu.Lock()
 	defer dp.handlerGroupsMu.Unlock()
-	
+
 	handlers, ok := dp.handlerMap[group]
 	if !ok {
 		dp.handlerGroups = append(dp.handlerGroups, group)
@@ -55,10 +55,10 @@ func (dp *NativeDispatcher) AddHandlersToGroup(group int, handlers ...Handler) {
 	if len(handlers) == 0 {
 		return
 	}
-	
+
 	dp.handlerGroupsMu.Lock()
 	defer dp.handlerGroupsMu.Unlock()
-	
+
 	existing, ok := dp.handlerMap[group]
 	if !ok {
 		dp.handlerGroups = append(dp.handlerGroups, group)

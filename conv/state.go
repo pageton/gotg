@@ -2,10 +2,10 @@ package conv
 
 import (
 	"log"
-
-	"github.com/bytedance/sonic"
 	"sync"
 	"time"
+
+	"github.com/bytedance/sonic"
 
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/storage"

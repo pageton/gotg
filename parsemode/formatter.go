@@ -33,8 +33,10 @@ func NewFormatHelper(mode FormatterMode) *FormatHelper {
 	return &FormatHelper{mode: mode}
 }
 
-var escapeMarkdownV2 = EscapeMarkdownV2
-var escapeHTML = EscapeHTML
+var (
+	escapeMarkdownV2 = EscapeMarkdownV2
+	escapeHTML       = EscapeHTML
+)
 
 // Bold formats text as bold.
 func (h *FormatHelper) Bold(text string) FormattedText {

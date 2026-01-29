@@ -44,7 +44,23 @@ func (u *Update) EffectiveUser() *types.User {
 	}
 	tgUser := u.Entities.Users[u.userID]
 	if tgUser == nil {
-		return nil
+		// Fallback 1: try to construct minimal user from PeerStorage
+		if u.Ctx.PeerStorage != nil {
+			storagePeer := u.Ctx.PeerStorage.GetPeerByID(u.userID)
+			if storagePeer != nil && storagePeer.Type == 1 { // 1 = TypeUser
+				// Construct minimal user with ID and AccessHash from storage
+				tgUser = &tg.User{
+					ID:         u.userID,
+					AccessHash: storagePeer.AccessHash,
+				}
+			}
+		}
+		// Fallback 2: create stub user with just ID (for outgoing messages where recipient isn't in entities)
+		if tgUser == nil {
+			tgUser = &tg.User{
+				ID: u.userID,
+			}
+		}
 	}
 	return &types.User{
 		User:        *tgUser,
@@ -60,9 +76,7 @@ func (u *Update) GetChat() *types.Chat {
 	if u.Entities == nil {
 		return nil
 	}
-	var (
-		peer tg.PeerClass
-	)
+	var peer tg.PeerClass
 	switch {
 	case u.HasMessage():
 		peer = u.EffectiveMessage.PeerID
@@ -82,7 +96,10 @@ func (u *Update) GetChat() *types.Chat {
 	}
 	tgChat := u.Entities.Chats[c.ChatID]
 	if tgChat == nil {
-		return nil
+		// Fallback: create stub chat with just ID (for chats not in entities)
+		tgChat = &tg.Chat{
+			ID: c.ChatID,
+		}
 	}
 	chat := types.Chat{
 		Chat:        *tgChat,
@@ -99,9 +116,7 @@ func (u *Update) GetChannel() *types.Channel {
 	if u.Entities == nil {
 		return nil
 	}
-	var (
-		peer tg.PeerClass
-	)
+	var peer tg.PeerClass
 	switch {
 	case u.HasMessage():
 		peer = u.EffectiveMessage.PeerID
@@ -121,7 +136,31 @@ func (u *Update) GetChannel() *types.Channel {
 	}
 	tgChannel := u.Entities.Channels[c.ChannelID]
 	if tgChannel == nil {
-		return nil
+		// Fallback 1: try to construct minimal channel from PeerStorage
+		if u.Ctx.PeerStorage != nil {
+			// Convert plain channel ID to TDLib format for lookup
+			// PeerStorage stores channels with -100 prefix (TDLib format)
+			// Create a temporary types.Channel to get the properly encoded ID
+			tempChannel := types.Channel{
+				Channel:     tg.Channel{ID: c.ChannelID},
+				PeerStorage: u.Ctx.PeerStorage,
+			}
+			encodedID := tempChannel.GetID()
+			storagePeer := u.Ctx.PeerStorage.GetPeerByID(encodedID)
+			if storagePeer != nil && storagePeer.Type == 3 { // 3 = TypeChannel
+				// Construct minimal channel with ID and AccessHash from storage
+				tgChannel = &tg.Channel{
+					ID:         c.ChannelID,
+					AccessHash: storagePeer.AccessHash,
+				}
+			}
+		}
+		// Fallback 2: create stub channel with just ID (for channels not in entities/storage)
+		if tgChannel == nil {
+			tgChannel = &tg.Channel{
+				ID: c.ChannelID,
+			}
+		}
 	}
 	channel := types.Channel{
 		Channel:     *tgChannel,
@@ -138,9 +177,7 @@ func (u *Update) GetUserChat() *types.User {
 	if u.Entities == nil {
 		return nil
 	}
-	var (
-		peer tg.PeerClass
-	)
+	var peer tg.PeerClass
 	switch {
 	case u.HasMessage():
 		peer = u.EffectiveMessage.PeerID
@@ -149,7 +186,7 @@ func (u *Update) GetUserChat() *types.User {
 	case u.ChatJoinRequest != nil:
 		peer = u.ChatJoinRequest.Peer
 	case u.ChatParticipant != nil:
-		peer = &tg.PeerChat{ChatID: u.ChatParticipant.ChatID}
+		peer = &tg.PeerUser{UserID: u.ChatParticipant.UserID}
 	}
 	if peer == nil {
 		return nil
@@ -160,7 +197,23 @@ func (u *Update) GetUserChat() *types.User {
 	}
 	tgUser := u.Entities.Users[c.UserID]
 	if tgUser == nil {
-		return nil
+		// Fallback 1: try to construct minimal user from PeerStorage
+		if u.Ctx.PeerStorage != nil {
+			storagePeer := u.Ctx.PeerStorage.GetPeerByID(c.UserID)
+			if storagePeer != nil && storagePeer.Type == 1 { // 1 = TypeUser
+				// Construct minimal user with ID and AccessHash from storage
+				tgUser = &tg.User{
+					ID:         c.UserID,
+					AccessHash: storagePeer.AccessHash,
+				}
+			}
+		}
+		// Fallback 2: create stub user with just ID (for users not in entities/storage)
+		if tgUser == nil {
+			tgUser = &tg.User{
+				ID: c.UserID,
+			}
+		}
 	}
 	return &types.User{
 		User:        *tgUser,
@@ -253,22 +306,26 @@ func (u *Update) IsBusinessUpdate() bool {
 func (u *Update) fillUserIDFromMessage(selfUserID int64) {
 	if u.HasMessage() {
 		m := u.EffectiveMessage
+		// For incoming messages, get user from FromID
 		if userPeer, ok := m.FromID.(*tg.PeerUser); ok {
 			u.userID = userPeer.UserID
 			return
 		}
+		// For outgoing messages or private messages, get user from PeerID
 		if userPeer, ok := m.PeerID.(*tg.PeerUser); ok {
 			u.userID = userPeer.UserID
 			return
 		}
 	}
+	// Fallback: try to find a non-self user in entities
+	// Note: This should only be used if the above methods fail
 	if u.Entities != nil && u.Entities.Users != nil {
 		for uID := range u.Entities.Users {
 			if uID == selfUserID {
 				continue
 			}
 			u.userID = uID
-			break
+			return
 		}
 	}
 }

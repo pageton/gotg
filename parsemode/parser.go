@@ -23,7 +23,7 @@ import (
 var (
 	defaultHTMLParser     *HTMLParser
 	defaultMarkdownParser *MarkdownParser
-	initOnce             sync.Once
+	initOnce              sync.Once
 )
 
 func initParsers() {

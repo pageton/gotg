@@ -50,7 +50,7 @@ func SendMessage(ctx context.Context, raw *tg.Client, peerStorage *storage.PeerS
 			return nil, err
 		}
 	}
-	var m = &tg.Message{}
+	m := &tg.Message{}
 	m.Message = request.Message
 	var u tg.UpdatesClass
 	connID := getFirstString(businessConnectionID)
@@ -88,7 +88,7 @@ func SendMedia(ctx context.Context, raw *tg.Client, peerStorage *storage.PeerSto
 			return nil, err
 		}
 	}
-	var m = &tg.Message{}
+	m := &tg.Message{}
 	m.Message = request.Message
 	var u tg.UpdatesClass
 	connID := getFirstString(businessConnectionID)
@@ -125,7 +125,7 @@ func SendReaction(ctx context.Context, raw *tg.Client, peerStorage *storage.Peer
 			return nil, err
 		}
 	}
-	var m = &tg.Message{}
+	m := &tg.Message{}
 	u, err := raw.MessagesSendReaction(ctx, request)
 	message, err := ReturnNewMessageWithError(m, u, peerStorage, err)
 	if err != nil {

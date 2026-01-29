@@ -61,8 +61,10 @@ type NativeDispatcher struct {
 	updateSem           chan struct{}
 }
 
-type PanicHandler func(*adapter.Context, *adapter.Update, string)
-type ErrorHandler func(*adapter.Context, *adapter.Update, string) error
+type (
+	PanicHandler func(*adapter.Context, *adapter.Update, string)
+	ErrorHandler func(*adapter.Context, *adapter.Update, string) error
+)
 
 // NewNativeDispatcher creates a new native dispatcher for handling Telegram updates.
 //

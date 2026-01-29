@@ -25,7 +25,7 @@ import (
 //
 // Returns true if successful, or an error.
 func ArchiveChats(ctx context.Context, client *tg.Client, peers []tg.InputPeerClass) (bool, error) {
-	var folderPeers = make([]tg.InputFolderPeer, len(peers))
+	folderPeers := make([]tg.InputFolderPeer, len(peers))
 	for n, peer := range peers {
 		folderPeers[n] = tg.InputFolderPeer{
 			Peer:     peer,
@@ -53,7 +53,7 @@ func ArchiveChats(ctx context.Context, client *tg.Client, peers []tg.InputPeerCl
 //
 // Returns true if successful, or an error.
 func UnarchiveChats(ctx context.Context, client *tg.Client, peers []tg.InputPeerClass) (bool, error) {
-	var folderPeers = make([]tg.InputFolderPeer, len(peers))
+	folderPeers := make([]tg.InputFolderPeer, len(peers))
 	for n, peer := range peers {
 		folderPeers[n] = tg.InputFolderPeer{
 			Peer:     peer,
