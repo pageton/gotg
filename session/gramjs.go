@@ -27,13 +27,17 @@ func decodeGramjsSession(sessionStr string) (*session.Data, error) {
 		KeyID         string
 	}{}
 
-	if len(sessionStr) == 0 || sessionStr[0] != '1' {
-		return nil, errors.New("invalid session string")
+	if len(sessionStr) < 2 || sessionStr[0] != '1' {
+		return nil, errors.New("invalid session string: too short or wrong version")
 	}
 	strsession := sessionStr[1:]
 	decodedBytes, err := base64.StdEncoding.DecodeString(strsession)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "invalid base64 encoding")
+	}
+
+	if len(decodedBytes) < 71 {
+		return nil, errors.Errorf("session data too short: expected at least 71 bytes, got %d", len(decodedBytes))
 	}
 
 	reader := bytes.NewReader(decodedBytes)

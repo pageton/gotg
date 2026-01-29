@@ -94,9 +94,9 @@ func start(u *adapter.Update) error {
 		Button("❓ Help", "cb_help").
 		Build()
 
-	_, err := u.Reply(text, &adapter.ReplyOpts{
-		ParseMode: adapter.HTML,
-		Markup:    kbd,
+	_, err := u.Reply(text, &adapter.SendOpts{
+		ParseMode:   adapter.HTML,
+		ReplyMarkup: kbd,
 	})
 	return err
 }
@@ -125,7 +125,7 @@ func htmlExample(u *adapter.Update) error {
 
 	text += f.Italic("✨ All formatting done with ext.Format()!")
 
-	_, err := u.Reply(text, &adapter.ReplyOpts{
+	_, err := u.Reply(text, &adapter.SendOpts{
 		ParseMode: adapter.HTML,
 	})
 	return err
@@ -154,7 +154,7 @@ func markdownExample(u *adapter.Update) error {
 
 	text += f.Italic("✨ All formatting done with ext.Format()!")
 
-	_, err := u.Reply(text, &adapter.ReplyOpts{
+	_, err := u.Reply(text, &adapter.SendOpts{
 		ParseMode: adapter.Markdown,
 	})
 	return err
@@ -210,9 +210,9 @@ func buttonCallback(u *adapter.Update) error {
 	}
 
 	_, _ = u.Answer("✅ Action completed!", &adapter.CallbackOptions{})
-	_, err := u.Reply(text, &adapter.ReplyOpts{
-		ParseMode: parseMode,
-		Markup:    kbd,
+	_, err := u.Reply(text, &adapter.SendOpts{
+		ParseMode:   parseMode,
+		ReplyMarkup: kbd,
 	})
 	return err
 }

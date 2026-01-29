@@ -55,7 +55,7 @@ func start(u *adapter.Update) error {
 		Next().
 		Button("Click Here", "cb_pressed").
 		Build()
-	_, _ = u.Reply(fmt.Sprintf("Hello %s, I am @%s and will repeat all your messages.\nI was made using gotd and gotg.", u.Mention(), u.Self.Username), &adapter.ReplyOpts{Markup: kbd})
+	_, _ = u.Reply(fmt.Sprintf("Hello %s, I am @%s and will repeat all your messages.\nI was made using gotd and gotg.", u.Mention(), u.Self.Username), &adapter.SendOpts{ReplyMarkup: kbd})
 	// End dispatcher groups so that bot doesn't echo /start command usage
 	return dispatcher.EndGroups
 }

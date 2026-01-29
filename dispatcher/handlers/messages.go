@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"github.com/pageton/gotg/dispatcher/handlers/filters"
 	"github.com/pageton/gotg/adapter"
+	"github.com/pageton/gotg/dispatcher/handlers/filters"
 )
 
 // Message handler is executed when the update consists of tg.Message with provided conditions.
@@ -42,11 +42,11 @@ func OnMessage(handler UpdateHandler, messageFilters ...filters.MessageFilter) M
 }
 
 func (m Message) CheckUpdate(ctx *adapter.Context, u *adapter.Update) error {
-	msg := u.EffectiveMessage
-	if msg == nil {
+	if u.IsEdited || !u.HasMessage() {
 		return nil
 	}
-	if !m.Outgoing && msg.Out {
+	msg := u.EffectiveMessage
+	if !m.Outgoing && msg.IsOutgoing() {
 		return nil
 	}
 	if m.Filters != nil && !m.Filters(msg) {

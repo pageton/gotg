@@ -77,9 +77,9 @@ func start(update *adapter.Update) error {
 		Next().
 		Button(update.T("btn_menu"), "menu").
 		Build()
-	_, err := update.Reply(text, &adapter.ReplyOpts{
-		ParseMode: adapter.Markdown,
-		Markup:    kbd,
+	_, err := update.Reply(text, &adapter.SendOpts{
+		ParseMode:   adapter.Markdown,
+		ReplyMarkup: kbd,
 	})
 	return err
 }
@@ -93,7 +93,7 @@ func helpCmd(update *adapter.Update) error {
 	text += "*" + update.T("features.sessions") + "*\n"
 	text += "*" + update.T("features.middleware") + "*"
 
-	_, err := update.Reply(text, &adapter.ReplyOpts{
+	_, err := update.Reply(text, &adapter.SendOpts{
 		ParseMode: adapter.Markdown,
 	})
 	return err
@@ -108,8 +108,8 @@ func languageCmd(update *adapter.Update) error {
 		Button("🇪🇸 Español", "lang_es").
 		Build()
 
-	_, err := update.Reply(text, &adapter.ReplyOpts{
-		Markup: kbd,
+	_, err := update.Reply(text, &adapter.SendOpts{
+		ReplyMarkup: kbd,
 	})
 	return err
 }
@@ -151,7 +151,7 @@ func languageCallback(u *adapter.Update) error {
 	u.Answer(u.T("success"))
 
 	// Try without markdown parsing first
-	_, err := u.Edit(text, &adapter.ReplyOpts{
+	_, err := u.Edit(text, &adapter.EditOpts{
 		ParseMode: adapter.ModeNone,
 	})
 

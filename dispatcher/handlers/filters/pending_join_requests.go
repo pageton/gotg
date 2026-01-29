@@ -15,6 +15,6 @@ func (*pendingJoinRequests) All(_ *tg.UpdatePendingJoinRequests) bool {
 // ChatID returns true if the unique identifier of the chat where the UpdatePendingJoinRequests was created matches the input chatID.
 func (*pendingJoinRequests) ChatID(chatID int64) PendingJoinRequestsFilter {
 	return func(cjr *tg.UpdatePendingJoinRequests) bool {
-		return functions.GetChatIdFromPeer(cjr.Peer) == chatID
+		return functions.GetChatIDFromPeer(cjr.Peer) == chatID
 	}
 }

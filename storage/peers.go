@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/gotd/td/constant"
 	"github.com/gotd/td/telegram/query/dialogs"
@@ -13,7 +14,7 @@ type Peer struct {
 	ID         int64 `gorm:"primary_key"`
 	AccessHash int64
 	Type       int
-	Username   string
+	Username   string `gorm:"index"`
 	Language   string
 }
 type EntityType int
@@ -45,9 +46,9 @@ func (p *PeerStorage) AddPeer(iD, accessHash int64, peerType EntityType, userNam
 		ID.Channel(iD)
 	}
 	iD = int64(ID)
-	
+
 	var peer *Peer
-	
+
 	// Check if peer already exists in cache
 	existingPeer, exists := p.peerCache.Get(iD)
 	if exists && existingPeer != nil {
@@ -60,20 +61,22 @@ func (p *PeerStorage) AddPeer(iD, accessHash int64, peerType EntityType, userNam
 		// Create new peer
 		peer = &Peer{ID: iD, AccessHash: accessHash, Type: peerType.GetInt(), Username: userName}
 	}
-	
+
 	p.peerCache.Set(iD, peer)
 	if p.inMemory {
 		return
 	}
-	go p.addPeerToDb(peer)
+	p.writeCh <- peer
 }
 
-func (p *PeerStorage) addPeerToDb(peer *Peer) {
-	tx := p.SqlSession.Begin()
-	tx.Save(peer)
-	p.peerLock.Lock()
-	defer p.peerLock.Unlock()
-	tx.Commit()
+func (p *PeerStorage) startWriter() {
+	for peer := range p.writeCh {
+		p.peerLock.Lock()
+		if err := p.SqlSession.Save(peer).Error; err != nil {
+			log.Printf("peers: failed to save peer %d to database: %v", peer.ID, err)
+		}
+		p.peerLock.Unlock()
+	}
 }
 
 func (p *Peer) GetID() int64 {
@@ -132,7 +135,7 @@ func (p *PeerStorage) GetInputPeerByUsername(userName string) tg.InputPeerClass 
 }
 
 func (p *PeerStorage) cachePeers(id int64) *Peer {
-	var peer = Peer{}
+	peer := Peer{}
 	p.SqlSession.Where("id = ?", id).Find(&peer)
 	p.peerCache.Set(id, &peer)
 	return &peer
@@ -166,6 +169,9 @@ func (p *PeerStorage) SetPeerLanguage(userID int64, lang string) {
 }
 
 func getInputPeerFromStoragePeer(peer *Peer) tg.InputPeerClass {
+	if peer == nil {
+		return &tg.InputPeerEmpty{}
+	}
 	ID := constant.TDLibPeerID(peer.ID)
 	warning := "DEPRECATION: Fetching PeerID from non-BotAPI IDs is deprecated — Please use Bot API-style IDs (%s<id>) Instead.\n"
 	switch EntityType(peer.Type) {

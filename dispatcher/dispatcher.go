@@ -3,9 +3,7 @@ package dispatcher
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
-	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -14,9 +12,9 @@ import (
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/adapter"
-	"github.com/pageton/gotg/conversation"
+	"github.com/pageton/gotg/conv"
+	gotglog "github.com/pageton/gotg/log"
 	"github.com/pageton/gotg/storage"
-	"go.uber.org/multierr"
 )
 
 var (
@@ -47,45 +45,116 @@ type NativeDispatcher struct {
 	sender              *message.Sender
 	setReply            bool
 	setEntireReplyChain bool
-	convManager         *conversation.Manager
-	// Panic handles all the panics that occur during handler execution.
-	Panic PanicHandler
-	// Error handles all the unknown errors which are returned by handler callback functions.
-	Error ErrorHandler
-	// handlerMap is used for internal functionality of NativeDispatcher.
-	handlerMap map[int][]Handler
-	// handlerGroups is used for internal functionality of NativeDispatcher.
-	handlerGroups []int
-	pStorage      *storage.PeerStorage
-	initwg        sync.WaitGroup
-	nextGroup     atomic.Int64
+	outgoing            bool
+	conv                *conv.Manager
+	logger              *gotglog.Logger
+	Panic               PanicHandler
+	Error               ErrorHandler
+	handlerMap          map[int][]Handler
+	handlerGroups       []int
+	handlerGroupsMu     sync.RWMutex
+	pStorage            *storage.PeerStorage
+	initwg              *sync.WaitGroup
+	nextGroup           atomic.Int64
+	updateWg            sync.WaitGroup
+	pendingOutgoing     sync.Map
+	updateSem           chan struct{}
 }
 
-type PanicHandler func(*adapter.Context, *adapter.Update, string)
-type ErrorHandler func(*adapter.Context, *adapter.Update, string) error
+type (
+	PanicHandler func(*adapter.Context, *adapter.Update, string)
+	ErrorHandler func(*adapter.Context, *adapter.Update, string) error
+)
 
-// MakeDispatcher creates new custom dispatcher which process and handles incoming updates.
-func NewNativeDispatcher(setReply bool, setEntireReplyChain bool, eHandler ErrorHandler, pHandler PanicHandler, p *storage.PeerStorage) *NativeDispatcher {
+// NewNativeDispatcher creates a new native dispatcher for handling Telegram updates.
+//
+// The dispatcher manages update processing, handler registration and dispatching.
+//
+// Parameters:
+//   - setReply: Whether to set reply information for messages
+//   - setEntireReplyChain: Whether to set full reply chain (forwarded messages)
+//   - eHandler: Handler for unknown errors
+//   - pHandler: Handler for panic recovery
+//   - p: Peer storage for caching peers
+//
+// Returns:
+//   - A new NativeDispatcher instance configured and ready to use
+//
+// Example:
+//
+//	dp := dispatcher.NewNativeDispatcher(
+//	    true,   // set reply info
+//	    true,   // set reply chain
+//	    nil,   // default error handler
+//	    nil,   // default panic handler
+//	    peerStorage,
+//	)
+func NewNativeDispatcher(setReply bool, setEntireReplyChain bool, eHandler ErrorHandler, pHandler PanicHandler, p *storage.PeerStorage, logger *gotglog.Logger, outgoing bool) *NativeDispatcher {
 	if eHandler == nil {
 		eHandler = defaultErrorHandler
+	}
+	if logger == nil {
+		logger = gotglog.Default()
 	}
 	nd := &NativeDispatcher{
 		pStorage:            p,
 		handlerMap:          make(map[int][]Handler),
-		handlerGroups:       make([]int, 0),
+		handlerGroups:       make([]int, 0, 8),
 		setReply:            setReply,
 		setEntireReplyChain: setEntireReplyChain,
+		outgoing:            outgoing,
 		Error:               eHandler,
 		Panic:               pHandler,
+		logger:              logger,
+		initwg:              &sync.WaitGroup{},
+		updateSem:           make(chan struct{}, 1000),
 	}
-	nd.convManager = conversation.NewManager(p, 45*time.Second)
+	nd.conv = conv.NewManager(p, 1*time.Minute)
 	nd.initwg.Add(1)
 	return nd
 }
 
-// ConversationManager exposes the underlying conversation manager instance.
-func (dp *NativeDispatcher) ConversationManager() *conversation.Manager {
-	return dp.convManager
+// NewNativeDispatcherWithInit returns a partially initialized dispatcher.
+// The WaitGroup will be in a "wait state" after this function.
+// Handlers can be added after this function returns, but dispatcher must be
+// fully initialized via Initialize() before processing updates (Issue #120).
+//
+// This pattern is used by AddHandler to wait for initialization completion
+// before incrementing the group counter, preventing the race condition.
+//
+// Returns:
+//   - A NativeDispatcher with initwg.Wait() set to 1
+//   - A NativeDispatcher struct (not yet fully initialized)
+//
+// Example:
+//
+//	// BAD: This causes race condition (Issue #120)
+//	dp := NewNativeDispatcher(...)
+//	dp.AddHandler(handler)  // Counter increments while initwg.Wait() still running
+//
+//	// GOOD: This prevents the race (Issue #120)
+//	dp, initWg := NewNativeDispatcherWithInit(...)
+//	dispatcher.Initialize(dp.initwg, ...)  // Waits for initwg
+//	dp.AddHandler(handler)  // Safe - initwg.Wait() is done
+func NewNativeDispatcherWithInit(setReply bool, setEntireReplyChain bool, eHandler ErrorHandler, pHandler PanicHandler, p *storage.PeerStorage, logger *gotglog.Logger, outgoing bool, initwg *sync.WaitGroup) *NativeDispatcher {
+	if eHandler == nil {
+		eHandler = defaultErrorHandler
+	}
+	nd := NewNativeDispatcher(setReply, setEntireReplyChain, eHandler, pHandler, p, logger, outgoing)
+	nd.initwg = initwg
+	nd.initwg.Add(1)
+	return nd
+}
+
+// SetMaxConcurrentUpdates overrides the default (1000) limit on goroutines
+// processing updates concurrently. Must be called before Initialize.
+func (dp *NativeDispatcher) SetMaxConcurrentUpdates(n int) {
+	dp.updateSem = make(chan struct{}, n)
+}
+
+// ConvManager exposes the underlying conversation manager instance.
+func (dp *NativeDispatcher) ConvManager() *conv.Manager {
+	return dp.conv
 }
 
 func defaultErrorHandler(_ *adapter.Context, _ *adapter.Update, err string) error {
@@ -97,9 +166,9 @@ type entities tg.Entities
 
 func (u *entities) short() {
 	u.Short = true
-	u.Users = make(map[int64]*tg.User, 0)
-	u.Chats = make(map[int64]*tg.Chat, 0)
-	u.Channels = make(map[int64]*tg.Channel, 0)
+	u.Users = nil
+	u.Chats = nil
+	u.Channels = nil
 }
 
 func (dp *NativeDispatcher) Initialize(ctx context.Context, cancel context.CancelFunc, client *telegram.Client, self *tg.User) {
@@ -108,163 +177,4 @@ func (dp *NativeDispatcher) Initialize(ctx context.Context, cancel context.Cance
 	dp.self = self
 	dp.cancel = cancel
 	dp.initwg.Done()
-}
-
-// Handle function handles all the incoming updates, map entities and dispatches updates for further handling.
-func (dp *NativeDispatcher) Handle(ctx context.Context, updates tg.UpdatesClass) error {
-	dp.initwg.Wait()
-	var (
-		e    entities
-		upds []tg.UpdateClass
-	)
-	switch u := updates.(type) {
-	case *tg.Updates:
-		upds = u.Updates
-		e.Users = u.MapUsers().NotEmptyToMap()
-		chats := u.MapChats()
-		e.Chats = chats.ChatToMap()
-		e.Channels = chats.ChannelToMap()
-		saveUsersPeers(u.Users, dp.pStorage)
-		saveChatsPeers(u.Chats, dp.pStorage)
-	case *tg.UpdatesCombined:
-		upds = u.Updates
-		e.Users = u.MapUsers().NotEmptyToMap()
-		chats := u.MapChats()
-		e.Chats = chats.ChatToMap()
-		e.Channels = chats.ChannelToMap()
-		saveUsersPeers(u.Users, dp.pStorage)
-		saveChatsPeers(u.Chats, dp.pStorage)
-	case *tg.UpdateShort:
-		upds = []tg.UpdateClass{u.Update}
-		e.short()
-	default:
-		return nil
-	}
-
-	var err error
-	for _, update := range upds {
-		multierr.AppendInto(&err, dp.dispatch(ctx, tg.Entities(e), update))
-	}
-	return err
-}
-
-func (dp *NativeDispatcher) dispatch(ctx context.Context, e tg.Entities, update tg.UpdateClass) error {
-	if update == nil {
-		return nil
-	}
-	go func() {
-		if err := dp.handleUpdate(ctx, e, update); err != nil {
-			if !errors.Is(err, ContinueGroups) && !errors.Is(err, EndGroups) && !errors.Is(err, SkipCurrentGroup) {
-				log.Println("dispatcher: update handler error:", err)
-			}
-		}
-	}()
-	return nil
-}
-
-func (dp *NativeDispatcher) handleUpdate(ctx context.Context, e tg.Entities, update tg.UpdateClass) error {
-	c := adapter.NewContext(ctx, dp.client, dp.pStorage, dp.self, dp.sender, &e, dp.setReply, dp.convManager)
-	u := adapter.GetNewUpdate(c, update)
-	dp.handleUpdateRepliedToMessage(u, ctx)
-	if dp.routeConversation(u) {
-		return nil
-	}
-	var err error
-	defer func() {
-		if r := recover(); r != nil {
-			errorStack := fmt.Sprintf("%s\n", r) + string(debug.Stack())
-			if dp.Panic != nil {
-				dp.Panic(c, u, errorStack)
-				return
-			} else {
-				log.Println(errorStack)
-			}
-		}
-	}()
-	for _, group := range dp.handlerGroups {
-		for _, handler := range dp.handlerMap[group] {
-			err = handler.CheckUpdate(c, u)
-			if err == nil || errors.Is(err, ContinueGroups) {
-				continue
-			} else if errors.Is(err, EndGroups) {
-				return err
-			} else if errors.Is(err, SkipCurrentGroup) {
-				break
-			} else if errors.Is(err, StopClient) {
-				dp.cancel()
-				return nil
-			} else {
-				err = dp.Error(c, u, err.Error())
-				switch err {
-				case ContinueGroups:
-					continue
-				case EndGroups:
-					return err
-				case SkipCurrentGroup:
-					break
-				}
-			}
-		}
-	}
-	return err
-}
-
-func (dp *NativeDispatcher) handleUpdateRepliedToMessage(u *adapter.Update, ctx context.Context) {
-	msg := u.EffectiveMessage
-	if msg == nil || !dp.setReply {
-		return
-	}
-	for {
-		if msg.Message.ReplyTo == nil {
-			return
-		}
-
-		_ = msg.SetRepliedToMessage(ctx, dp.client, dp.pStorage)
-		if !dp.setEntireReplyChain {
-			return
-		}
-		msg = msg.ReplyToMessage
-	}
-}
-
-func (dp *NativeDispatcher) routeConversation(u *adapter.Update) bool {
-	if dp.convManager == nil || u == nil {
-		return false
-	}
-	msg := u.EffectiveMessage
-	if msg == nil {
-		return false
-	}
-	chatID := u.ChatID()
-	userID := u.UserID()
-	if chatID == 0 || userID == 0 {
-		return false
-	}
-	key := conversation.Key{ChatID: chatID, UserID: userID}
-	return dp.convManager.Route(key, msg)
-}
-
-func saveUsersPeers(u tg.UserClassArray, p *storage.PeerStorage) {
-	for _, user := range u {
-		c, ok := user.AsNotEmpty()
-		if !ok || c.Min {
-			continue
-		}
-		p.AddPeer(c.ID, c.AccessHash, storage.TypeUser, c.Username)
-	}
-}
-
-func saveChatsPeers(u tg.ChatClassArray, p *storage.PeerStorage) {
-	for _, chat := range u {
-		channel, ok := chat.(*tg.Channel)
-		if ok && !channel.Min {
-			p.AddPeer(channel.ID, channel.AccessHash, storage.TypeChannel, channel.Username)
-			continue
-		}
-		chat, ok := chat.(*tg.Chat)
-		if !ok {
-			continue
-		}
-		p.AddPeer(chat.ID, storage.DefaultAccessHash, storage.TypeChat, storage.DefaultUsername)
-	}
 }

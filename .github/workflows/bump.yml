@@ -14,9 +14,8 @@ jobs:
         run: |
           go get github.com/gotd/td@latest
 
-      # commit changes
       - uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          commit_message: '[Action]: Bump Dependencies'
+          commit_message: 'chore(deps): bump dependencies'
           commit_options: '--no-verify'
           repository: .

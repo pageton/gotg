@@ -12,9 +12,9 @@ import (
 
 	"github.com/gotd/contrib/middleware/floodwait"
 	"github.com/pageton/gotg"
+	"github.com/pageton/gotg/adapter"
 	"github.com/pageton/gotg/dispatcher/handlers"
 	"github.com/pageton/gotg/dispatcher/handlers/filters"
-	"github.com/pageton/gotg/adapter"
 	"github.com/pageton/gotg/session"
 )
 

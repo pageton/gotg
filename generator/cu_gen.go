@@ -16,17 +16,37 @@ var hardCodedReplacements = map[string]string{
 	"EditAdminOpts": "adapter.EditAdminOpts",
 }
 
-func readContextFile() []byte {
-	b, err := os.ReadFile("adapter/context.go")
-	if err != nil {
-		panic("failed to read context file: " + err.Error())
+func readContextFiles() []byte {
+	contextFiles := []string{
+		"adapter/context.go",
+		"adapter/context_chat.go",
+		"adapter/context_download.go",
+		"adapter/context_edit.go",
+		"adapter/context_media.go",
+		"adapter/context_resolve.go",
+		"adapter/context_send.go",
 	}
-	return b
+
+	var combined []byte
+	for _, file := range contextFiles {
+		b, err := os.ReadFile(file)
+		if err != nil {
+			fmt.Printf("warning: failed to read %s: %s\n", file, err.Error())
+			continue
+		}
+		combined = append(combined, b...)
+		combined = append(combined, '\n')
+	}
+
+	if len(combined) == 0 {
+		panic("failed to read any context files")
+	}
+	return combined
 }
 
 func generateCUHelpers() {
-	fmt.Println("Reading context.go")
-	ctxFile := readContextFile()
+	fmt.Println("Reading context files...")
+	ctxFile := readContextFiles()
 	builder := strings.Builder{}
 	builder.WriteString(predefinedCU)
 	fmt.Println("Parsing all context methods...")
@@ -172,6 +192,7 @@ func writeFile(builder strings.Builder, filename string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open file %s: %w", filename, err)
 	}
+	defer write.Close()
 
 	bs := []byte(builder.String())
 
@@ -206,7 +227,15 @@ func getParamNamesArray(paramStr string) []string {
 		if len(paramFields) == 0 {
 			continue
 		}
-		paramArr = append(paramArr, paramFields[0])
+		paramName := paramFields[0]
+
+		// Check if parameter is variadic by looking for '...' in the full param string
+		// Variadic parameters have format: "name ...Type" where '...' is in the type
+		if strings.Contains(param, "...") {
+			paramName += "..."
+		}
+
+		paramArr = append(paramArr, paramName)
 	}
 	return paramArr
 }

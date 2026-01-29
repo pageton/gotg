@@ -1,16 +1,29 @@
 package adapter
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/types"
 )
 
+func (u *Update) HasMessage() bool {
+	return u.EffectiveMessage != nil && u.EffectiveMessage.ID != 0
+}
+
+// IsBot returns true if the current session belongs to a bot account.
+func (u *Update) IsBot() bool {
+	return u.Self != nil && u.Self.Bot
+}
+
+// Args parses and returns the arguments from the update.
+// For messages, splits the message text by whitespace.
+// For callback queries, splits the callback data by whitespace.
+// For inline queries, splits the query text by whitespace.
+// Returns an empty slice if no applicable content exists.
 func (u *Update) Args() []string {
 	switch {
-	case u.EffectiveMessage != nil:
+	case u.HasMessage():
 		return strings.Fields(u.EffectiveMessage.Text)
 	case u.CallbackQuery != nil:
 		return strings.Fields(string(u.CallbackQuery.Data))
@@ -31,7 +44,23 @@ func (u *Update) EffectiveUser() *types.User {
 	}
 	tgUser := u.Entities.Users[u.userID]
 	if tgUser == nil {
-		return nil
+		// Fallback 1: try to construct minimal user from PeerStorage
+		if u.Ctx.PeerStorage != nil {
+			storagePeer := u.Ctx.PeerStorage.GetPeerByID(u.userID)
+			if storagePeer != nil && storagePeer.Type == 1 { // 1 = TypeUser
+				// Construct minimal user with ID and AccessHash from storage
+				tgUser = &tg.User{
+					ID:         u.userID,
+					AccessHash: storagePeer.AccessHash,
+				}
+			}
+		}
+		// Fallback 2: create stub user with just ID (for outgoing messages where recipient isn't in entities)
+		if tgUser == nil {
+			tgUser = &tg.User{
+				ID: u.userID,
+			}
+		}
 	}
 	return &types.User{
 		User:        *tgUser,
@@ -47,11 +76,9 @@ func (u *Update) GetChat() *types.Chat {
 	if u.Entities == nil {
 		return nil
 	}
-	var (
-		peer tg.PeerClass
-	)
+	var peer tg.PeerClass
 	switch {
-	case u.EffectiveMessage != nil:
+	case u.HasMessage():
 		peer = u.EffectiveMessage.PeerID
 	case u.CallbackQuery != nil:
 		peer = u.CallbackQuery.Peer
@@ -69,7 +96,10 @@ func (u *Update) GetChat() *types.Chat {
 	}
 	tgChat := u.Entities.Chats[c.ChatID]
 	if tgChat == nil {
-		return nil
+		// Fallback: create stub chat with just ID (for chats not in entities)
+		tgChat = &tg.Chat{
+			ID: c.ChatID,
+		}
 	}
 	chat := types.Chat{
 		Chat:        *tgChat,
@@ -86,11 +116,9 @@ func (u *Update) GetChannel() *types.Channel {
 	if u.Entities == nil {
 		return nil
 	}
-	var (
-		peer tg.PeerClass
-	)
+	var peer tg.PeerClass
 	switch {
-	case u.EffectiveMessage != nil:
+	case u.HasMessage():
 		peer = u.EffectiveMessage.PeerID
 	case u.CallbackQuery != nil:
 		peer = u.CallbackQuery.Peer
@@ -108,7 +136,31 @@ func (u *Update) GetChannel() *types.Channel {
 	}
 	tgChannel := u.Entities.Channels[c.ChannelID]
 	if tgChannel == nil {
-		return nil
+		// Fallback 1: try to construct minimal channel from PeerStorage
+		if u.Ctx.PeerStorage != nil {
+			// Convert plain channel ID to TDLib format for lookup
+			// PeerStorage stores channels with -100 prefix (TDLib format)
+			// Create a temporary types.Channel to get the properly encoded ID
+			tempChannel := types.Channel{
+				Channel:     tg.Channel{ID: c.ChannelID},
+				PeerStorage: u.Ctx.PeerStorage,
+			}
+			encodedID := tempChannel.GetID()
+			storagePeer := u.Ctx.PeerStorage.GetPeerByID(encodedID)
+			if storagePeer != nil && storagePeer.Type == 3 { // 3 = TypeChannel
+				// Construct minimal channel with ID and AccessHash from storage
+				tgChannel = &tg.Channel{
+					ID:         c.ChannelID,
+					AccessHash: storagePeer.AccessHash,
+				}
+			}
+		}
+		// Fallback 2: create stub channel with just ID (for channels not in entities/storage)
+		if tgChannel == nil {
+			tgChannel = &tg.Channel{
+				ID: c.ChannelID,
+			}
+		}
 	}
 	channel := types.Channel{
 		Channel:     *tgChannel,
@@ -125,18 +177,16 @@ func (u *Update) GetUserChat() *types.User {
 	if u.Entities == nil {
 		return nil
 	}
-	var (
-		peer tg.PeerClass
-	)
+	var peer tg.PeerClass
 	switch {
-	case u.EffectiveMessage != nil:
+	case u.HasMessage():
 		peer = u.EffectiveMessage.PeerID
 	case u.CallbackQuery != nil:
 		peer = u.CallbackQuery.Peer
 	case u.ChatJoinRequest != nil:
 		peer = u.ChatJoinRequest.Peer
 	case u.ChatParticipant != nil:
-		peer = &tg.PeerChat{ChatID: u.ChatParticipant.ChatID}
+		peer = &tg.PeerUser{UserID: u.ChatParticipant.UserID}
 	}
 	if peer == nil {
 		return nil
@@ -147,7 +197,23 @@ func (u *Update) GetUserChat() *types.User {
 	}
 	tgUser := u.Entities.Users[c.UserID]
 	if tgUser == nil {
-		return nil
+		// Fallback 1: try to construct minimal user from PeerStorage
+		if u.Ctx.PeerStorage != nil {
+			storagePeer := u.Ctx.PeerStorage.GetPeerByID(c.UserID)
+			if storagePeer != nil && storagePeer.Type == 1 { // 1 = TypeUser
+				// Construct minimal user with ID and AccessHash from storage
+				tgUser = &tg.User{
+					ID:         c.UserID,
+					AccessHash: storagePeer.AccessHash,
+				}
+			}
+		}
+		// Fallback 2: create stub user with just ID (for users not in entities/storage)
+		if tgUser == nil {
+			tgUser = &tg.User{
+				ID: c.UserID,
+			}
+		}
 	}
 	return &types.User{
 		User:        *tgUser,
@@ -175,47 +241,102 @@ func (u *Update) EffectiveChat() types.EffectiveChat {
 // EffectiveReply returns the message that this message is replying to.
 // It lazily fetches the reply message if not already populated.
 func (u *Update) EffectiveReply() *types.Message {
-	if u.EffectiveMessage == nil {
+	if !u.HasMessage() {
 		return nil
 	}
 
-	// If ReplyToMessage is already populated, return it
 	if u.EffectiveMessage.ReplyToMessage != nil {
 		return u.EffectiveMessage.ReplyToMessage
 	}
 
-	// Otherwise, fetch and populate the reply message
 	_ = u.EffectiveMessage.SetRepliedToMessage(u.Ctx.Context, u.Ctx.Raw, u.Ctx.PeerStorage)
 	return u.EffectiveMessage.ReplyToMessage
 }
 
+// IsReply returns true if the effective message is a reply to another message.
+func (u *Update) IsReply() bool {
+	if !u.HasMessage() {
+		return false
+	}
+	return u.EffectiveMessage.ReplyTo != nil
+}
+
+// IsOutgoing returns true if the effective message was sent by this client (self).
+// Works for both user accounts (via tg.Message.Out) and bot accounts
+// (via FromID == Self.ID fallback, since bots always receive Out=false).
+func (u *Update) IsOutgoing() bool {
+	if !u.HasMessage() {
+		return false
+	}
+	return u.EffectiveMessage.IsOutgoing()
+}
+
+// IsIncoming returns true if the effective message was sent by another user
+// (not by this client). This is the inverse of IsOutgoing.
+func (u *Update) IsIncoming() bool {
+	return !u.IsOutgoing()
+}
+
+// ConnectionID returns the business connection ID for this update.
+// Returns empty string if the update is not business-related.
+func (u *Update) ConnectionID() string {
+	switch {
+	case u.BusinessConnection != nil:
+		return u.BusinessConnection.Connection.ConnectionID
+	case u.BusinessMessage != nil:
+		return u.BusinessMessage.ConnectionID
+	case u.BusinessEditedMessage != nil:
+		return u.BusinessEditedMessage.ConnectionID
+	case u.BusinessDeletedMessages != nil:
+		return u.BusinessDeletedMessages.ConnectionID
+	case u.BusinessCallbackQuery != nil:
+		return u.BusinessCallbackQuery.ConnectionID
+	default:
+		return ""
+	}
+}
+
+// IsBusinessUpdate returns true if this update originated from a business connection.
+func (u *Update) IsBusinessUpdate() bool {
+	return u.ConnectionID() != ""
+}
+
+// fillUserIDFromMessage populates the userID field by extracting the user ID
+// from various update types. Used internally during update construction.
 func (u *Update) fillUserIDFromMessage(selfUserID int64) {
-	if m := u.EffectiveMessage; m != nil {
+	if u.HasMessage() {
+		m := u.EffectiveMessage
+		// For incoming messages, get user from FromID
 		if userPeer, ok := m.FromID.(*tg.PeerUser); ok {
 			u.userID = userPeer.UserID
 			return
 		}
+		// For outgoing messages or private messages, get user from PeerID
 		if userPeer, ok := m.PeerID.(*tg.PeerUser); ok {
 			u.userID = userPeer.UserID
 			return
 		}
 	}
+	// Fallback: try to find a non-self user in entities
+	// Note: This should only be used if the above methods fail
 	if u.Entities != nil && u.Entities.Users != nil {
 		for uID := range u.Entities.Users {
 			if uID == selfUserID {
 				continue
 			}
 			u.userID = uID
-			break
+			return
 		}
 	}
 }
 
+// ChatID returns the chat ID for this update.
+// For messages and callback queries, extracts from the peer ID.
+// Returns 0 if no chat can be determined.
 func (u *Update) ChatID() int64 {
 	if chat := u.EffectiveChat(); chat != nil {
 		return chat.GetID()
 	}
-	// Fallback for callback queries - extract ID directly from peer
 	if u.CallbackQuery != nil && u.CallbackQuery.Peer != nil {
 		switch peer := u.CallbackQuery.Peer.(type) {
 		case *tg.PeerUser:
@@ -229,9 +350,31 @@ func (u *Update) ChatID() int64 {
 	return 0
 }
 
+// ChannelID returns the channel ID for this update.
+// For messages and callback queries, extracts from the peer ID.
+// Returns 0 if no channel can be determined.
+func (u *Update) ChannelID() int64 {
+	if channel := u.GetChannel(); channel != nil {
+		return channel.GetID()
+	}
+	if u.CallbackQuery != nil && u.CallbackQuery.Peer != nil {
+		if peer, ok := u.CallbackQuery.Peer.(*tg.PeerChannel); ok {
+			return peer.ChannelID
+		}
+	}
+	if u.ChannelParticipant != nil {
+		return u.ChannelParticipant.ChannelID
+	}
+	return 0
+}
+
+// MsgID returns the message ID for this update.
+// For messages, returns the message ID.
+// For callback queries, returns the message ID that triggered the callback.
+// Returns 0 if no message ID exists.
 func (u *Update) MsgID() int {
 	switch {
-	case u.EffectiveMessage != nil:
+	case u.HasMessage():
 		return u.EffectiveMessage.ID
 	case u.CallbackQuery != nil:
 		return u.CallbackQuery.MsgID
@@ -240,9 +383,10 @@ func (u *Update) MsgID() int {
 	}
 }
 
+// MessageID returns the message ID for this update (alias for MsgID).
 func (u *Update) MessageID() int {
 	switch {
-	case u.EffectiveMessage != nil:
+	case u.HasMessage():
 		return u.EffectiveMessage.ID
 	case u.CallbackQuery != nil:
 		return u.CallbackQuery.MsgID
@@ -251,6 +395,8 @@ func (u *Update) MessageID() int {
 	}
 }
 
+// UserID returns the effective user ID for this update.
+// Returns 0 if no user can be determined.
 func (u *Update) UserID() int64 {
 	if user := u.EffectiveUser(); user != nil {
 		return user.GetID()
@@ -258,6 +404,8 @@ func (u *Update) UserID() int64 {
 	return 0
 }
 
+// FirstName returns the first name of the effective user.
+// Returns an empty string if no user exists.
 func (u *Update) FirstName() string {
 	if user := u.EffectiveUser(); user != nil {
 		return user.FirstName
@@ -265,6 +413,8 @@ func (u *Update) FirstName() string {
 	return ""
 }
 
+// LastName returns the last name of the effective user.
+// Returns an empty string if no user exists.
 func (u *Update) LastName() string {
 	if user := u.EffectiveUser(); user != nil {
 		return user.LastName
@@ -272,6 +422,8 @@ func (u *Update) LastName() string {
 	return ""
 }
 
+// FullName returns the full name (first name + last name) of the effective user.
+// Returns an empty string if no user exists.
 func (u *Update) FullName() string {
 	if user := u.EffectiveUser(); user != nil {
 		return user.FirstName + " " + user.LastName
@@ -279,6 +431,8 @@ func (u *Update) FullName() string {
 	return ""
 }
 
+// Username returns the username of the effective user.
+// Returns an empty string if no user exists or username is not set.
 func (u *Update) Username() string {
 	if user := u.EffectiveUser(); user != nil {
 		return user.Username
@@ -286,6 +440,8 @@ func (u *Update) Username() string {
 	return ""
 }
 
+// Usernames returns all usernames (including collected) of the effective user.
+// Returns nil if no user exists.
 func (u *Update) Usernames() []tg.Username {
 	if user := u.EffectiveUser(); user != nil {
 		return user.Usernames
@@ -293,144 +449,20 @@ func (u *Update) Usernames() []tg.Username {
 	return nil
 }
 
+// Text returns the text content of the effective message.
+// Returns an empty string if no message exists.
 func (u *Update) Text() string {
+	if !u.HasMessage() {
+		return ""
+	}
 	return u.EffectiveMessage.Text
 }
 
+// LangCode returns the language code of the effective user.
+// Returns an empty string if no user exists.
 func (u *Update) LangCode() string {
 	if user := u.EffectiveUser(); user != nil {
 		return user.LangCode
 	}
 	return ""
-}
-
-// Mention generates an HTML mention link for a Telegram user.
-//
-// Behavior:
-// - No arguments: uses the Update's default UserID() and FullName().
-// - One argument:
-//   - int/int64 → overrides userID, keeps default name.
-//   - string → overrides name, keeps default userID.
-//
-// - Two arguments: first is userID (int/int64), second is name (string).
-// - The name can be any string, including numeric names.
-// - Returns a string in the format: <a href='tg://user?id=USERID'>NAME</a>
-func (u *Update) Mention(args ...any) string {
-	userID := u.UserID()
-	name := u.FullName()
-
-	if len(args) == 1 {
-		switch v := args[0].(type) {
-		case int:
-			userID = int64(v)
-		case int64:
-			userID = v
-		case string:
-			name = v
-		}
-	} else if len(args) >= 2 {
-		switch v := args[0].(type) {
-		case int:
-			userID = int64(v)
-		case int64:
-			userID = v
-		}
-		if n, ok := args[1].(string); ok {
-			name = n
-		}
-	}
-
-	return fmt.Sprintf("<a href='tg://user?id=%d'>%s</a>", userID, name)
-}
-
-func (u *Update) Delete() error {
-	return u.Ctx.DeleteMessages(u.ChatID(), []int{u.MsgID()})
-}
-
-func (u *Update) GetUser() (*tg.UserFull, error) {
-	return u.Ctx.GetUser(u.UserID())
-}
-
-func (u *Update) Pin() (tg.UpdatesClass, error) {
-	return u.Ctx.PinMessage(u.ChatID(), u.MsgID())
-}
-
-// Unpin unpins the effective message in the chat.
-func (u *Update) Unpin() error {
-	return u.Ctx.UnpinMessage(u.ChatID(), u.MsgID())
-}
-
-// UnpinAll unpins all messages in the current chat.
-func (u *Update) UnpinAll() error {
-	return u.Ctx.UnpinAllMessages(u.ChatID())
-}
-
-// Answer answers the callback query.
-// text: The notification text (use empty string for silent).
-// opts: Optional *CallbackOptions for alert, cacheTime, url.
-//
-// Example:
-//
-//	u.Answer("Done!", nil)
-//	u.Answer("Error!", &CallbackOptions{Alert: true})
-func (u *Update) Answer(text string, opts ...*CallbackOptions) (bool, error) {
-	if u.CallbackQuery == nil {
-		return false, fmt.Errorf("no callback query in this update")
-	}
-
-	// Default values
-	alert := false
-	cacheTime := 0
-	url := ""
-
-	if len(opts) > 0 && opts[0] != nil {
-		alert = opts[0].Alert
-		cacheTime = opts[0].CacheTime
-		url = opts[0].URL
-	}
-
-	return u.Ctx.Raw.MessagesSetBotCallbackAnswer(u.Ctx, &tg.MessagesSetBotCallbackAnswerRequest{
-		QueryID:   u.CallbackQuery.QueryID,
-		Message:   text,
-		Alert:     alert,
-		CacheTime: cacheTime,
-		URL:       url,
-	})
-}
-
-// T returns a translation for the given key.
-// Supports both simple args and context (Args) for pluralization, gender, etc.
-// This method requires i18n middleware to be initialized.
-//
-// Examples:
-//
-//	// Simple translation with positional args
-//	text := u.T("greeting", userName)
-//
-//	// Translation with context (pluralization, gender)
-//	text := u.T("items_count", &i18n.Args{Count: 5})
-//
-//	// Translation with named args
-//	text := u.T("welcome", &i18n.Args{Args: map[string]any{"name": userName}})
-func (u *Update) T(key string, args ...any) string {
-	if u.Ctx == nil {
-		return key
-	}
-	// Get translator from middleware
-	// The middleware stores a reference that we can access
-	return updateTImpl(u, key, args...)
-}
-
-func (u *Update) SetLang(lang any) {
-	updateSetLangImpl(u, lang)
-}
-
-// GetLang returns the user's current language preference.
-// This method requires i18n middleware to be initialized.
-//
-// Example:
-//
-//	lang := u.GetLang()
-func (u *Update) GetLang() any {
-	return updateGetLangImpl(u)
 }

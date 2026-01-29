@@ -389,7 +389,7 @@ func (p *Pluralizer) addBuiltInRules() {
 
 	// Macedonian: one, other
 	p.rules[language.Macedonian] = func(n int) string {
-		if n == 1 || (n % 10 == 1 && n % 100 != 11) {
+		if n == 1 || (n%10 == 1 && n%100 != 11) {
 			return "one"
 		}
 		return "other"

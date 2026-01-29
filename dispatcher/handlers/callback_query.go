@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"github.com/pageton/gotg/dispatcher/handlers/filters"
 	"github.com/pageton/gotg/adapter"
+	"github.com/pageton/gotg/dispatcher/handlers/filters"
 )
 
 // CallbackQuery handler is executed when the update consists of tg.UpdateBotCallbackQuery.

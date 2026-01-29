@@ -32,86 +32,8 @@ func getIdByUnion[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion) (in
 	return 0, nil
 }
 
-// SendMessage is a generic helper for adapter.Context.SendMessage method.
-func SendMessage[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, request *tg.MessagesSendMessageRequest) (*types.Message, error) {
-
-	chatID, err := getIdByUnion(ctx, chat)
-	if err != nil {
-		return nil, err
-	}
-
-	return ctx.SendMessage(chatID, request)
-}
-
-// SendMedia is a generic helper for adapter.Context.SendMedia method.
-func SendMedia[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, request *tg.MessagesSendMediaRequest) (*types.Message, error) {
-
-	chatID, err := getIdByUnion(ctx, chat)
-	if err != nil {
-		return nil, err
-	}
-
-	return ctx.SendMedia(chatID, request)
-}
-
-// SendReaction is a generic helper for adapter.Context.SendReaction method.
-func SendReaction[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, request *tg.MessagesSendReactionRequest) (*types.Message, error) {
-
-	chatID, err := getIdByUnion(ctx, chat)
-	if err != nil {
-		return nil, err
-	}
-
-	return ctx.SendReaction(chatID, request)
-}
-
-// SendMultiMedia is a generic helper for adapter.Context.SendMultiMedia method.
-func SendMultiMedia[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, request *tg.MessagesSendMultiMediaRequest) (*types.Message, error) {
-
-	chatID, err := getIdByUnion(ctx, chat)
-	if err != nil {
-		return nil, err
-	}
-
-	return ctx.SendMultiMedia(chatID, request)
-}
-
-// EditMessage is a generic helper for adapter.Context.EditMessage method.
-func EditMessage[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, request *tg.MessagesEditMessageRequest) (*types.Message, error) {
-
-	chatID, err := getIdByUnion(ctx, chat)
-	if err != nil {
-		return nil, err
-	}
-
-	return ctx.EditMessage(chatID, request)
-}
-
-// EditCaption is a generic helper for adapter.Context.EditCaption method.
-func EditCaption[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, messageID int, caption string, entities []tg.MessageEntityClass) (*types.Message, error) {
-
-	chatID, err := getIdByUnion(ctx, chat)
-	if err != nil {
-		return nil, err
-	}
-
-	return ctx.EditCaption(chatID, messageID, caption, entities)
-}
-
-// EditReplyMarkup is a generic helper for adapter.Context.EditReplyMarkup method.
-func EditReplyMarkup[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, messageID int, markup tg.ReplyMarkupClass) (*types.Message, error) {
-
-	chatID, err := getIdByUnion(ctx, chat)
-	if err != nil {
-		return nil, err
-	}
-
-	return ctx.EditReplyMarkup(chatID, messageID, markup)
-}
-
 // GetChat is a generic helper for adapter.Context.GetChat method.
-func GetChat[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion) (tg.ChatFullClass, error) {
-
+func GetChat[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion) (tg.ChatClass, error) {
 	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return nil, err
@@ -120,9 +42,18 @@ func GetChat[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion) (tg.Chat
 	return ctx.GetChat(chatID)
 }
 
-// GetUser is a generic helper for adapter.Context.GetUser method.
-func GetUser[chatUnion ChatUnion](ctx *adapter.Context, user chatUnion) (*tg.UserFull, error) {
+// GetFullChat is a generic helper for adapter.Context.GetFullChat method.
+func GetFullChat[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion) (tg.ChatFullClass, error) {
+	chatID, err := getIdByUnion(ctx, chat)
+	if err != nil {
+		return nil, err
+	}
 
+	return ctx.GetFullChat(chatID)
+}
+
+// GetUser is a generic helper for adapter.Context.GetUser method.
+func GetUser[chatUnion ChatUnion](ctx *adapter.Context, user chatUnion) (*tg.User, error) {
 	userID, err := getIdByUnion(ctx, user)
 	if err != nil {
 		return nil, err
@@ -131,9 +62,18 @@ func GetUser[chatUnion ChatUnion](ctx *adapter.Context, user chatUnion) (*tg.Use
 	return ctx.GetUser(userID)
 }
 
-// GetChatMember is a generic helper for adapter.Context.GetChatMember method.
-func GetChatMember[chatUnion ChatUnion](ctx *adapter.Context, chat, user chatUnion) (tg.ChannelParticipantClass, error) {
+// GetFullUser is a generic helper for adapter.Context.GetFullUser method.
+func GetFullUser[chatUnion ChatUnion](ctx *adapter.Context, user chatUnion) (*tg.UserFull, error) {
+	userID, err := getIdByUnion(ctx, user)
+	if err != nil {
+		return nil, err
+	}
 
+	return ctx.GetFullUser(userID)
+}
+
+// GetChatMember is a generic helper for adapter.Context.GetChatMember method.
+func GetChatMember[chatUnion ChatUnion](ctx *adapter.Context, chat, user chatUnion) (*types.Participant, error) {
 	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return nil, err
@@ -149,7 +89,6 @@ func GetChatMember[chatUnion ChatUnion](ctx *adapter.Context, chat, user chatUni
 
 // GetMessages is a generic helper for adapter.Context.GetMessages method.
 func GetMessages[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, messageIDs []tg.InputMessageClass) ([]tg.MessageClass, error) {
-
 	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return nil, err
@@ -160,7 +99,6 @@ func GetMessages[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, mess
 
 // BanChatMember is a generic helper for adapter.Context.BanChatMember method.
 func BanChatMember[chatUnion ChatUnion](ctx *adapter.Context, chat, user chatUnion, untilDate int) (tg.UpdatesClass, error) {
-
 	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return nil, err
@@ -176,7 +114,6 @@ func BanChatMember[chatUnion ChatUnion](ctx *adapter.Context, chat, user chatUni
 
 // UnbanChatMember is a generic helper for adapter.Context.UnbanChatMember method.
 func UnbanChatMember[chatUnion ChatUnion](ctx *adapter.Context, chat, user chatUnion) (bool, error) {
-
 	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return false, err
@@ -192,7 +129,6 @@ func UnbanChatMember[chatUnion ChatUnion](ctx *adapter.Context, chat, user chatU
 
 // AddChatMembers is a generic helper for adapter.Context.AddChatMembers method.
 func AddChatMembers[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, userIDs []int64, forwardLimit int) (bool, error) {
-
 	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return false, err
@@ -203,7 +139,6 @@ func AddChatMembers[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, u
 
 // DeleteMessages is a generic helper for adapter.Context.DeleteMessages method.
 func DeleteMessages[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, messageIDs []int) error {
-
 	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return err
@@ -214,7 +149,6 @@ func DeleteMessages[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, m
 
 // PromoteChatMember is a generic helper for adapter.Context.PromoteChatMember method.
 func PromoteChatMember[chatUnion ChatUnion](ctx *adapter.Context, chat, user chatUnion, opts *adapter.EditAdminOpts) (bool, error) {
-
 	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return false, err
@@ -230,7 +164,6 @@ func PromoteChatMember[chatUnion ChatUnion](ctx *adapter.Context, chat, user cha
 
 // DemoteChatMember is a generic helper for adapter.Context.DemoteChatMember method.
 func DemoteChatMember[chatUnion ChatUnion](ctx *adapter.Context, chat, user chatUnion, opts *adapter.EditAdminOpts) (bool, error) {
-
 	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return false, err
@@ -246,7 +179,6 @@ func DemoteChatMember[chatUnion ChatUnion](ctx *adapter.Context, chat, user chat
 
 // GetUserProfilePhotos is a generic helper for adapter.Context.GetUserProfilePhotos method.
 func GetUserProfilePhotos[chatUnion ChatUnion](ctx *adapter.Context, user chatUnion, opts *tg.PhotosGetUserPhotosRequest) ([]tg.PhotoClass, error) {
-
 	userID, err := getIdByUnion(ctx, user)
 	if err != nil {
 		return nil, err
@@ -255,9 +187,38 @@ func GetUserProfilePhotos[chatUnion ChatUnion](ctx *adapter.Context, user chatUn
 	return ctx.GetUserProfilePhotos(userID, opts)
 }
 
+// EditMessage is a generic helper for adapter.Context.EditMessage method.
+func EditMessage[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, request *tg.MessagesEditMessageRequest) (*types.Message, error) {
+	chatID, err := getIdByUnion(ctx, chat)
+	if err != nil {
+		return nil, err
+	}
+
+	return ctx.EditMessage(chatID, request)
+}
+
+// EditCaption is a generic helper for adapter.Context.EditCaption method.
+func EditCaption[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, messageID int, caption string, entities []tg.MessageEntityClass) (*types.Message, error) {
+	chatID, err := getIdByUnion(ctx, chat)
+	if err != nil {
+		return nil, err
+	}
+
+	return ctx.EditCaption(chatID, messageID, caption, entities)
+}
+
+// EditReplyMarkup is a generic helper for adapter.Context.EditReplyMarkup method.
+func EditReplyMarkup[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, messageID int, markup tg.ReplyMarkupClass) (*types.Message, error) {
+	chatID, err := getIdByUnion(ctx, chat)
+	if err != nil {
+		return nil, err
+	}
+
+	return ctx.EditReplyMarkup(chatID, messageID, markup)
+}
+
 // TransferStarGift is a generic helper for adapter.Context.TransferStarGift method.
 func TransferStarGift[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, starGift tg.InputSavedStarGiftClass) (tg.UpdatesClass, error) {
-
 	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return nil, err
@@ -268,7 +229,6 @@ func TransferStarGift[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion,
 
 // PinMessage is a generic helper for adapter.Context.PinMessage method.
 func PinMessage[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, messageID int) (tg.UpdatesClass, error) {
-
 	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return nil, err
@@ -277,24 +237,72 @@ func PinMessage[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, messa
 	return ctx.PinMessage(chatID, messageID)
 }
 
-// UnpinMessage is a generic helper for adapter.Context.UnpinMessage method.
-func UnpinMessage[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, messageID int) error {
-
+// UnPinMessage is a generic helper for adapter.Context.UnPinMessage method.
+func UnPinMessage[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, messageID int) error {
 	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return err
 	}
 
-	return ctx.UnpinMessage(chatID, messageID)
+	return ctx.UnPinMessage(chatID, messageID)
 }
 
-// UnpinAllMessages is a generic helper for adapter.Context.UnpinAllMessages method.
-func UnpinAllMessages[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion) error {
-
+// UnPinAllMessages is a generic helper for adapter.Context.UnPinAllMessages method.
+func UnPinAllMessages[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion) error {
 	chatID, err := getIdByUnion(ctx, chat)
 	if err != nil {
 		return err
 	}
 
-	return ctx.UnpinAllMessages(chatID)
+	return ctx.UnPinAllMessages(chatID)
+}
+
+// GetChatInviteLink is a generic helper for adapter.Context.GetChatInviteLink method.
+func GetChatInviteLink[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, req ...*tg.MessagesExportChatInviteRequest) (tg.ExportedChatInviteClass, error) {
+	chatID, err := getIdByUnion(ctx, chat)
+	if err != nil {
+		return nil, err
+	}
+
+	return ctx.GetChatInviteLink(chatID, req...)
+}
+
+// SendMessage is a generic helper for adapter.Context.SendMessage method.
+func SendMessage[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, request *tg.MessagesSendMessageRequest) (*types.Message, error) {
+	chatID, err := getIdByUnion(ctx, chat)
+	if err != nil {
+		return nil, err
+	}
+
+	return ctx.SendMessage(chatID, request)
+}
+
+// SendMedia is a generic helper for adapter.Context.SendMedia method.
+func SendMedia[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, request *tg.MessagesSendMediaRequest) (*types.Message, error) {
+	chatID, err := getIdByUnion(ctx, chat)
+	if err != nil {
+		return nil, err
+	}
+
+	return ctx.SendMedia(chatID, request)
+}
+
+// SendReaction is a generic helper for adapter.Context.SendReaction method.
+func SendReaction[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, request *tg.MessagesSendReactionRequest) (*types.Message, error) {
+	chatID, err := getIdByUnion(ctx, chat)
+	if err != nil {
+		return nil, err
+	}
+
+	return ctx.SendReaction(chatID, request)
+}
+
+// SendMultiMedia is a generic helper for adapter.Context.SendMultiMedia method.
+func SendMultiMedia[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion, request *tg.MessagesSendMultiMediaRequest) (*types.Message, error) {
+	chatID, err := getIdByUnion(ctx, chat)
+	if err != nil {
+		return nil, err
+	}
+
+	return ctx.SendMultiMedia(chatID, request)
 }

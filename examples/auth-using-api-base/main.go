@@ -22,7 +22,6 @@ func main() {
 		gotg.ClientTypePhone(""),
 		// Optional parameters of client
 		&gotg.ClientOpts{
-
 			// custom authenticator using web api
 			AuthConversator: wa,
 			Session:         session.SqlSession(sqlite.Open("webbot")),
@@ -32,5 +31,4 @@ func main() {
 		log.Fatalln("failed to start client:", err)
 	}
 	client.Idle()
-
 }

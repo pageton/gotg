@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"github.com/pageton/gotg/dispatcher/handlers/filters"
 	"github.com/pageton/gotg/adapter"
+	"github.com/pageton/gotg/dispatcher/handlers/filters"
 )
 
 // InlineQuery handler is executed when the update consists of tg.UpdateInlineBotCallbackQuery.
@@ -17,6 +17,18 @@ func NewInlineQuery(filters filters.InlineQueryFilter, response CallbackResponse
 	return InlineQuery{
 		Filters:       filters,
 		Callback:      response,
+		UpdateFilters: nil,
+	}
+}
+
+func OnInlineQuery(handler UpdateHandler, inlineFilters ...filters.InlineQueryFilter) InlineQuery {
+	var filter filters.InlineQueryFilter
+	if len(inlineFilters) > 0 {
+		filter = inlineFilters[0]
+	}
+	return InlineQuery{
+		Callback:      ToCallbackResponse(handler),
+		Filters:       filter,
 		UpdateFilters: nil,
 	}
 }

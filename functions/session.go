@@ -1,0 +1,39 @@
+package functions
+
+import (
+	"bytes"
+	"encoding/base64"
+	"strings"
+
+	"github.com/bytedance/sonic"
+	"github.com/pageton/gotg/storage"
+)
+
+// EncodeSessionToString encodes the provided session to a string in base64 using json bytes.
+//
+// Parameters:
+//   - session: The session object to encode
+//
+// Returns encoded session string or an error.
+func EncodeSessionToString(session *storage.Session) (string, error) {
+	var buf bytes.Buffer
+	encoder := base64.NewEncoder(base64.StdEncoding, &buf)
+	err := sonic.ConfigDefault.NewEncoder(encoder).Encode(session)
+	if err != nil {
+		return "", err
+	}
+	_ = encoder.Close()
+	return buf.String(), nil
+}
+
+// DecodeStringToSession decodes the provided base64 encoded session string to session.Data.
+//
+// Parameters:
+//   - sessionString: The base64 encoded session string to decode
+//
+// Returns decoded session or an error.
+func DecodeStringToSession(sessionString string) (*storage.Session, error) {
+	// var sessionData session.Data
+	var sessionData storage.Session
+	return &sessionData, sonic.ConfigDefault.NewDecoder(base64.NewDecoder(base64.StdEncoding, strings.NewReader(sessionString))).Decode(&sessionData)
+}
