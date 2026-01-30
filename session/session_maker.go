@@ -41,6 +41,9 @@ import (
 //	    true,
 //	)
 func NewSessionStorage(ctx context.Context, sessionType SessionConstructor, inMemory bool) (*storage.PeerStorage, telegram.SessionStorage, error) {
+	if sessionType == nil {
+		sessionType = SimpleSession()
+	}
 	name, data, err := sessionType.loadSession()
 	if err != nil {
 		return nil, nil, err
