@@ -221,7 +221,7 @@ func NewClient(apiID int, apiHash string, clientType clientType, opts *ClientOpt
 	if opts.LogConfig != nil {
 		logger = gotglog.New(*opts.LogConfig)
 	} else {
-		logger = gotglog.Default()
+		logger = gotglog.Nop()
 	}
 
 	d := dispatcher.NewNativeDispatcher(opts.AutoFetchReply, opts.FetchEntireReplyChain, opts.ErrorHandler, opts.PanicHandler, peerStorage, logger, opts.SendOutgoing)

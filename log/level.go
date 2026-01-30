@@ -9,6 +9,8 @@ const (
 	LevelWarn
 	LevelError
 	LevelFatal
+	// LevelOff disables all log output. Used by Nop().
+	LevelOff
 )
 
 func (l Level) Tag() string {

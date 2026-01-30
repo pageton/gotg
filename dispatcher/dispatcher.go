@@ -94,7 +94,7 @@ func NewNativeDispatcher(setReply bool, setEntireReplyChain bool, eHandler Error
 		eHandler = defaultErrorHandler
 	}
 	if logger == nil {
-		logger = gotglog.Default()
+		logger = gotglog.Nop()
 	}
 	nd := &NativeDispatcher{
 		pStorage:            p,
