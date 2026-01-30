@@ -1,0 +1,4 @@
+{
+  "workspace.library": ["../../../lua/library"],
+  "runtime.version": "Lua 5.1"
+}
