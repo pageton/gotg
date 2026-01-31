@@ -195,14 +195,14 @@ func UnPinAllMessages(ctx context.Context, raw *tg.Client, p *storage.PeerStorag
 //
 // Returns updates confirming the action or an error.
 func ForwardMessages(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, fromChatID, toChatID int64, request *tg.MessagesForwardMessagesRequest) (tg.UpdatesClass, error) {
-	fromPeer := GetInputPeerClassFromID(p, fromChatID)
-	if fromPeer == nil {
-		return nil, errors.ErrPeerNotFound
+	fromPeer, err := ResolveInputPeerByID(ctx, raw, p, fromChatID)
+	if err != nil {
+		return nil, err
 	}
 
-	toPeer := GetInputPeerClassFromID(p, toChatID)
-	if toPeer == nil {
-		return nil, errors.ErrPeerNotFound
+	toPeer, err := ResolveInputPeerByID(ctx, raw, p, toChatID)
+	if err != nil {
+		return nil, err
 	}
 
 	if request == nil {
