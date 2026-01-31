@@ -64,6 +64,12 @@ func Default() *Logger {
 	return New(DefaultConfig())
 }
 
+// Nop returns a Logger that discards all output.
+// Used when no LogConfig is provided.
+func Nop() *Logger {
+	return New(Config{MinLevel: LevelOff})
+}
+
 // WithModule returns a child Logger that tags every record with the
 // given module name. The child shares the same Writer and Formatter.
 func (l *Logger) WithModule(name string) *Logger {
