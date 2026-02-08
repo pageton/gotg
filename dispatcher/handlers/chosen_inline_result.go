@@ -35,7 +35,7 @@ func (c ChosenInlineResult) CheckUpdate(ctx *adapter.Context, u *adapter.Update)
 	if u.ChosenInlineResult == nil {
 		return nil
 	}
-	if c.Filters != nil && !c.Filters(u.ChosenInlineResult) {
+	if c.Filters != nil && !c.Filters(u.ChosenInlineResult.Raw()) {
 		return nil
 	}
 	if c.UpdateFilters != nil && !c.UpdateFilters(u) {

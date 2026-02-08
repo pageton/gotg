@@ -3,6 +3,7 @@ package dispatcher
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 	"sync/atomic"
@@ -41,6 +42,7 @@ type Dispatcher interface {
 type NativeDispatcher struct {
 	cancel              context.CancelFunc
 	client              *tg.Client
+	telegramClient      *telegram.Client
 	self                *tg.User
 	sender              *message.Sender
 	setReply            bool
@@ -58,6 +60,8 @@ type NativeDispatcher struct {
 	nextGroup           atomic.Int64
 	updateWg            sync.WaitGroup
 	pendingOutgoing     sync.Map
+	dcPools             sync.Map // dcID (int) -> tg.Invoker
+	dcPoolFailed        sync.Map // dcID (int) -> struct{}
 	updateSem           chan struct{}
 }
 
@@ -173,8 +177,40 @@ func (u *entities) short() {
 
 func (dp *NativeDispatcher) Initialize(ctx context.Context, cancel context.CancelFunc, client *telegram.Client, self *tg.User) {
 	dp.client = client.API()
+	dp.telegramClient = client
 	dp.sender = message.NewSender(dp.client)
 	dp.self = self
 	dp.cancel = cancel
+	go dp.detectHomeDC(ctx)
 	dp.initwg.Done()
+}
+
+func (dp *NativeDispatcher) detectHomeDC(ctx context.Context) {
+	nearest, err := dp.client.HelpGetNearestDC(ctx)
+	if err == nil {
+		dp.dcPoolFailed.Store(nearest.ThisDC, struct{}{})
+	}
+}
+
+func (dp *NativeDispatcher) getDCPool(ctx context.Context, dcID int) (tg.Invoker, error) {
+	if v, ok := dp.dcPools.Load(dcID); ok {
+		return v.(tg.Invoker), nil
+	}
+	if _, failed := dp.dcPoolFailed.Load(dcID); failed {
+		return nil, fmt.Errorf("DC %d unavailable", dcID)
+	}
+	if dp.telegramClient == nil {
+		return nil, fmt.Errorf("telegram client not initialized")
+	}
+	pool, err := dp.telegramClient.DC(ctx, dcID, 1)
+	if err != nil {
+		dp.dcPoolFailed.Store(dcID, struct{}{})
+		return nil, fmt.Errorf("connect to DC %d: %w", dcID, err)
+	}
+	actual, loaded := dp.dcPools.LoadOrStore(dcID, tg.Invoker(pool))
+	if loaded {
+		pool.Close()
+		return actual.(tg.Invoker), nil
+	}
+	return pool, nil
 }

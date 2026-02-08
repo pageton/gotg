@@ -13,6 +13,7 @@ func (ctx *Context) AnswerCallback(request *tg.MessagesSetBotCallbackAnswerReque
 }
 
 // Data returns the callback data as a string for callback queries.
+// Works for both regular callback queries and inline message callback queries.
 // Returns an empty string if the update is not a callback query or data is nil.
 //
 // Example:
@@ -22,8 +23,12 @@ func (ctx *Context) AnswerCallback(request *tg.MessagesSetBotCallbackAnswerReque
 //	    fmt.Printf("Callback data: %s\n", data)
 //	}
 func (u *Update) Data() string {
-	if u.CallbackQuery != nil && u.CallbackQuery.Data != nil {
+	switch {
+	case u.CallbackQuery != nil && u.CallbackQuery.Data != nil:
 		return string(u.CallbackQuery.Data)
+	case u.InlineCallbackQuery != nil && u.InlineCallbackQuery.Data != nil:
+		return string(u.InlineCallbackQuery.Data)
+	default:
+		return ""
 	}
-	return ""
 }

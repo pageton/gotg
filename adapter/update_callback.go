@@ -6,7 +6,7 @@ import (
 	"github.com/gotd/td/tg"
 )
 
-// Answer answers the callback query.
+// Answer answers the callback query (works for both regular and inline message callbacks).
 // text: The notification text (use empty string for silent).
 // opts: Optional *CallbackOptions for alert, cacheTime, url.
 //
@@ -15,7 +15,14 @@ import (
 //	u.Answer("Done!", nil)
 //	u.Answer("Error!", &CallbackOptions{Alert: true})
 func (u *Update) Answer(text string, opts ...*CallbackOptions) (bool, error) {
-	if u.CallbackQuery == nil {
+	var queryID int64
+
+	switch {
+	case u.CallbackQuery != nil:
+		queryID = u.CallbackQuery.QueryID
+	case u.InlineCallbackQuery != nil:
+		queryID = u.InlineCallbackQuery.QueryID
+	default:
 		return false, fmt.Errorf("no callback query in this update")
 	}
 
@@ -30,7 +37,7 @@ func (u *Update) Answer(text string, opts ...*CallbackOptions) (bool, error) {
 	}
 
 	return u.Ctx.Raw.MessagesSetBotCallbackAnswer(u.Ctx, &tg.MessagesSetBotCallbackAnswerRequest{
-		QueryID:   u.CallbackQuery.QueryID,
+		QueryID:   queryID,
 		Message:   text,
 		Alert:     alert,
 		CacheTime: cacheTime,

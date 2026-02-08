@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/gotd/td/telegram"
+	"github.com/gotd/td/telegram/auth"
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/adapter"
@@ -29,6 +30,7 @@ func (c *Client) initTelegramClient(
 			LangCode:       c.ClientLangCode,
 		}
 	}
+	c.deviceParams = device.Params
 	c.Client = telegram.NewClient(c.apiID, c.apiHash, telegram.Options{
 		DCList:            c.DCList,
 		Resolver:          c.Resolver,
@@ -67,8 +69,19 @@ func (c *Client) login() error {
 		if c.clientType.getValue() == "" {
 			return intErrors.ErrSessionUnauthorized
 		}
+		var flowClient auth.FlowClient = authClient
+		if solver, ok := c.authConversator.(RecaptchaSolver); ok {
+			flowClient = FlowClient{
+				FlowClient: authClient,
+				api:        c.API(),
+				apiID:      c.apiID,
+				apiHash:    c.apiHash,
+				params:     c.deviceParams,
+				solver:     solver,
+			}
+		}
 		err = authFlow(
-			c.ctx, authClient,
+			c.ctx, flowClient,
 			c.authConversator,
 			c.clientType.getValue(),
 			c.sendCodeOptions,
@@ -157,6 +170,7 @@ func (c *Client) CreateContext() *adapter.Context {
 		c.autoFetchReply,
 		c.ConvManager,
 		nil,
+		c.Client,
 	)
 }
 

@@ -85,8 +85,9 @@ type Client struct {
 	cancel          context.CancelFunc
 	running         bool
 	*telegram.Client
-	apiID   int
-	apiHash string
+	apiID        int
+	apiHash      string
+	deviceParams tg.JSONValueClass
 }
 
 type ClientOpts struct {

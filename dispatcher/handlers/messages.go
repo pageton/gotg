@@ -42,10 +42,13 @@ func OnMessage(handler UpdateHandler, messageFilters ...filters.MessageFilter) M
 }
 
 func (m Message) CheckUpdate(ctx *adapter.Context, u *adapter.Update) error {
-	if u.IsEdited || !u.HasMessage() {
+	if u.IsEdited || !u.HasMessage() || u.MessageReaction != nil {
 		return nil
 	}
 	msg := u.EffectiveMessage
+	if msg.EditHide {
+		return nil
+	}
 	if !m.Outgoing && msg.IsOutgoing() {
 		return nil
 	}

@@ -40,6 +40,9 @@ func GetChatIDFromPeer(peer tg.PeerClass) int64 {
 //
 // Returns input peer class or nil if not found.
 func GetInputPeerClassFromID(p *storage.PeerStorage, ID int64) tg.InputPeerClass {
+	if p == nil {
+		return nil
+	}
 	peer := p.GetPeerByID(ID)
 	if peer.ID == 0 {
 		return nil
@@ -72,6 +75,9 @@ func GetInputPeerClassFromID(p *storage.PeerStorage, ID int64) tg.InputPeerClass
 //
 // Returns nothing.
 func SavePeersFromClassArray(p *storage.PeerStorage, cs []tg.ChatClass, us []tg.UserClass) {
+	if p == nil {
+		return
+	}
 	for _, u := range us {
 		u, ok := u.(*tg.User)
 		if !ok {
@@ -99,6 +105,9 @@ func SavePeersFromClassArray(p *storage.PeerStorage, cs []tg.ChatClass, us []tg.
 //
 // Returns input peer class or error if peer could not be resolved.
 func ResolveInputPeerByID(ctx context.Context, raw *tg.Client, peerStorage *storage.PeerStorage, id int64) (tg.InputPeerClass, error) {
+	if peerStorage == nil {
+		return nil, errors.ErrPeerNotFound
+	}
 	peer := peerStorage.GetInputPeerByID(id)
 	if _, isEmpty := peer.(*tg.InputPeerEmpty); !isEmpty {
 		return peer, nil

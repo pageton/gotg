@@ -167,6 +167,41 @@ func (c *Chat) GetChat() (tg.ChatClass, error) {
 	return functions.GetChat(c.Ctx, c.RawClient, c.PeerStorage, c.GetID())
 }
 
+func (c *Chat) GetChatMembers(opts ...*functions.GetChatMembersOpts) ([]*Participant, error) {
+	if c.RawClient == nil {
+		return nil, fmt.Errorf("chat has no client context")
+	}
+	participants, err := functions.GetChatMembers(c.Ctx, c.RawClient, c.PeerStorage, c.GetID(), opts...)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*Participant, 0, len(participants))
+	for _, p := range participants {
+		uid := functions.ExtractParticipantUserID(p)
+		if uid == 0 {
+			continue
+		}
+		peer := c.PeerStorage.GetPeerByID(uid)
+		if peer.Type != int(storage.TypeUser) {
+			continue
+		}
+		u, err := functions.GetUser(c.Ctx, c.RawClient, c.PeerStorage, uid)
+		if err != nil {
+			continue
+		}
+		result = append(result, &Participant{
+			User:        &User{User: *u, Ctx: c.Ctx, RawClient: c.RawClient, PeerStorage: c.PeerStorage, SelfID: c.SelfID},
+			Participant: p,
+			Status:      functions.ExtractParticipantStatus(p),
+			Rights:      functions.ExtractParticipantRights(p),
+			Title:       functions.ExtractParticipantTitle(p),
+			UserID:      uid,
+			ChatID:      c.GetID(),
+		})
+	}
+	return result, nil
+}
+
 // GetChatInviteLink generates an invite link for this chat.
 //
 // Parameters:

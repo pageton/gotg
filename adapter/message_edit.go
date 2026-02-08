@@ -12,7 +12,7 @@ import (
 )
 
 // getEditMessageID returns the message ID for editing operations.
-// Supports both regular messages and callback queries.
+// Supports regular messages, callback queries, and inline callback queries.
 func (u *Update) getEditMessageID() (int, error) {
 	if u.HasMessage() {
 		return u.EffectiveMessage.ID, nil
@@ -20,7 +20,126 @@ func (u *Update) getEditMessageID() (int, error) {
 	if u.CallbackQuery != nil {
 		return u.MsgID(), nil
 	}
+	if u.InlineCallbackQuery != nil {
+		// Inline messages don't have integer IDs; callers should
+		// check isInlineCallback() and use the inline edit path instead.
+		return 0, nil
+	}
 	return 0, fmt.Errorf("no effective message to edit")
+}
+
+// isInlineCallback returns true when the current update is an inline message callback.
+func (u *Update) isInlineCallback() bool {
+	return u.InlineCallbackQuery != nil
+}
+
+// isChosenInlineResult returns true when the current update is a chosen inline result
+// that has an inline message ID available for editing.
+func (u *Update) isChosenInlineResult() bool {
+	return u.ChosenInlineResult != nil && u.ChosenInlineResult.HasInlineMessageID()
+}
+
+// isInlineEdit returns true when the current update can be edited via inline message ID,
+// either from an inline callback query or a chosen inline result.
+func (u *Update) isInlineEdit() bool {
+	return u.isInlineCallback() || u.isChosenInlineResult()
+}
+
+// getInlineMessageID returns the inline message ID from either an inline callback query
+// or a chosen inline result. Returns nil if neither is available.
+func (u *Update) getInlineMessageID() tg.InputBotInlineMessageIDClass {
+	if u.InlineCallbackQuery != nil {
+		return u.InlineCallbackQuery.MsgID
+	}
+	if u.ChosenInlineResult != nil {
+		return u.ChosenInlineResult.GetInlineMessageID()
+	}
+	return nil
+}
+
+// invokeInlineEdit sends a MessagesEditInlineBotMessageRequest to the correct DC
+// extracted from the inline message ID. Telegram requires inline edits to be
+// sent to the DC that owns the inline message.
+func (u *Update) invokeInlineEdit(req *tg.MessagesEditInlineBotMessageRequest) error {
+	dcID := req.ID.GetDCID()
+
+	if dcID != 0 && u.Ctx.GetDCPool != nil {
+		invoker, err := u.Ctx.GetDCPool(u.Ctx, dcID)
+		if err == nil {
+			dcClient := tg.NewClient(invoker)
+			_, err = dcClient.MessagesEditInlineBotMessage(u.Ctx, req)
+			return err
+		}
+	}
+
+	_, err := u.Ctx.Raw.MessagesEditInlineBotMessage(u.Ctx, req)
+	return err
+}
+
+func (u *Update) editInlineText(text string, entities []tg.MessageEntityClass, opts *EditOpts) (*types.Message, error) {
+	inlineMsgID := u.getInlineMessageID()
+	if inlineMsgID == nil {
+		return nil, fmt.Errorf("no inline message ID available for editing")
+	}
+	req := &tg.MessagesEditInlineBotMessageRequest{
+		ID:          inlineMsgID,
+		NoWebpage:   opts.NoWebpage,
+		InvertMedia: opts.InvertMedia,
+	}
+	req.SetMessage(text)
+	if len(entities) > 0 {
+		req.SetEntities(entities)
+	}
+	if opts.ReplyMarkup != nil {
+		req.SetReplyMarkup(opts.ReplyMarkup)
+	}
+	if opts.Media != nil {
+		req.SetMedia(opts.Media)
+	}
+	if err := u.invokeInlineEdit(req); err != nil {
+		return nil, err
+	}
+	return nil, nil
+}
+
+func (u *Update) editInlineMedia(media tg.InputMediaClass, caption string, entities []tg.MessageEntityClass, opts *EditMediaOpts) (*types.Message, error) {
+	inlineMsgID := u.getInlineMessageID()
+	if inlineMsgID == nil {
+		return nil, fmt.Errorf("no inline message ID available for editing")
+	}
+	req := &tg.MessagesEditInlineBotMessageRequest{
+		ID:          inlineMsgID,
+		NoWebpage:   opts.NoWebpage,
+		InvertMedia: opts.InvertMedia,
+	}
+	req.SetMedia(media)
+	if caption != "" {
+		req.SetMessage(caption)
+	}
+	if len(entities) > 0 {
+		req.SetEntities(entities)
+	}
+	if opts.ReplyMarkup != nil {
+		req.SetReplyMarkup(opts.ReplyMarkup)
+	}
+	if err := u.invokeInlineEdit(req); err != nil {
+		return nil, err
+	}
+	return nil, nil
+}
+
+func (u *Update) editInlineReplyMarkup(markup tg.ReplyMarkupClass) error {
+	inlineMsgID := u.getInlineMessageID()
+	if inlineMsgID == nil {
+		return fmt.Errorf("no inline message ID available for editing")
+	}
+	req := &tg.MessagesEditInlineBotMessageRequest{
+		ID: inlineMsgID,
+	}
+	if markup != nil {
+		req.SetReplyMarkup(markup)
+	}
+	return u.invokeInlineEdit(req)
 }
 
 // Edit edits the current update's message text.
@@ -30,11 +149,6 @@ func (u *Update) getEditMessageID() (int, error) {
 func (u *Update) Edit(Text any, Opts ...*EditOpts) (*types.Message, error) {
 	if Text == "" || Text == nil {
 		return nil, gotgErrors.ErrTextEmpty
-	}
-
-	msgID, err := u.getEditMessageID()
-	if err != nil {
-		return nil, err
 	}
 
 	opts := functions.GetOptDef(&EditOpts{}, Opts...)
@@ -77,6 +191,15 @@ func (u *Update) Edit(Text any, Opts ...*EditOpts) (*types.Message, error) {
 		}
 	} else {
 		text = message
+	}
+
+	if u.isInlineEdit() {
+		return u.editInlineText(text, entities, opts)
+	}
+
+	msgID, err := u.getEditMessageID()
+	if err != nil {
+		return nil, err
 	}
 
 	req := &tg.MessagesEditMessageRequest{
@@ -130,11 +253,6 @@ func (u *Update) EditMedia(Media tg.InputMediaClass, Opts ...*EditMediaOpts) (*t
 		return nil, fmt.Errorf("media cannot be nil")
 	}
 
-	msgID, err := u.getEditMessageID()
-	if err != nil {
-		return nil, err
-	}
-
 	opts := functions.GetOptDef(&EditMediaOpts{}, Opts...)
 
 	parseMode := opts.ParseMode
@@ -165,6 +283,15 @@ func (u *Update) EditMedia(Media tg.InputMediaClass, Opts ...*EditMediaOpts) (*t
 		}
 	} else {
 		caption = opts.Caption
+	}
+
+	if u.isInlineEdit() {
+		return u.editInlineMedia(Media, caption, entities, opts)
+	}
+
+	msgID, err := u.getEditMessageID()
+	if err != nil {
+		return nil, err
 	}
 
 	req := &tg.MessagesEditMessageRequest{
@@ -232,11 +359,6 @@ func (u *Update) EditCaption(Text any, Opts ...*EditOpts) (*types.Message, error
 		return nil, gotgErrors.ErrTextEmpty
 	}
 
-	msgID, err := u.getEditMessageID()
-	if err != nil {
-		return nil, err
-	}
-
 	opts := functions.GetOptDef(&EditOpts{}, Opts...)
 
 	parseMode := opts.ParseMode
@@ -279,6 +401,15 @@ func (u *Update) EditCaption(Text any, Opts ...*EditOpts) (*types.Message, error
 		text = message
 	}
 
+	if u.isInlineEdit() {
+		return u.editInlineText(text, entities, opts)
+	}
+
+	msgID, err := u.getEditMessageID()
+	if err != nil {
+		return nil, err
+	}
+
 	req := &tg.MessagesEditMessageRequest{
 		ID:                   msgID,
 		Message:              text,
@@ -316,6 +447,10 @@ func (u *Update) EditCaption(Text any, Opts ...*EditOpts) (*types.Message, error
 // EditReplyMarkup edits only the reply markup of the current update's message.
 // For callback queries, edits the message that triggered the callback.
 func (u *Update) EditReplyMarkup(Markup tg.ReplyMarkupClass) (*types.Message, error) {
+	if u.isInlineEdit() {
+		return nil, u.editInlineReplyMarkup(Markup)
+	}
+
 	msgID, err := u.getEditMessageID()
 	if err != nil {
 		return nil, err
@@ -327,6 +462,83 @@ func (u *Update) EditReplyMarkup(Markup tg.ReplyMarkupClass) (*types.Message, er
 	}
 
 	return u.Ctx.EditMessage(u.ChatID(), req, u.ConnectionID())
+}
+
+// EditInlineText edits an inline message's text.
+// Works for inline callback queries and chosen inline results.
+// Default parse mode is HTML.
+func (u *Update) EditInlineText(text any, opts ...*EditOpts) error {
+	if text == "" || text == nil {
+		return gotgErrors.ErrTextEmpty
+	}
+
+	opt := functions.GetOptDef(&EditOpts{}, opts...)
+	parseMode := opt.ParseMode
+	if parseMode == "" {
+		parseMode = HTML
+	}
+
+	parsed, entities := parseTextEntities(fmt.Sprintf("%v", text), parseMode)
+	_, err := u.editInlineText(parsed, entities, opt)
+	return err
+}
+
+// EditInlineCaption edits an inline message's caption.
+// Works for inline callback queries and chosen inline results.
+// Default parse mode is HTML.
+func (u *Update) EditInlineCaption(caption any, opts ...*EditOpts) error {
+	return u.EditInlineText(caption, opts...)
+}
+
+// EditInlineReplyMarkup edits only the reply markup of an inline message.
+// Works for inline callback queries and chosen inline results.
+func (u *Update) EditInlineReplyMarkup(markup tg.ReplyMarkupClass) error {
+	return u.editInlineReplyMarkup(markup)
+}
+
+// EditInlineMedia edits the media of an inline message.
+// Works for inline callback queries and chosen inline results.
+func (u *Update) EditInlineMedia(media tg.InputMediaClass, opts ...*EditMediaOpts) error {
+	if media == nil {
+		return fmt.Errorf("media cannot be nil")
+	}
+
+	opt := functions.GetOptDef(&EditMediaOpts{}, opts...)
+	parseMode := opt.ParseMode
+	if parseMode == "" {
+		parseMode = HTML
+	}
+
+	var caption string
+	var entities []tg.MessageEntityClass
+	if opt.Caption != "" {
+		caption, entities = parseTextEntities(opt.Caption, parseMode)
+	}
+
+	_, err := u.editInlineMedia(media, caption, entities, opt)
+	return err
+}
+
+func parseTextEntities(message string, parseMode string) (string, []tg.MessageEntityClass) {
+	if parseMode == ModeNone {
+		return message, nil
+	}
+
+	var mode parsemode.ParseMode
+	switch strings.ToUpper(strings.TrimSpace(parseMode)) {
+	case HTML:
+		mode = parsemode.ModeHTML
+	case "MARKDOWN", "MARKDOWNV2":
+		mode = parsemode.ModeMarkdown
+	default:
+		mode = parsemode.ModeNone
+	}
+
+	result, err := parsemode.Parse(message, mode)
+	if err == nil && result != nil {
+		return result.Text, result.Entities
+	}
+	return message, nil
 }
 
 // ChatType returns the type of chat for this update.

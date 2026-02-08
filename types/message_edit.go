@@ -45,13 +45,9 @@ func (m *Message) Edit(text string, opts ...any) (*Message, error) {
 						if e, ok := value.Interface().([]tg.MessageEntityClass); ok {
 							ents = e
 						}
-					case "Markup":
+					case "Markup", "ReplyMarkup":
 						if rm, ok := value.Interface().(tg.ReplyMarkupClass); ok {
 							markup = rm
-						}
-					case "NoWebpage":
-						if nw, ok := value.Interface().(bool); ok {
-							noWebpage = nw
 						}
 					case "ParseMode":
 						if s, ok := value.Interface().(string); ok {
@@ -120,6 +116,7 @@ func (m *Message) EditCaption(caption string, opts ...any) (*Message, error) {
 	var ents []tg.MessageEntityClass
 	var markup tg.ReplyMarkupClass
 	var parseMode string
+	var noWebpage bool
 
 	if len(opts) > 0 && opts[0] != nil {
 		if e, ok := opts[0].([]tg.MessageEntityClass); ok {
@@ -141,13 +138,17 @@ func (m *Message) EditCaption(caption string, opts ...any) (*Message, error) {
 						if e, ok := value.Interface().([]tg.MessageEntityClass); ok {
 							ents = e
 						}
-					case "Markup":
+					case "Markup", "ReplyMarkup":
 						if rm, ok := value.Interface().(tg.ReplyMarkupClass); ok {
 							markup = rm
 						}
 					case "ParseMode":
 						if s, ok := value.Interface().(string); ok {
 							parseMode = s
+						}
+					case "NoWebpage":
+						if b, ok := value.Interface().(bool); ok {
+							noWebpage = b
 						}
 					}
 				}
@@ -174,10 +175,11 @@ func (m *Message) EditCaption(caption string, opts ...any) (*Message, error) {
 	}
 
 	req := &tg.MessagesEditMessageRequest{
-		Peer:     peer,
-		ID:       m.ID,
-		Message:  caption,
-		Entities: ents,
+		Peer:      peer,
+		ID:        m.ID,
+		Message:   caption,
+		Entities:  ents,
+		NoWebpage: noWebpage,
 	}
 
 	if markup != nil {
@@ -248,6 +250,7 @@ func (m *Message) EditMedia(media tg.InputMediaClass, opts ...any) (*Message, er
 	var ents []tg.MessageEntityClass
 	var markup tg.ReplyMarkupClass
 	var parseMode string
+	var noWebpage bool
 
 	if len(opts) > 0 && opts[0] != nil {
 		if e, ok := opts[0].([]tg.MessageEntityClass); ok {
@@ -273,13 +276,17 @@ func (m *Message) EditMedia(media tg.InputMediaClass, opts ...any) (*Message, er
 						if e, ok := value.Interface().([]tg.MessageEntityClass); ok {
 							ents = e
 						}
-					case "Markup":
+					case "Markup", "ReplyMarkup":
 						if rm, ok := value.Interface().(tg.ReplyMarkupClass); ok {
 							markup = rm
 						}
 					case "ParseMode":
 						if s, ok := value.Interface().(string); ok {
 							parseMode = s
+						}
+					case "NoWebpage":
+						if b, ok := value.Interface().(bool); ok {
+							noWebpage = b
 						}
 					}
 				}
@@ -306,11 +313,12 @@ func (m *Message) EditMedia(media tg.InputMediaClass, opts ...any) (*Message, er
 	}
 
 	req := &tg.MessagesEditMessageRequest{
-		Peer:     peer,
-		ID:       m.ID,
-		Media:    media,
-		Message:  caption,
-		Entities: ents,
+		Peer:      peer,
+		ID:        m.ID,
+		Media:     media,
+		Message:   caption,
+		Entities:  ents,
+		NoWebpage: noWebpage,
 	}
 
 	if markup != nil {

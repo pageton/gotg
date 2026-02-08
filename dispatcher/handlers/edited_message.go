@@ -38,13 +38,16 @@ func OnEditedMessage(handler UpdateHandler, messageFilters ...filters.MessageFil
 }
 
 func (m EditedMessage) CheckUpdate(ctx *adapter.Context, u *adapter.Update) error {
-	if !u.IsEdited {
+	if !u.IsEdited || u.MessageReaction != nil {
 		return nil
 	}
 	if !u.HasMessage() {
 		return nil
 	}
 	msg := u.EffectiveMessage
+	if msg.EditHide {
+		return nil
+	}
 	if !m.Outgoing && msg.IsOutgoing() {
 		return nil
 	}

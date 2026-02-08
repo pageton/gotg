@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/adapter"
 	"github.com/pageton/gotg/dispatcher/handlers/filters"
 )
 
-// CallbackQuery handler is executed when the update consists of tg.UpdateBotCallbackQuery.
+// CallbackQuery handler is executed when the update consists of tg.UpdateBotCallbackQuery
+// or tg.UpdateInlineBotCallbackQuery (for inline message buttons).
 type CallbackQuery struct {
 	Filters       filters.CallbackQueryFilter
 	Callback      CallbackResponse
@@ -42,10 +44,23 @@ func OnCallbackQuery(filter filters.CallbackQueryFilter, handler UpdateHandler, 
 }
 
 func (c CallbackQuery) CheckUpdate(ctx *adapter.Context, u *adapter.Update) error {
-	if u.CallbackQuery == nil {
+	var cbqForFilter *tg.UpdateBotCallbackQuery
+
+	switch {
+	case u.CallbackQuery != nil:
+		cbqForFilter = u.CallbackQuery
+	case u.InlineCallbackQuery != nil:
+		cbqForFilter = &tg.UpdateBotCallbackQuery{
+			QueryID:       u.InlineCallbackQuery.QueryID,
+			UserID:        u.InlineCallbackQuery.UserID,
+			Data:          u.InlineCallbackQuery.Data,
+			GameShortName: u.InlineCallbackQuery.GameShortName,
+		}
+	default:
 		return nil
 	}
-	if c.Filters != nil && !c.Filters(u.CallbackQuery) {
+
+	if c.Filters != nil && !c.Filters(cbqForFilter) {
 		return nil
 	}
 	if c.UpdateFilters != nil && !c.UpdateFilters(u) {

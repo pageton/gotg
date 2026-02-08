@@ -93,7 +93,8 @@ func isControlError(err error) bool {
 }
 
 func (dp *NativeDispatcher) handleUpdate(ctx context.Context, e tg.Entities, update tg.UpdateClass) error {
-	c := adapter.NewContext(ctx, dp.client, dp.pStorage, dp.self, dp.sender, &e, dp.setReply, dp.conv, dp.logger)
+	c := adapter.NewContext(ctx, dp.client, dp.pStorage, dp.self, dp.sender, &e, dp.setReply, dp.conv, dp.logger, dp.telegramClient)
+	c.GetDCPool = dp.getDCPool
 	if dp.outgoing && !isSyntheticOutgoing(update) {
 		c.OnOutgoing = func(ou *adapter.FakeOutgoingUpdate) {
 			if ou.Message == nil || ou.Message.Message == nil {

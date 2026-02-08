@@ -5,7 +5,7 @@ import (
 	"github.com/pageton/gotg/dispatcher/handlers/filters"
 )
 
-// InlineQuery handler is executed when the update consists of tg.UpdateInlineBotCallbackQuery.
+// InlineQuery handler is executed when the update consists of tg.UpdateBotInlineQuery.
 type InlineQuery struct {
 	Callback      CallbackResponse
 	Filters       filters.InlineQueryFilter
@@ -37,7 +37,7 @@ func (c InlineQuery) CheckUpdate(ctx *adapter.Context, u *adapter.Update) error 
 	if u.InlineQuery == nil {
 		return nil
 	}
-	if c.Filters != nil && !c.Filters(u.InlineQuery) {
+	if c.Filters != nil && !c.Filters(u.InlineQuery.Raw()) {
 		return nil
 	}
 	if c.UpdateFilters != nil && !c.UpdateFilters(u) {

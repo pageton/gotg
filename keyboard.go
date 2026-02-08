@@ -194,9 +194,9 @@ func (k *KeyboardBuilder) URL(text, url string) *KeyboardBuilder {
 // Handling the inline query:
 //
 //	dispatcher.OnInlineQuery(func(ctx *context.Context, u *context.Update) error {
-//	    query := u.InlineQuery.Query
+//	    query := u.InlineQuery.Query()
 //	    // query will contain "share_item_123" plus any user modifications
-//	    return u.Answer(&types.InlineQueryResultArticle{...})
+//	    return u.AnswerInlineQuery(results, nil)
 //	})
 func (k *KeyboardBuilder) Switch(text string, samePeer bool, query string) *KeyboardBuilder {
 	btn := &tg.KeyboardButtonSwitchInline{

@@ -33,11 +33,10 @@ func (f Flow) handleSignUp(ctx context.Context, client auth.FlowClient, phone, h
 	return nil
 }
 
-func authFlow(ctx context.Context, client *auth.Client, conversator AuthConversator, phone string, sendOpts auth.SendCodeOptions) error {
+func authFlow(ctx context.Context, client auth.FlowClient, conversator AuthConversator, phone string, sendOpts auth.SendCodeOptions) error {
 	f := Flow(auth.NewFlow(
 		termAuth{
 			phone:       phone,
-			client:      client,
 			conversator: conversator,
 		},
 		sendOpts,
@@ -89,7 +88,10 @@ func authFlow(ctx context.Context, client *auth.Client, conversator AuthConversa
 		for i := range 3 {
 			var code string
 			if i == 0 {
-				SendAuthStatus(conversator, AuthStatusPhoneCodeAsked)
+				conversator.AuthStatus(AuthStatus{
+					Event:        AuthStatusPhoneCodeAsked,
+					SentCodeType: s.Type,
+				})
 				code, err = f.Auth.Code(ctx, s)
 			} else {
 				SendAuthStatusWithRetrials(conversator, AuthStatusPhoneCodeRetrial, 3-i)

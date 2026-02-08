@@ -28,10 +28,22 @@ func (u *Update) Args() []string {
 	case u.CallbackQuery != nil:
 		return strings.Fields(string(u.CallbackQuery.Data))
 	case u.InlineQuery != nil:
-		return strings.Fields(u.InlineQuery.Query)
+		return strings.Fields(u.InlineQuery.Query())
 	default:
 		return make([]string, 0)
 	}
+}
+
+// EffectiveInlineQuery returns the wrapped InlineQuery for the current update.
+// Returns nil if the update is not an inline query.
+func (u *Update) EffectiveInlineQuery() *types.InlineQuery {
+	return u.InlineQuery
+}
+
+// EffectiveChosenInlineResult returns the wrapped ChosenInlineResult for the current update.
+// Returns nil if the update is not a chosen inline result.
+func (u *Update) EffectiveChosenInlineResult() *types.ChosenInlineResult {
+	return u.ChosenInlineResult
 }
 
 // EffectiveUser returns the types.User who is responsible for the update.

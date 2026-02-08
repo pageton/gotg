@@ -3,6 +3,7 @@ package adapter
 import (
 	"context"
 
+	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/conv"
@@ -29,6 +30,12 @@ type Context struct {
 	Sender *message.Sender
 	// Entities consists of mapped users, chats and channels from the update.
 	Entities *tg.Entities
+	// TelegramClient is the high-level telegram.Client used for DC-routed operations
+	// such as editing inline messages on the correct DC.
+	TelegramClient *telegram.Client
+	// GetDCPool returns a cached tg.Invoker for the given DC ID.
+	// Pools are created once and reused for the bot's lifetime.
+	GetDCPool func(ctx context.Context, dcID int) (tg.Invoker, error)
 	// original context of client.
 	context.Context
 
@@ -53,16 +60,18 @@ type Update struct {
 	EffectiveMessage *types.Message
 	// CallbackQuery is the tg.UpdateBotCallbackQuery of current update.
 	CallbackQuery *tg.UpdateBotCallbackQuery
-	// InlineQuery is the tg.UpdateInlineBotCallbackQuery of current update.
-	InlineQuery *tg.UpdateBotInlineQuery
+	// InlineCallbackQuery is the tg.UpdateInlineBotCallbackQuery of current update (for inline message buttons).
+	InlineCallbackQuery *tg.UpdateInlineBotCallbackQuery
+	// InlineQuery is the wrapped inline query of current update.
+	InlineQuery *types.InlineQuery
 	// ChatJoinRequest is the tg.UpdatePendingJoinRequests of current update.
 	ChatJoinRequest *tg.UpdatePendingJoinRequests
 	// ChatParticipant is the tg.UpdateChatParticipant of current update.
 	ChatParticipant *tg.UpdateChatParticipant
 	// ChannelParticipant is the tg.UpdateChannelParticipant of current update.
 	ChannelParticipant *tg.UpdateChannelParticipant
-	// ChosenInlineResult is the tg.UpdateBotInlineSend of current update.
-	ChosenInlineResult *tg.UpdateBotInlineSend
+	// ChosenInlineResult is the wrapped chosen inline result of current update.
+	ChosenInlineResult *types.ChosenInlineResult
 	// DeletedMessages is the tg.UpdateDeleteMessages of current update.
 	DeletedMessages *tg.UpdateDeleteMessages
 	// DeletedChannelMessages is the tg.UpdateDeleteChannelMessages of current update.
@@ -100,8 +109,8 @@ type Update struct {
 }
 
 // NewContext creates a new Context object with provided parameters.
-func NewContext(ctx context.Context, client *tg.Client, peerStorage *storage.PeerStorage, self *tg.User, sender *message.Sender, entities *tg.Entities, setReply bool, conv *conv.Manager, logger *log.Logger) *Context {
-	return &Context{
+func NewContext(ctx context.Context, client *tg.Client, peerStorage *storage.PeerStorage, self *tg.User, sender *message.Sender, entities *tg.Entities, setReply bool, conv *conv.Manager, logger *log.Logger, telegramClient ...*telegram.Client) *Context {
+	c := &Context{
 		Context:     ctx,
 		Raw:         client,
 		Self:        self,
@@ -112,6 +121,10 @@ func NewContext(ctx context.Context, client *tg.Client, peerStorage *storage.Pee
 		Conv:        conv,
 		Logger:      logger,
 	}
+	if len(telegramClient) > 0 {
+		c.TelegramClient = telegramClient[0]
+	}
+	return c
 }
 
 // GetNewUpdate creates a new Update with provided parameters.
@@ -141,11 +154,14 @@ func GetNewUpdate(ctx *Context, update tg.UpdateClass) *Update {
 	case *tg.UpdateBotCallbackQuery:
 		u.CallbackQuery = update
 		u.userID = update.UserID
+	case *tg.UpdateInlineBotCallbackQuery:
+		u.InlineCallbackQuery = update
+		u.userID = update.UserID
 	case *tg.UpdateBotInlineQuery:
-		u.InlineQuery = update
+		u.InlineQuery = types.ConstructInlineQueryWithContext(update, ctx.Context, ctx.Raw, ctx.PeerStorage, ctx.Self.ID, ctx.Entities)
 		u.userID = update.UserID
 	case *tg.UpdateBotInlineSend:
-		u.ChosenInlineResult = update
+		u.ChosenInlineResult = types.ConstructChosenInlineResultWithContext(update, ctx.Context, ctx.Raw, ctx.PeerStorage, ctx.Self.ID, ctx.Entities)
 		u.userID = update.UserID
 	case *tg.UpdatePendingJoinRequests:
 		u.ChatJoinRequest = update
