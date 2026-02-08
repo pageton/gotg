@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+
+	"github.com/gotd/td/tg"
 )
 
 type (
@@ -11,6 +13,7 @@ type (
 	AuthStatus      struct {
 		Event        AuthStatusEvent
 		AttemptsLeft int
+		SentCodeType tg.AuthSentCodeTypeClass
 	}
 )
 

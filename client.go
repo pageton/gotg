@@ -91,8 +91,9 @@ type Client struct {
 	cancel          context.CancelFunc
 	running         bool
 	*telegram.Client
-	appId   int
-	apiHash string
+	appId        int
+	apiHash      string
+	deviceParams tg.JSONValueClass
 }
 
 type ClientOpts struct {
@@ -267,6 +268,7 @@ func (c *Client) initTelegramClient(
 			LangCode:       c.ClientLangCode,
 		}
 	}
+	c.deviceParams = device.Params
 	c.Client = telegram.NewClient(c.appId, c.apiHash, telegram.Options{
 		DCList:            c.DCList,
 		Resolver:          c.Resolver,
@@ -302,8 +304,20 @@ func (c *Client) login() error {
 		if c.NoAutoAuth {
 			return intErrors.ErrSessionUnauthorized
 		}
+		var flowClient auth.FlowClient = authClient
+		if solver, ok := c.authConversator.(RecaptchaSolver); ok {
+			flowClient = FlowClient{
+				FlowClient: authClient,
+				api:        c.API(),
+				appID:      c.appId,
+				apiHash:    c.apiHash,
+				params:     c.deviceParams,
+				solver:     solver,
+			}
+		}
 		err = authFlow(
-			c.ctx, authClient,
+			c.ctx,
+			flowClient,
 			c.authConversator,
 			c.clientType.getValue(),
 			c.sendCodeOptions,
