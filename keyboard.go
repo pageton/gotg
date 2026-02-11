@@ -206,3 +206,90 @@ func (k *KeyboardBuilder) Switch(text string, samePeer bool, query string) *Keyb
 	}
 	return k.add(btn)
 }
+
+// styleSetter is implemented by all concrete keyboard button types in gotd/td.
+// It allows applying styles universally to any button type.
+type styleSetter interface {
+	tg.KeyboardButtonClass
+	SetStyle(tg.KeyboardButtonStyle)
+	GetStyle() (tg.KeyboardButtonStyle, bool)
+}
+
+// applyStyle modifies the style of the last button in the current row.
+// If the row is empty or the button doesn't support styling, it's a no-op.
+func (k *KeyboardBuilder) applyStyle(fn func(s *tg.KeyboardButtonStyle)) *KeyboardBuilder {
+	if len(k.row) == 0 {
+		return k
+	}
+	if s, ok := k.row[len(k.row)-1].(styleSetter); ok {
+		style, _ := s.GetStyle()
+		fn(&style)
+		s.SetStyle(style)
+	}
+	return k
+}
+
+// Primary applies primary background color style to the last added button.
+//
+// Primary style highlights the main action or confirmation button.
+// Can be chained after any button method — works on all button types.
+//
+// Returns: builder for method chaining.
+//
+// Example:
+//
+//	keyboard := gotg.Keyboard().
+//	    Button("Confirm", "confirm").Primary().
+//	    Button("Cancel", "cancel").Danger().
+//	    Build()
+func (k *KeyboardBuilder) Primary() *KeyboardBuilder {
+	return k.applyStyle(func(s *tg.KeyboardButtonStyle) { s.SetBgPrimary(true) })
+}
+
+// Danger applies danger background color style to the last added button.
+//
+// Danger style is used for destructive actions like delete or cancel.
+// Can be chained after any button method — works on all button types.
+//
+// Returns: builder for method chaining.
+//
+// Example:
+//
+//	keyboard := gotg.Keyboard().
+//	    Button("Delete", "delete").Danger().
+//	    Build()
+func (k *KeyboardBuilder) Danger() *KeyboardBuilder {
+	return k.applyStyle(func(s *tg.KeyboardButtonStyle) { s.SetBgDanger(true) })
+}
+
+// Success applies success background color style to the last added button.
+//
+// Success style is used for positive actions or confirmations.
+// Can be chained after any button method — works on all button types.
+//
+// Returns: builder for method chaining.
+//
+// Example:
+//
+//	keyboard := gotg.Keyboard().
+//	    Button("Approve", "approve").Success().
+//	    Build()
+func (k *KeyboardBuilder) Success() *KeyboardBuilder {
+	return k.applyStyle(func(s *tg.KeyboardButtonStyle) { s.SetBgSuccess(true) })
+}
+
+// Icon applies a custom emoji icon to the last added button's style.
+//
+// Use Telegram custom emoji document IDs (int64).
+// Can be chained after any button method — works on all button types.
+//
+// Returns: builder for method chaining.
+//
+// Example:
+//
+//	keyboard := gotg.Keyboard().
+//	    Button("OK", "ok").Icon(5368324170671202286).
+//	    Build()
+func (k *KeyboardBuilder) Icon(icon int64) *KeyboardBuilder {
+	return k.applyStyle(func(s *tg.KeyboardButtonStyle) { s.SetIcon(icon) })
+}
