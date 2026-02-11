@@ -4,6 +4,46 @@ import (
 	"github.com/gotd/td/tg"
 )
 
+// Game adds an HTML5 game button to the keyboard.
+//
+// Game buttons launch a Telegram HTML5 game when tapped. The bot must have
+// a game registered via @BotFather. When pressed, Telegram opens the game
+// interface for the user.
+//
+// Parameters:
+//   - text: The label text to display on the button
+//
+// Returns the builder for method chaining.
+//
+// Example:
+//
+//	keyboard := gotg.Keyboard().
+//	    Game("Play Now").
+//	    Build()
+func (k *KeyboardBuilder) Game(text string) *KeyboardBuilder {
+	return k.add(&tg.KeyboardButtonGame{Text: text})
+}
+
+// Buy adds a payment button to the keyboard.
+//
+// Buy buttons are used with Telegram's payment API. When tapped, the user is
+// prompted to complete a payment flow. The bot must have a payment provider
+// configured via @BotFather.
+//
+// Parameters:
+//   - text: The label text to display on the button
+//
+// Returns the builder for method chaining.
+//
+// Example:
+//
+//	keyboard := gotg.Keyboard().
+//	    Buy("Pay $9.99").
+//	    Build()
+func (k *KeyboardBuilder) Buy(text string) *KeyboardBuilder {
+	return k.add(&tg.KeyboardButtonBuy{Text: text})
+}
+
 // Copy adds a button that copies text to the user's clipboard when tapped.
 //
 // Copy buttons are designed for inline keyboards. When tapped, Telegram copies

@@ -92,6 +92,8 @@ func (k *KeyboardBuilder) buildRows() [][]tg.KeyboardButtonClass {
 // - URL() - Open a web link
 // - Switch() - Switch to inline mode
 // - Copy() - Copy text to clipboard
+// - Game() - Launch an HTML5 game
+// - Buy() - Payment button
 // - WebApp() - Open a Telegram Mini App
 // - Text() - Send text as a message (not recommended, use Button instead)
 //
