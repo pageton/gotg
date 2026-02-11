@@ -230,7 +230,7 @@ func (p *HTMLParser) parseHTMLToTags(htmlStr string) (string, []tag, error) {
 		endPos := min(t.Offset+t.Length-leadingTrimmed, cleanedTextLen)
 		newLength := endPos - newOffset
 
-		if newLength > 0 || t.Type == "emoji" {
+		if newLength > 0 || t.Type == "emoji" || t.Type == "tg-emoji" {
 			newTagOffsets = append(newTagOffsets, tag{
 				Type:      t.Type,
 				Length:    newLength,
@@ -248,7 +248,7 @@ func (p *HTMLParser) parseHTMLToTags(htmlStr string) (string, []tag, error) {
 func supportedTag(tag string) bool {
 	switch tag {
 	case "b", "strong", "i", "em", "u", "s", "strike", "del", "ins",
-		"a", "code", "pre", "spoiler", "tg-spoiler", "quote", "blockquote", "emoji",
+		"a", "code", "pre", "span", "spoiler", "tg-spoiler", "quote", "blockquote", "emoji", "tg-emoji",
 		"mention", "br":
 		return true
 	}

@@ -72,6 +72,14 @@ func (p *HTMLParser) tagToEntity(tag tag) tg.MessageEntityClass {
 			Offset: int(tag.Offset),
 			Length: int(tag.Length),
 		}
+	case "span":
+		if tag.Attrs["class"] == "tg-spoiler" {
+			return &tg.MessageEntitySpoiler{
+				Offset: int(tag.Offset),
+				Length: int(tag.Length),
+			}
+		}
+		return nil
 	case "quote", "blockquote":
 		collapsed := false
 		if c, ok := tag.Attrs["collapsed"]; ok {
@@ -87,6 +95,16 @@ func (p *HTMLParser) tagToEntity(tag tag) tg.MessageEntityClass {
 		}
 	case "emoji":
 		emojiID, err := strconv.ParseInt(tag.Attrs["id"], 10, 64)
+		if err != nil {
+			return nil
+		}
+		return &tg.MessageEntityCustomEmoji{
+			Offset:     int(tag.Offset),
+			Length:     int(tag.Length),
+			DocumentID: emojiID,
+		}
+	case "tg-emoji":
+		emojiID, err := strconv.ParseInt(tag.Attrs["emoji-id"], 10, 64)
 		if err != nil {
 			return nil
 		}

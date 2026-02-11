@@ -233,6 +233,50 @@ func TestHTMLParser_Parse_Spoiler(t *testing.T) {
 	assert.Equal(t, 6, spoiler.Length)
 }
 
+func TestHTMLParser_Parse_SpanSpoiler(t *testing.T) {
+	parser := NewHTMLParser()
+
+	tests := []struct {
+		name     string
+		input    string
+		wantText string
+		wantLen  int
+	}{
+		{
+			name:     "span tg-spoiler",
+			input:    `<span class="tg-spoiler">secret</span>`,
+			wantText: "secret",
+			wantLen:  1,
+		},
+		{
+			name:     "span without tg-spoiler class",
+			input:    `<span class="other">text</span>`,
+			wantText: "text",
+			wantLen:  0,
+		},
+		{
+			name:     "span with no class",
+			input:    `<span>text</span>`,
+			wantText: "text",
+			wantLen:  0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := parser.Parse(tt.input)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantText, result.Text)
+			assert.Len(t, result.Entities, tt.wantLen)
+
+			if tt.wantLen > 0 {
+				spoiler := findEntity[*tg.MessageEntitySpoiler](result.Entities)
+				require.NotNil(t, spoiler)
+			}
+		})
+	}
+}
+
 func TestHTMLParser_Parse_Blockquote(t *testing.T) {
 	parser := NewHTMLParser()
 
@@ -361,6 +405,18 @@ func TestHTMLParser_Parse_CustomEmoji(t *testing.T) {
 			wantText:    "emoji",
 			wantEmojiID: 12345,
 		},
+		{
+			name:        "tg-emoji tag",
+			input:       `<tg-emoji emoji-id="5368324170671202286">👍</tg-emoji>`,
+			wantText:    "👍",
+			wantEmojiID: 5368324170671202286,
+		},
+		{
+			name:        "tg-emoji tag with text",
+			input:       `Hello <tg-emoji emoji-id="99999">🎉</tg-emoji> world`,
+			wantText:    "Hello 🎉 world",
+			wantEmojiID: 99999,
+		},
 	}
 
 	for _, tt := range tests {
@@ -390,9 +446,9 @@ func TestHTMLParser_Parse_UnsupportedTags(t *testing.T) {
 			wantText: "<div>hello</div>",
 		},
 		{
-			name:     "span tag",
-			input:    "<span>hello</span>",
-			wantText: "<span>hello</span>",
+			name:     "p tag",
+			input:    "<p>hello</p>",
+			wantText: "<p>hello</p>",
 		},
 	}
 
