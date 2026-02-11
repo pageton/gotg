@@ -34,7 +34,7 @@ import (
 func (k *KeyboardBuilder) Next() *KeyboardBuilder {
 	if len(k.row) > 0 {
 		k.rows = append(k.rows, k.row)
-		k.row = make([]tg.KeyboardButtonClass, 0)
+		k.row = make([]tg.KeyboardButtonClass, 0, 4)
 	}
 	return k
 }

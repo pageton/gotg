@@ -52,8 +52,8 @@ type KeyboardBuilder struct {
 //	    Build()
 func Keyboard() *KeyboardBuilder {
 	return &KeyboardBuilder{
-		rows: make([][]tg.KeyboardButtonClass, 0),
-		row:  make([]tg.KeyboardButtonClass, 0),
+		rows: make([][]tg.KeyboardButtonClass, 0, 3),
+		row:  make([]tg.KeyboardButtonClass, 0, 4),
 	}
 }
 
@@ -166,7 +166,7 @@ func (k *KeyboardBuilder) URL(text, url string) *KeyboardBuilder {
 // Switch adds a button that switches to inline mode when tapped.
 //
 // Switch buttons are designed for inline keyboards. When tapped, they prompt
-// the user to select a chat where the inline query will be sent. Your bot will
+// user to select a chat where an inline query will be sent. Your bot will
 // receive an inline query via OnInlineQuery that can be used to provide
 // contextual results.
 //
@@ -179,19 +179,17 @@ func (k *KeyboardBuilder) URL(text, url string) *KeyboardBuilder {
 //     if false, the user can select any chat
 //   - query: The query string to pre-fill in the inline input
 //
-// Returns the builder for method chaining.
+// Returns: builder for method chaining.
 //
 // Example:
 //
-//	// Button allows sharing content in the current chat
 //	keyboard := gotg.Keyboard().
 //	    Switch("Share here", true, "share_item_123").
 //	    Next().
-//	    // Button allows selecting any chat to share to
 //	    Switch("Share with friends", false, "share_item_123").
 //	    Build()
 //
-// Handling the inline query:
+// Handling: inline query:
 //
 //	dispatcher.OnInlineQuery(func(ctx *context.Context, u *context.Update) error {
 //	    query := u.InlineQuery.Query()
@@ -200,9 +198,13 @@ func (k *KeyboardBuilder) URL(text, url string) *KeyboardBuilder {
 //	})
 func (k *KeyboardBuilder) Switch(text string, samePeer bool, query string) *KeyboardBuilder {
 	btn := &tg.KeyboardButtonSwitchInline{
-		Text:     text,
-		Query:    query,
-		SamePeer: samePeer,
+		Text:      text,
+		Query:     query,
+		SamePeer:  samePeer,
+		PeerTypes: nil,
+	}
+	if len(query) > 0 || !samePeer {
+		btn.PeerTypes = []tg.InlineQueryPeerTypeClass{&tg.InlineQueryPeerTypePM{}}
 	}
 	return k.add(btn)
 }
