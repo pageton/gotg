@@ -200,6 +200,17 @@ func DemoteChatMember[chatUnion ChatUnion](ctx *adapter.Context, chat, user chat
 	return ctx.DemoteChatMember(chatID, userID, opts)
 }
 
+// Leave is a generic helper for adapter.Context.Leave method.
+func Leave[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion) (tg.UpdatesClass, error) {
+
+	chatID, err := getIdByUnion(ctx, chat)
+	if err != nil {
+		return nil, err
+	}
+
+	return ctx.Leave(chatID)
+}
+
 // GetUserProfilePhotos is a generic helper for adapter.Context.GetUserProfilePhotos method.
 func GetUserProfilePhotos[chatUnion ChatUnion](ctx *adapter.Context, user chatUnion, opts *tg.PhotosGetUserPhotosRequest) ([]tg.PhotoClass, error) {
 

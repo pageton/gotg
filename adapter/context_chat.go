@@ -342,6 +342,21 @@ func (ctx *Context) DemoteChatMember(chatID, userID int64, opts *EditAdminOpts) 
 	return functions.DemoteChatMember(ctx.Context, ctx.Raw, peerChat, peerUser, opts.AdminRights, opts.AdminTitle)
 }
 
+// Leave leaves the current user from a channel or chat.
+func (ctx *Context) Leave(chatID int64) (tg.UpdatesClass, error) {
+	inputPeerChat, err := ctx.ResolveInputPeerByID(chatID)
+	if err != nil {
+		return nil, err
+	}
+	switch inputPeerChat.(type) {
+	case *tg.InputPeerChannel:
+	case *tg.InputPeerChat:
+	default:
+		return nil, gotgErrors.ErrNotChat
+	}
+	return functions.LeaveChannel(ctx.Context, ctx.Raw, inputPeerChat)
+}
+
 // ResolveUsername resolves a @username to get peer information.
 func (ctx *Context) ResolveUsername(username string) (types.EffectiveChat, error) {
 	return ctx.extractContactResolvedPeer(
