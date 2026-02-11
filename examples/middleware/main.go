@@ -20,9 +20,7 @@ import (
 
 func main() {
 	// Type of client to login to, same as in https://github.com/pageton/gotg/blob/beta/examples/echo-bot/memory_session/main.go#L17
-	clientType := gotg.ClientType{
-		BotToken: "BOT_TOKEN_HERE",
-	}
+	clientType := gotg.AsBot("BOT_TOKEN_HERE")
 
 	// Initializing flood waiter, which will wait for stated duration if "FLOOD_WAIT" error occurred
 	waiter := floodwait.NewWaiter().WithCallback(func(ctx context.Context, wait floodwait.FloodWait) {
