@@ -45,6 +45,15 @@ func NewSessionStorage(ctx context.Context, sessionType SessionConstructor, inMe
 	if err != nil {
 		return nil, nil, err
 	}
+
+	if sessAdapter, ok := name.(sessionNameAdapter); ok {
+		peerStorage := storage.NewPeerStorageWithAdapter(sessAdapter.adapter, false)
+		return peerStorage, &SessionStorage{
+			data:        peerStorage.GetSession().Data,
+			peerStorage: peerStorage,
+		}, nil
+	}
+
 	if sessDialect, ok := name.(*sessionNameDialector); ok {
 		peerStorage := storage.NewPeerStorage(sessDialect.dialector, false)
 		return peerStorage, &SessionStorage{
@@ -52,6 +61,7 @@ func NewSessionStorage(ctx context.Context, sessionType SessionConstructor, inMe
 			peerStorage: peerStorage,
 		}, nil
 	}
+
 	if name.(sessionNameString) == "" {
 		name = sessionNameString("gotg")
 	}
