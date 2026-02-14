@@ -1,5 +1,7 @@
 package storage
 
+import "log"
+
 type Session struct {
 	Version int `gorm:"primary_key"`
 	Data    []byte
@@ -7,23 +9,26 @@ type Session struct {
 
 const LatestVersion = 1
 
-// type Session1 struct {
-// 	Version   int `gorm:"primary_key"`
-// 	DC        int
-// 	Addr      string
-// 	AuthKey   []byte
-// 	AuthKeyID []byte
-// }
-
 func (p *PeerStorage) UpdateSession(session *Session) {
-	tx := p.SqlSession.Begin()
-	tx.Save(session)
-	tx.Commit()
+	if p.db == nil {
+		return
+	}
+	if err := p.db.UpdateSession(session); err != nil {
+		log.Printf("session: failed to update: %v", err)
+	}
 }
 
-// GetSession returns the session saved in storage.
 func (p *PeerStorage) GetSession() *Session {
-	session := &Session{Version: LatestVersion}
-	p.SqlSession.Model(&Session{}).Find(&session)
-	return session
+	if p.db == nil {
+		return &Session{Version: LatestVersion}
+	}
+	s, err := p.db.GetSession(LatestVersion)
+	if err != nil {
+		log.Printf("session: failed to get: %v", err)
+		return &Session{Version: LatestVersion}
+	}
+	if s == nil {
+		return &Session{Version: LatestVersion}
+	}
+	return s
 }

@@ -72,7 +72,7 @@ func (p *PeerStorage) AddPeer(iD, accessHash int64, peerType EntityType, userNam
 func (p *PeerStorage) startWriter() {
 	for peer := range p.writeCh {
 		p.peerLock.Lock()
-		if err := p.SqlSession.Save(peer).Error; err != nil {
+		if err := p.db.SavePeer(peer); err != nil {
 			log.Printf("peers: failed to save peer %d to database: %v", peer.ID, err)
 		}
 		p.peerLock.Unlock()
@@ -117,9 +117,14 @@ func (p *PeerStorage) GetPeerByUsername(username string) *Peer {
 			}
 		}
 	} else {
-		peer := Peer{}
-		p.SqlSession.Where("username = ?", username).Find(&peer)
-		return &peer
+		peer, err := p.db.GetPeerByUsername(username)
+		if err != nil {
+			log.Printf("peers: failed to get peer by username %s: %v", username, err)
+			return &Peer{}
+		}
+		if peer != nil {
+			return peer
+		}
 	}
 	return &Peer{}
 }
@@ -135,10 +140,16 @@ func (p *PeerStorage) GetInputPeerByUsername(userName string) tg.InputPeerClass 
 }
 
 func (p *PeerStorage) cachePeers(id int64) *Peer {
-	peer := Peer{}
-	p.SqlSession.Where("id = ?", id).Find(&peer)
-	p.peerCache.Set(id, &peer)
-	return &peer
+	peer, err := p.db.GetPeerByID(id)
+	if err != nil {
+		log.Printf("peers: failed to get peer %d: %v", id, err)
+		return &Peer{}
+	}
+	if peer == nil {
+		peer = &Peer{}
+	}
+	p.peerCache.Set(id, peer)
+	return peer
 }
 
 // SetPeerLanguage updates and saves the language preference for a peer
@@ -157,8 +168,8 @@ func (p *PeerStorage) SetPeerLanguage(userID int64, lang string) {
 	p.peerCache.Set(userID, peer)
 
 	if !p.inMemory {
-		if err := p.SqlSession.Save(peer).Error; err != nil {
-		} else {
+		if err := p.db.SavePeer(peer); err != nil {
+			log.Printf("peers: failed to save peer language for %d: %v", userID, err)
 		}
 	}
 
