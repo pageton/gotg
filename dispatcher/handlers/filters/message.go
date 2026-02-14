@@ -367,13 +367,39 @@ func MaxLength(maxLength int) MessageFilter {
 	}
 }
 
-// Document returns true if the Message contains a document.
-func Document(m *types.Message) bool {
-	_, ok := m.Media.(*tg.MessageMediaDocument)
-	if !ok {
+// Document returns true if types.Message consists of a document (generic file).
+func (*messageFilters) Document(m *types.Message) bool {
+	doc := GetDocument(m)
+	if doc == nil {
 		return false
 	}
-	return m.Media.(*tg.MessageMediaDocument).Document != nil
+	for _, attr := range doc.Attributes {
+		switch attr.(type) {
+		case *tg.DocumentAttributeVideo,
+			*tg.DocumentAttributeAudio,
+			*tg.DocumentAttributeAnimated,
+			*tg.DocumentAttributeSticker:
+			return false
+		}
+	}
+	return true
+}
+
+// DocumentFilename returns a filter that matches the document filename against a regex pattern.
+func (*messageFilters) DocumentFilename(pattern string) MessageFilter {
+	r := regexp.MustCompile(pattern)
+	return func(m *types.Message) bool {
+		doc := GetDocument(m)
+		if doc == nil {
+			return false
+		}
+		for _, attr := range doc.Attributes {
+			if fn, ok := attr.(*tg.DocumentAttributeFilename); ok {
+				return r.MatchString(fn.FileName)
+			}
+		}
+		return false
+	}
 }
 
 func (*messageFilters) Me(m *types.Message) bool {
