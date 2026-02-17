@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"log"
+	"fmt"
 	"sync"
 	"time"
 
@@ -25,10 +25,11 @@ type PeerStorage struct {
 	db         Adapter
 	SqlSession *gorm.DB // Non-nil only for GORM backends (backward compat).
 	writeCh    chan *Peer
+	writerDone chan struct{}
 }
 
 // NewPeerStorageWithAdapter creates PeerStorage with a pluggable Adapter.
-func NewPeerStorageWithAdapter(db Adapter, inMemory bool) *PeerStorage {
+func NewPeerStorageWithAdapter(db Adapter, inMemory bool) (*PeerStorage, error) {
 	p := PeerStorage{
 		inMemory: inMemory,
 		peerLock: new(sync.RWMutex),
@@ -48,20 +49,21 @@ func NewPeerStorageWithAdapter(db Adapter, inMemory bool) *PeerStorage {
 			p.SqlSession = gb.DB()
 		}
 		if err := p.db.AutoMigrate(); err != nil {
-			log.Panicln("storage: auto-migrate failed:", err)
+			return nil, fmt.Errorf("storage: auto-migrate failed: %w", err)
 		}
 	}
 
 	p.peerCache = cacher.NewCacher[int64, *Peer](opts)
 	if !inMemory {
 		p.writeCh = make(chan *Peer, 256)
+		p.writerDone = make(chan struct{})
 		go p.startWriter()
 	}
-	return &p
+	return &p, nil
 }
 
 // NewPeerStorage creates PeerStorage from a GORM dialector (backward-compatible API).
-func NewPeerStorage(dialector gorm.Dialector, inMemory bool) *PeerStorage {
+func NewPeerStorage(dialector gorm.Dialector, inMemory bool) (*PeerStorage, error) {
 	if inMemory || dialector == nil {
 		return newInMemoryPeerStorage(inMemory)
 	}
@@ -71,7 +73,7 @@ func NewPeerStorage(dialector gorm.Dialector, inMemory bool) *PeerStorage {
 		Logger:                 logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
-		log.Panicln(err)
+		return nil, fmt.Errorf("storage: open database: %w", err)
 	}
 
 	sqlDB, _ := db.DB()
@@ -84,7 +86,7 @@ func NewPeerStorage(dialector gorm.Dialector, inMemory bool) *PeerStorage {
 	return NewPeerStorageWithAdapter(adapter, false)
 }
 
-func newInMemoryPeerStorage(inMemory bool) *PeerStorage {
+func newInMemoryPeerStorage(inMemory bool) (*PeerStorage, error) {
 	return NewPeerStorageWithAdapter(&memoryAdapterCompat{
 		sessions:   make(map[int]*Session),
 		peers:      make(map[int64]*Peer),
@@ -94,4 +96,13 @@ func newInMemoryPeerStorage(inMemory bool) *PeerStorage {
 
 func (p *PeerStorage) GetAdapter() Adapter {
 	return p.db
+}
+
+// Close closes the write channel and waits for the writer goroutine to drain.
+// Safe to call on in-memory storage (no-op).
+func (p *PeerStorage) Close() {
+	if p.writeCh != nil {
+		close(p.writeCh)
+		<-p.writerDone
+	}
 }

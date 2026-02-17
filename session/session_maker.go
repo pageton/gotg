@@ -47,7 +47,10 @@ func NewSessionStorage(ctx context.Context, sessionType SessionConstructor, inMe
 	}
 
 	if sessAdapter, ok := name.(sessionNameAdapter); ok {
-		peerStorage := storage.NewPeerStorageWithAdapter(sessAdapter.adapter, false)
+		peerStorage, err := storage.NewPeerStorageWithAdapter(sessAdapter.adapter, false)
+		if err != nil {
+			return nil, nil, err
+		}
 		return peerStorage, &SessionStorage{
 			data:        peerStorage.GetSession().Data,
 			peerStorage: peerStorage,
@@ -55,7 +58,10 @@ func NewSessionStorage(ctx context.Context, sessionType SessionConstructor, inMe
 	}
 
 	if sessDialect, ok := name.(*sessionNameDialector); ok {
-		peerStorage := storage.NewPeerStorage(sessDialect.dialector, false)
+		peerStorage, err := storage.NewPeerStorage(sessDialect.dialector, false)
+		if err != nil {
+			return nil, nil, err
+		}
 		return peerStorage, &SessionStorage{
 			data:        peerStorage.GetSession().Data,
 			peerStorage: peerStorage,
@@ -65,7 +71,10 @@ func NewSessionStorage(ctx context.Context, sessionType SessionConstructor, inMe
 	if name.(sessionNameString) == "" {
 		name = sessionNameString("gotg")
 	}
-	peerStorage := storage.NewPeerStorage(sqlite.Open(fmt.Sprintf("%s.session", name)), inMemory)
+	peerStorage, err := storage.NewPeerStorage(sqlite.Open(fmt.Sprintf("%s.session", name)), inMemory)
+	if err != nil {
+		return nil, nil, err
+	}
 	if inMemory {
 		s := session.StorageMemory{}
 		err := s.StoreSession(ctx, data)
