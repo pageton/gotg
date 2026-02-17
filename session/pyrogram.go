@@ -3,9 +3,9 @@ package session
 import (
 	"crypto/sha1"
 	"encoding/base64"
+	"fmt"
 
 	"github.com/gotd/td/session"
-	"github.com/pkg/errors"
 )
 
 type Key [256]byte
@@ -34,12 +34,12 @@ type AuthKey struct {
 
 func DecodePyrogramSession(hx string) (*session.Data, error) {
 	if len(hx) < 1 {
-		return nil, errors.Errorf("given string too small: %d", len(hx))
+		return nil, fmt.Errorf("given string too small: %d", len(hx))
 	}
 
 	data, err := base64.URLEncoding.DecodeString(hx + "==")
 	if err != nil {
-		return nil, errors.Wrap(err, "decode hex")
+		return nil, fmt.Errorf("decode hex: %w", err)
 	}
 
 	return decodeStringSession(data)
@@ -61,7 +61,7 @@ func decodeStringSession(data []byte) (*session.Data, error) {
 	// | 8    | bytes  | User ID     |
 	// | 1    | bool   | Is Bot      |
 	if len(data) < 262 {
-		return nil, errors.Errorf("session data too short: expected at least 262 bytes, got %d", len(data))
+		return nil, fmt.Errorf("session data too short: expected at least 262 bytes, got %d", len(data))
 	}
 
 	dc := data[0]

@@ -2,11 +2,12 @@ package gotg
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/gotd/td/telegram/auth"
 	"github.com/gotd/td/tg"
 	"github.com/gotd/td/tgerr"
-	"github.com/pkg/errors"
 )
 
 // Flow wraps auth.Flow to add custom sign-up handling.
@@ -16,11 +17,11 @@ type Flow auth.Flow
 
 func (f Flow) handleSignUp(ctx context.Context, client auth.FlowClient, phone, hash string, s *auth.SignUpRequired) error {
 	if err := f.Auth.AcceptTermsOfService(ctx, s.TermsOfService); err != nil {
-		return errors.Wrap(err, "confirm TOS")
+		return fmt.Errorf("confirm TOS: %w", err)
 	}
 	info, err := f.Auth.SignUp(ctx)
 	if err != nil {
-		return errors.Wrap(err, "sign up info not provided")
+		return fmt.Errorf("sign up info not provided: %w", err)
 	}
 	if _, err := client.SignUp(ctx, auth.SignUp{
 		PhoneNumber:   phone,
@@ -28,7 +29,7 @@ func (f Flow) handleSignUp(ctx context.Context, client auth.FlowClient, phone, h
 		FirstName:     info.FirstName,
 		LastName:      info.LastName,
 	}); err != nil {
-		return errors.Wrap(err, "sign up")
+		return fmt.Errorf("sign up: %w", err)
 	}
 	return nil
 }
@@ -59,7 +60,7 @@ func authFlow(ctx context.Context, client auth.FlowClient, conversator AuthConve
 			phone, err1 = conversator.AskPhoneNumber()
 		}
 		if err1 != nil {
-			return errors.Wrap(err, "get phone")
+			return fmt.Errorf("get phone: %w", err1)
 		}
 		sentCode, err = client.SendCode(ctx, phone, f.Options)
 		if tgerr.Is(err, "PHONE_NUMBER_INVALID") {
@@ -99,7 +100,7 @@ func authFlow(ctx context.Context, client auth.FlowClient, conversator AuthConve
 			}
 			if err != nil {
 				SendAuthStatus(conversator, AuthStatusPhoneCodeFailed)
-				return errors.Wrap(err, "get code")
+				return fmt.Errorf("get code: %w", err)
 			}
 			_, signInErr = client.SignIn(ctx, phone, code, hash)
 			if tgerr.Is(signInErr, "PHONE_CODE_INVALID") {
@@ -126,7 +127,7 @@ func authFlow(ctx context.Context, client auth.FlowClient, conversator AuthConve
 					password, err1 = conversator.AskPassword()
 				}
 				if err1 != nil {
-					return errors.Wrap(err1, "get password")
+					return fmt.Errorf("get password: %w", err1)
 				}
 				_, err = client.Password(ctx, password)
 				if err == auth.ErrPasswordInvalid {
@@ -136,7 +137,7 @@ func authFlow(ctx context.Context, client auth.FlowClient, conversator AuthConve
 			}
 			if err != nil {
 				SendAuthStatus(conversator, AuthStatusPasswordFailed)
-				return errors.Wrap(err, "sign in with password")
+				return fmt.Errorf("sign in with password: %w", err)
 			}
 			SendAuthStatus(conversator, AuthStatusSuccess)
 			return nil
@@ -147,7 +148,7 @@ func authFlow(ctx context.Context, client auth.FlowClient, conversator AuthConve
 		}
 		if signInErr != nil {
 			SendAuthStatus(conversator, AuthStatusPhoneCodeFailed)
-			return errors.Wrap(signInErr, "sign in")
+			return fmt.Errorf("sign in: %w", signInErr)
 		}
 		SendAuthStatus(conversator, AuthStatusSuccess)
 	case *tg.AuthSentCodeSuccess:
@@ -161,14 +162,14 @@ func authFlow(ctx context.Context, client auth.FlowClient, conversator AuthConve
 				TermsOfService: a.TermsOfService,
 			}); err != nil {
 				// TODO: not sure that blank hash will work here
-				return errors.Wrap(err, "sign up after auth sent code success")
+				return fmt.Errorf("sign up after auth sent code success: %w", err)
 			}
 			return nil
 		default:
-			return errors.Errorf("unexpected authorization type: %T", a)
+			return fmt.Errorf("unexpected authorization type: %T", a)
 		}
 	default:
-		return errors.Errorf("unexpected sent code type: %T", sentCode)
+		return fmt.Errorf("unexpected sent code type: %T", sentCode)
 	}
 
 	return nil
