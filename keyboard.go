@@ -125,9 +125,14 @@ func (k *KeyboardBuilder) Text(text string) *KeyboardBuilder {
 //	    return u.Answer("Received: " + data)
 //	})
 func (k *KeyboardBuilder) Button(text, data string) *KeyboardBuilder {
+	// Telegram limits callback data to 64 bytes; silently truncate.
+	b := []byte(data)
+	if len(b) > 64 {
+		b = b[:64]
+	}
 	return k.add(&tg.KeyboardButtonCallback{
 		Text: text,
-		Data: []byte(data),
+		Data: b,
 	})
 }
 
