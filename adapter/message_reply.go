@@ -13,7 +13,7 @@ import (
 
 // Reply sends a reply to the current update's message.
 // Text can be a string or any type that can be formatted with %v.
-// Default parse mode is HTML.
+// Uses the client's default parse mode from ClientOpts.ParseMode.
 func (u *Update) Reply(Text any, Opts ...*SendOpts) (*types.Message, error) {
 	if Text == "" || Text == nil {
 		return nil, gotgErrors.ErrTextEmpty
@@ -23,7 +23,7 @@ func (u *Update) Reply(Text any, Opts ...*SendOpts) (*types.Message, error) {
 
 	parseMode := opts.ParseMode
 	if parseMode == "" {
-		parseMode = HTML
+		parseMode = u.Ctx.DefaultParseMode
 	}
 
 	chatID := u.ChatID()
@@ -41,7 +41,7 @@ func (u *Update) Reply(Text any, Opts ...*SendOpts) (*types.Message, error) {
 	var text string
 	var entities []tg.MessageEntityClass
 
-	if parseMode != ModeNone {
+	if parseMode != "" && parseMode != ModeNone {
 		var mode parsemode.ParseMode
 		switch strings.ToUpper(strings.TrimSpace(parseMode)) {
 		case HTML:
@@ -133,7 +133,7 @@ func (u *Update) Reply(Text any, Opts ...*SendOpts) (*types.Message, error) {
 
 // ReplyMedia sends a media reply to the current update's message.
 // Accepts tg.InputMediaClass (e.g., InputMediaPhoto, InputMediaDocument).
-// Default parse mode for caption is HTML.
+// Uses the client's default parse mode from ClientOpts.ParseMode for caption formatting.
 //
 // Example using InputMedia:
 //
@@ -153,7 +153,7 @@ func (u *Update) ReplyMedia(Media tg.InputMediaClass, Opts ...*SendMediaOpts) (*
 
 	parseMode := opts.ParseMode
 	if parseMode == "" {
-		parseMode = HTML
+		parseMode = u.Ctx.DefaultParseMode
 	}
 
 	chatID := u.ChatID()
@@ -161,7 +161,7 @@ func (u *Update) ReplyMedia(Media tg.InputMediaClass, Opts ...*SendMediaOpts) (*
 	var caption string
 	var entities []tg.MessageEntityClass
 
-	if opts.Caption != "" && parseMode != ModeNone {
+	if opts.Caption != "" && parseMode != "" && parseMode != ModeNone {
 		var mode parsemode.ParseMode
 		switch strings.ToUpper(strings.TrimSpace(parseMode)) {
 		case HTML:

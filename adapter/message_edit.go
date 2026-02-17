@@ -144,7 +144,7 @@ func (u *Update) editInlineReplyMarkup(markup tg.ReplyMarkupClass) error {
 
 // Edit edits the current update's message text.
 // Text can be a string or any type that can be formatted with %v.
-// Default parse mode is HTML.
+// Uses the client's default parse mode from ClientOpts.ParseMode.
 // For callback queries, edits the message that triggered the callback.
 func (u *Update) Edit(Text any, Opts ...*EditOpts) (*types.Message, error) {
 	if Text == "" || Text == nil {
@@ -155,7 +155,7 @@ func (u *Update) Edit(Text any, Opts ...*EditOpts) (*types.Message, error) {
 
 	parseMode := opts.ParseMode
 	if parseMode == "" {
-		parseMode = HTML
+		parseMode = u.Ctx.DefaultParseMode
 	}
 
 	var message string
@@ -171,7 +171,7 @@ func (u *Update) Edit(Text any, Opts ...*EditOpts) (*types.Message, error) {
 	var text string
 	var entities []tg.MessageEntityClass
 
-	if parseMode != ModeNone {
+	if parseMode != "" && parseMode != ModeNone {
 		var mode parsemode.ParseMode
 		switch strings.ToUpper(strings.TrimSpace(parseMode)) {
 		case HTML:
@@ -257,13 +257,13 @@ func (u *Update) EditMedia(Media tg.InputMediaClass, Opts ...*EditMediaOpts) (*t
 
 	parseMode := opts.ParseMode
 	if parseMode == "" {
-		parseMode = HTML
+		parseMode = u.Ctx.DefaultParseMode
 	}
 
 	var caption string
 	var entities []tg.MessageEntityClass
 
-	if opts.Caption != "" && parseMode != ModeNone {
+	if opts.Caption != "" && parseMode != "" && parseMode != ModeNone {
 		var mode parsemode.ParseMode
 		switch strings.ToUpper(strings.TrimSpace(parseMode)) {
 		case HTML:
@@ -353,7 +353,7 @@ func (u *Update) EditMediaWithFileID(fileID string, Opts ...*EditMediaOpts) (*ty
 
 // EditCaption edits the caption of the current update's media message.
 // Text can be a string or any type that can be formatted with %v.
-// Default parse mode is HTML.
+// Uses the client's default parse mode from ClientOpts.ParseMode.
 func (u *Update) EditCaption(Text any, Opts ...*EditOpts) (*types.Message, error) {
 	if Text == "" || Text == nil {
 		return nil, gotgErrors.ErrTextEmpty
@@ -363,7 +363,7 @@ func (u *Update) EditCaption(Text any, Opts ...*EditOpts) (*types.Message, error
 
 	parseMode := opts.ParseMode
 	if parseMode == "" {
-		parseMode = HTML
+		parseMode = u.Ctx.DefaultParseMode
 	}
 
 	var message string
@@ -379,7 +379,7 @@ func (u *Update) EditCaption(Text any, Opts ...*EditOpts) (*types.Message, error
 	var text string
 	var entities []tg.MessageEntityClass
 
-	if parseMode != ModeNone {
+	if parseMode != "" && parseMode != ModeNone {
 		var mode parsemode.ParseMode
 		switch strings.ToUpper(strings.TrimSpace(parseMode)) {
 		case HTML:
@@ -466,7 +466,6 @@ func (u *Update) EditReplyMarkup(Markup tg.ReplyMarkupClass) (*types.Message, er
 
 // EditInlineText edits an inline message's text.
 // Works for inline callback queries and chosen inline results.
-// Default parse mode is HTML.
 func (u *Update) EditInlineText(text any, opts ...*EditOpts) error {
 	if text == "" || text == nil {
 		return gotgErrors.ErrTextEmpty
@@ -475,7 +474,7 @@ func (u *Update) EditInlineText(text any, opts ...*EditOpts) error {
 	opt := functions.GetOptDef(&EditOpts{}, opts...)
 	parseMode := opt.ParseMode
 	if parseMode == "" {
-		parseMode = HTML
+		parseMode = u.Ctx.DefaultParseMode
 	}
 
 	parsed, entities := parseTextEntities(fmt.Sprintf("%v", text), parseMode)
@@ -485,7 +484,6 @@ func (u *Update) EditInlineText(text any, opts ...*EditOpts) error {
 
 // EditInlineCaption edits an inline message's caption.
 // Works for inline callback queries and chosen inline results.
-// Default parse mode is HTML.
 func (u *Update) EditInlineCaption(caption any, opts ...*EditOpts) error {
 	return u.EditInlineText(caption, opts...)
 }
@@ -506,7 +504,7 @@ func (u *Update) EditInlineMedia(media tg.InputMediaClass, opts ...*EditMediaOpt
 	opt := functions.GetOptDef(&EditMediaOpts{}, opts...)
 	parseMode := opt.ParseMode
 	if parseMode == "" {
-		parseMode = HTML
+		parseMode = u.Ctx.DefaultParseMode
 	}
 
 	var caption string

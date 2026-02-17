@@ -12,7 +12,7 @@ import (
 
 // SendMessage sends a text message to the specified chat.
 // Text can be a string or any type that can be formatted with %v.
-// Default parse mode is HTML.
+// Uses the client's default parse mode from ClientOpts.ParseMode.
 //
 // NOTE: This method does NOT reply by default. To reply to a specific message,
 // set ReplyMessageID in SendOpts.
@@ -45,17 +45,17 @@ func (u *Update) SendMessage(chatID int64, text string, opts ...*SendOpts) (*typ
 	// Build request from opts
 	opt := functions.GetOptDef(&SendOpts{}, opts...)
 
-	// Default parse mode is HTML
+	// Use per-method override, or fall back to client default
 	parseMode := opt.ParseMode
 	if parseMode == "" {
-		parseMode = HTML
+		parseMode = u.Ctx.DefaultParseMode
 	}
 
 	// Parse HTML/Markdown to entities
 	var messageText string
 	var entities []tg.MessageEntityClass
 
-	if parseMode != ModeNone {
+	if parseMode != "" && parseMode != ModeNone {
 		var mode parsemode.ParseMode
 		switch strings.ToUpper(strings.TrimSpace(parseMode)) {
 		case HTML:
@@ -144,7 +144,7 @@ func (u *Update) SendMessage(chatID int64, text string, opts ...*SendOpts) (*typ
 
 // SendMedia sends media (photo, document, video, etc.) to the chat associated with this update.
 // Accepts tg.InputMediaClass (e.g., InputMediaPhoto, InputMediaDocument).
-// Default parse mode for caption is HTML.
+// Uses the client's default parse mode from ClientOpts.ParseMode for caption formatting.
 //
 // NOTE: This method does NOT reply by default. To reply to a specific message,
 // set ReplyMessageID in SendMediaOpts.
@@ -180,10 +180,9 @@ func (u *Update) SendMedia(media tg.InputMediaClass, caption string, opts ...*Se
 
 	opt := functions.GetOptDef(&SendMediaOpts{}, opts...)
 
-	// Default parse mode is HTML
 	parseMode := opt.ParseMode
 	if parseMode == "" {
-		parseMode = HTML
+		parseMode = u.Ctx.DefaultParseMode
 	}
 
 	// If caption passed directly, use it
@@ -195,7 +194,7 @@ func (u *Update) SendMedia(media tg.InputMediaClass, caption string, opts ...*Se
 	var captionText string
 	var entities []tg.MessageEntityClass
 
-	if opt.Caption != "" && parseMode != ModeNone {
+	if opt.Caption != "" && parseMode != "" && parseMode != ModeNone {
 		var mode parsemode.ParseMode
 		switch strings.ToUpper(strings.TrimSpace(parseMode)) {
 		case HTML:
@@ -314,22 +313,17 @@ func (u *Update) SendMultiMedia(media []tg.InputMediaClass, opts ...*SendMediaOp
 
 	opt := functions.GetOptDef(&SendMediaOpts{}, opts...)
 
-	// Default parse mode is HTML
 	parseMode := opt.ParseMode
 	if parseMode == "" {
-		parseMode = HTML
+		parseMode = u.Ctx.DefaultParseMode
 	}
-
-	// Build single media request with array
-	// Note: SendMultiMedia uses MessagesSendMultiMediaRequest
 
 	inputMedia := make([]tg.InputSingleMedia, len(media))
 	for i, m := range media {
 		var caption string
 		var entities []tg.MessageEntityClass
 
-		// Parse caption if provided
-		if opt.Caption != "" && parseMode != ModeNone {
+		if opt.Caption != "" && parseMode != "" && parseMode != ModeNone {
 			var mode parsemode.ParseMode
 			switch strings.ToUpper(strings.TrimSpace(parseMode)) {
 			case HTML:

@@ -12,7 +12,7 @@ import (
 
 // EditMessage edits a message in the specified chat.
 // Text can be a string or any type that can be formatted with %v.
-// Default parse mode is HTML.
+// Uses the client's default parse mode from ClientOpts.ParseMode.
 //
 // Parameters:
 //   - chatID: The target chat ID (use 0 to use the current update's chat)
@@ -40,13 +40,13 @@ func (u *Update) EditMessage(chatID int64, messageID int, text string, opts ...*
 
 	parseMode := opt.ParseMode
 	if parseMode == "" {
-		parseMode = HTML
+		parseMode = u.Ctx.DefaultParseMode
 	}
 
 	var messageText string
 	var entities []tg.MessageEntityClass
 
-	if parseMode != ModeNone {
+	if parseMode != "" && parseMode != ModeNone {
 		var mode parsemode.ParseMode
 		switch strings.ToUpper(strings.TrimSpace(parseMode)) {
 		case HTML:
@@ -137,7 +137,7 @@ func (u *Update) EditMessageMedia(chatID int64, messageID int, media tg.InputMed
 
 	parseMode := opt.ParseMode
 	if parseMode == "" {
-		parseMode = HTML
+		parseMode = u.Ctx.DefaultParseMode
 	}
 
 	if caption != "" && opt.Caption == "" {
@@ -147,7 +147,7 @@ func (u *Update) EditMessageMedia(chatID int64, messageID int, media tg.InputMed
 	var captionText string
 	var entities []tg.MessageEntityClass
 
-	if opt.Caption != "" && parseMode != ModeNone {
+	if opt.Caption != "" && parseMode != "" && parseMode != ModeNone {
 		var mode parsemode.ParseMode
 		switch strings.ToUpper(strings.TrimSpace(parseMode)) {
 		case HTML:

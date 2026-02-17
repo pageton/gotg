@@ -39,10 +39,11 @@ type Context struct {
 	// original context of client.
 	context.Context
 
-	setReply    bool
-	PeerStorage *storage.PeerStorage
-	Conv        *conv.Manager
-	OnOutgoing  func(*FakeOutgoingUpdate)
+	setReply         bool
+	DefaultParseMode string
+	PeerStorage      *storage.PeerStorage
+	Conv             *conv.Manager
+	OnOutgoing       func(*FakeOutgoingUpdate)
 	// Logger is the logger instance passed from the dispatcher.
 	Logger *log.Logger
 	// Translator for i18n support
