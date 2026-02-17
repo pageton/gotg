@@ -70,6 +70,11 @@ func (p *PeerStorage) AddPeer(iD, accessHash int64, peerType EntityType, userNam
 }
 
 func (p *PeerStorage) startWriter() {
+	defer func() {
+		if p.writerDone != nil {
+			close(p.writerDone)
+		}
+	}()
 	for peer := range p.writeCh {
 		p.peerLock.Lock()
 		if err := p.db.SavePeer(peer); err != nil {
@@ -109,6 +114,7 @@ func (p *PeerStorage) GetPeerByID(ID int64) *Peer {
 }
 
 // GetPeerByUsername finds the provided username in the peer storage and return it if found.
+// Returns nil if the peer is not found.
 func (p *PeerStorage) GetPeerByUsername(username string) *Peer {
 	if p.inMemory {
 		for _, peer := range p.peerCache.GetAll() {
@@ -120,13 +126,13 @@ func (p *PeerStorage) GetPeerByUsername(username string) *Peer {
 		peer, err := p.db.GetPeerByUsername(username)
 		if err != nil {
 			log.Printf("peers: failed to get peer by username %s: %v", username, err)
-			return &Peer{}
+			return nil
 		}
 		if peer != nil {
 			return peer
 		}
 	}
-	return &Peer{}
+	return nil
 }
 
 // GetInputPeerByID finds the provided id in the peer storage and return its tg.InputPeerClass if found.
@@ -143,24 +149,22 @@ func (p *PeerStorage) cachePeers(id int64) *Peer {
 	peer, err := p.db.GetPeerByID(id)
 	if err != nil {
 		log.Printf("peers: failed to get peer %d: %v", id, err)
-		return &Peer{}
+		return nil
 	}
 	if peer == nil {
-		peer = &Peer{}
+		return nil
 	}
 	p.peerCache.Set(id, peer)
 	return peer
 }
 
-// SetPeerLanguage updates and saves the language preference for a peer
 func (p *PeerStorage) SetPeerLanguage(userID int64, lang string) {
 	peer := p.GetPeerByID(userID)
-	// Create new peer if it doesn't exist
 	if peer == nil {
 		peer = &Peer{
 			ID:       userID,
 			Language: lang,
-			Type:     1, // TypeUser
+			Type:     int(TypeUser),
 		}
 	} else {
 		peer.Language = lang
@@ -168,14 +172,7 @@ func (p *PeerStorage) SetPeerLanguage(userID int64, lang string) {
 	p.peerCache.Set(userID, peer)
 
 	if !p.inMemory {
-		if err := p.db.SavePeer(peer); err != nil {
-			log.Printf("peers: failed to save peer language for %d: %v", userID, err)
-		}
-	}
-
-	// Verify cache was updated
-	peer2, ok := p.peerCache.Get(userID)
-	if ok && peer2 != nil {
+		p.writeCh <- peer
 	}
 }
 
