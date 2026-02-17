@@ -14,7 +14,6 @@ import (
 	intErrors "github.com/pageton/gotg/errors"
 	"github.com/pageton/gotg/functions"
 	"github.com/pageton/gotg/storage"
-	"github.com/pkg/errors"
 )
 
 func (c *Client) initTelegramClient(
@@ -57,7 +56,7 @@ func (c *Client) login() error {
 	authClient := c.Auth()
 	status, err := authClient.Status(c.ctx)
 	if err != nil {
-		return errors.Wrap(err, "auth status")
+		return fmt.Errorf("auth status: %w", err)
 	}
 	if status.Authorized {
 		return nil
@@ -87,12 +86,12 @@ func (c *Client) login() error {
 			c.sendCodeOptions,
 		)
 		if err != nil {
-			return errors.Wrap(err, "auth flow")
+			return fmt.Errorf("auth flow: %w", err)
 		}
 	} else {
 		if !status.Authorized && c.clientType.getValue() != "" {
 			if _, err := c.Auth().Bot(c.ctx, c.clientType.getValue()); err != nil {
-				return errors.Wrap(err, "login")
+				return fmt.Errorf("login: %w", err)
 			}
 		}
 	}
@@ -156,7 +155,7 @@ func (c *Client) Idle() error {
 // CreateContext creates a new pseudo updates context.
 // A context retrieved from this method should be reused.
 func (c *Client) CreateContext() *adapter.Context {
-	return adapter.NewContext(
+	ctx := adapter.NewContext(
 		c.ctx,
 		c.API(),
 		c.PeerStorage,
@@ -172,6 +171,8 @@ func (c *Client) CreateContext() *adapter.Context {
 		nil,
 		c.Client,
 	)
+	ctx.DefaultParseMode = c.defaultParseMode
+	return ctx
 }
 
 // Stop cancels the context.Context being used for the client
@@ -184,6 +185,17 @@ func (c *Client) CreateContext() *adapter.Context {
 // 2.) You can call Client.Start() to start the client again
 // if it was stopped using this method.
 func (c *Client) Stop() {
+	// Drain pending DB writes before tearing down.
+	if c.PeerStorage != nil {
+		c.PeerStorage.Close()
+	}
+
+	// Wait for in-flight updates and close DC pools.
+	if c.Dispatcher != nil {
+		c.Dispatcher.WaitPending()
+		c.Dispatcher.CloseDCPools()
+	}
+
 	c.cancel()
 	c.running = false
 }

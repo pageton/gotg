@@ -37,6 +37,10 @@ type Dispatcher interface {
 	AddHandlerToGroup(Handler, int)
 	AddHandlers(...Handler)
 	AddHandlersToGroup(int, ...Handler)
+	SetMaxConcurrentUpdates(int)
+	ConvManager() *conv.Manager
+	WaitPending()
+	CloseDCPools()
 }
 
 type NativeDispatcher struct {
@@ -48,6 +52,7 @@ type NativeDispatcher struct {
 	setReply            bool
 	setEntireReplyChain bool
 	outgoing            bool
+	defaultParseMode    string
 	conv                *conv.Manager
 	logger              *gotglog.Logger
 	Panic               PanicHandler
@@ -93,7 +98,7 @@ type (
 //	    nil,   // default panic handler
 //	    peerStorage,
 //	)
-func NewNativeDispatcher(setReply bool, setEntireReplyChain bool, eHandler ErrorHandler, pHandler PanicHandler, p *storage.PeerStorage, logger *gotglog.Logger, outgoing bool) *NativeDispatcher {
+func NewNativeDispatcher(setReply bool, setEntireReplyChain bool, eHandler ErrorHandler, pHandler PanicHandler, p *storage.PeerStorage, logger *gotglog.Logger, outgoing bool, defaultParseMode string) *NativeDispatcher {
 	if eHandler == nil {
 		eHandler = defaultErrorHandler
 	}
@@ -107,6 +112,7 @@ func NewNativeDispatcher(setReply bool, setEntireReplyChain bool, eHandler Error
 		setReply:            setReply,
 		setEntireReplyChain: setEntireReplyChain,
 		outgoing:            outgoing,
+		defaultParseMode:    defaultParseMode,
 		Error:               eHandler,
 		Panic:               pHandler,
 		logger:              logger,
@@ -140,11 +146,11 @@ func NewNativeDispatcher(setReply bool, setEntireReplyChain bool, eHandler Error
 //	dp, initWg := NewNativeDispatcherWithInit(...)
 //	dispatcher.Initialize(dp.initwg, ...)  // Waits for initwg
 //	dp.AddHandler(handler)  // Safe - initwg.Wait() is done
-func NewNativeDispatcherWithInit(setReply bool, setEntireReplyChain bool, eHandler ErrorHandler, pHandler PanicHandler, p *storage.PeerStorage, logger *gotglog.Logger, outgoing bool, initwg *sync.WaitGroup) *NativeDispatcher {
+func NewNativeDispatcherWithInit(setReply bool, setEntireReplyChain bool, eHandler ErrorHandler, pHandler PanicHandler, p *storage.PeerStorage, logger *gotglog.Logger, outgoing bool, defaultParseMode string, initwg *sync.WaitGroup) *NativeDispatcher {
 	if eHandler == nil {
 		eHandler = defaultErrorHandler
 	}
-	nd := NewNativeDispatcher(setReply, setEntireReplyChain, eHandler, pHandler, p, logger, outgoing)
+	nd := NewNativeDispatcher(setReply, setEntireReplyChain, eHandler, pHandler, p, logger, outgoing, defaultParseMode)
 	nd.initwg = initwg
 	nd.initwg.Add(1)
 	return nd
@@ -213,4 +219,20 @@ func (dp *NativeDispatcher) getDCPool(ctx context.Context, dcID int) (tg.Invoker
 		return actual.(tg.Invoker), nil
 	}
 	return pool, nil
+}
+
+// WaitPending blocks until all in-flight update goroutines finish.
+func (dp *NativeDispatcher) WaitPending() {
+	dp.updateWg.Wait()
+}
+
+// CloseDCPools closes all DC connection pools that implement io.Closer.
+func (dp *NativeDispatcher) CloseDCPools() {
+	dp.dcPools.Range(func(key, value any) bool {
+		if closer, ok := value.(interface{ Close() error }); ok {
+			closer.Close()
+		}
+		dp.dcPools.Delete(key)
+		return true
+	})
 }
