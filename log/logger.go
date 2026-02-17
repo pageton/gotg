@@ -36,8 +36,14 @@ func New(cfg Config) *Logger {
 		writer: NewConsoleWriter(),
 	}
 	if cfg.LogFile != "" {
-		fw, err := NewFileWriter(cfg.LogFile)
-		if err == nil {
+		var fw Writer
+		var fwErr error
+		if cfg.RotateMaxSize > 0 {
+			fw, fwErr = NewRotatingFileWriter(cfg.LogFile, cfg.RotateMaxSize, cfg.RotateMaxBackups)
+		} else {
+			fw, fwErr = NewFileWriter(cfg.LogFile)
+		}
+		if fwErr == nil {
 			l.fileW = fw
 			l.fileFmt = &TextFormatter{
 				Color:      false,
