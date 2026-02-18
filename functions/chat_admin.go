@@ -77,7 +77,11 @@ func UnarchiveChats(ctx context.Context, client *tg.Client, peers []tg.InputPeer
 func GetChatInviteLink(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, chatID int64, req ...*tg.MessagesExportChatInviteRequest) (tg.ExportedChatInviteClass, error) {
 	inputPeer := GetInputPeerClassFromID(p, chatID)
 	if inputPeer == nil {
-		return nil, errors.ErrPeerNotFound
+		var err error
+		inputPeer, err = ResolveInputPeerByID(ctx, raw, p, chatID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	optReq := GetOptDef(&tg.MessagesExportChatInviteRequest{}, req...)

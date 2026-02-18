@@ -86,7 +86,13 @@ func GetChatMembers(ctx context.Context, raw *tg.Client, p *storage.PeerStorage,
 
 	inputPeer := GetInputPeerClassFromID(p, chatID)
 	if inputPeer == nil {
-		return nil, errors.ErrPeerNotFound
+		// Fallback: try to resolve the peer via API (e.g. after participant updates
+		// where the channel may not yet be in storage).
+		var err error
+		inputPeer, err = ResolveInputPeerByID(ctx, raw, p, chatID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	switch peer := inputPeer.(type) {
@@ -210,7 +216,11 @@ func chatParticipantToChannel(p tg.ChatParticipantClass) tg.ChannelParticipantCl
 func GetChatMember(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, chatID, userID int64) (tg.ChannelParticipantClass, error) {
 	inputPeer := GetInputPeerClassFromID(p, chatID)
 	if inputPeer == nil {
-		return nil, errors.ErrPeerNotFound
+		var err error
+		inputPeer, err = ResolveInputPeerByID(ctx, raw, p, chatID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	switch peer := inputPeer.(type) {

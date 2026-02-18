@@ -20,7 +20,11 @@ import (
 func GetUser(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, userID int64) (*tg.User, error) {
 	peerUser := GetInputPeerClassFromID(p, userID)
 	if peerUser == nil {
-		return nil, errors.ErrPeerNotFound
+		var err error
+		peerUser, err = ResolveInputPeerByID(ctx, raw, p, userID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	switch peer := peerUser.(type) {
@@ -59,7 +63,11 @@ func GetUser(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, userID
 func GetFullUser(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, userID int64) (*tg.UserFull, error) {
 	peerUser := GetInputPeerClassFromID(p, userID)
 	if peerUser == nil {
-		return nil, errors.ErrPeerNotFound
+		var err error
+		peerUser, err = ResolveInputPeerByID(ctx, raw, p, userID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	switch peer := peerUser.(type) {

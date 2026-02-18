@@ -149,7 +149,11 @@ func GetInputFileLocation(media tg.MessageMediaClass) (tg.InputFileLocationClass
 func GetUserProfilePhotos(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, userID int64, opts *tg.PhotosGetUserPhotosRequest) ([]tg.PhotoClass, error) {
 	peerUser := GetInputPeerClassFromID(p, userID)
 	if peerUser == nil {
-		return nil, errors.ErrPeerNotFound
+		var err error
+		peerUser, err = ResolveInputPeerByID(ctx, raw, p, userID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if opts == nil {
@@ -194,7 +198,11 @@ func GetUserProfilePhotos(ctx context.Context, raw *tg.Client, p *storage.PeerSt
 func TransferStarGift(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, chatID int64, starGift tg.InputSavedStarGiftClass) (tg.UpdatesClass, error) {
 	peerUser := GetInputPeerClassFromID(p, chatID)
 	if peerUser == nil {
-		return nil, errors.ErrPeerNotFound
+		var err error
+		peerUser, err = ResolveInputPeerByID(ctx, raw, p, chatID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	upd, err := raw.PaymentsTransferStarGift(ctx, &tg.PaymentsTransferStarGiftRequest{

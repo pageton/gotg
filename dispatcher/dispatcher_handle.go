@@ -8,6 +8,7 @@ import (
 	"runtime/debug"
 	"strings"
 
+	"github.com/gotd/td/constant"
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/adapter"
 	"github.com/pageton/gotg/storage"
@@ -219,14 +220,24 @@ func saveUsersPeers(u tg.UserClassArray, p *storage.PeerStorage) {
 func saveChatsPeers(u tg.ChatClassArray, p *storage.PeerStorage) {
 	for _, chat := range u {
 		channel, ok := chat.(*tg.Channel)
-		if ok && !channel.Min {
-			p.AddPeer(channel.ID, channel.AccessHash, storage.TypeChannel, channel.Username)
+		if ok {
+			if !channel.Min {
+				p.AddPeer(channel.ID, channel.AccessHash, storage.TypeChannel, channel.Username)
+			} else {
+				// Save min channels only when we have no existing entry,
+				// so we don't overwrite a full access hash with a min one.
+				var tdlibID constant.TDLibPeerID
+				tdlibID.Channel(channel.ID)
+				if existing := p.GetPeerByID(int64(tdlibID)); existing == nil {
+					p.AddPeer(channel.ID, channel.AccessHash, storage.TypeChannel, channel.Username)
+				}
+			}
 			continue
 		}
-		chat, ok := chat.(*tg.Chat)
+		c, ok := chat.(*tg.Chat)
 		if !ok {
 			continue
 		}
-		p.AddPeer(chat.ID, storage.DefaultAccessHash, storage.TypeChat, storage.DefaultUsername)
+		p.AddPeer(c.ID, storage.DefaultAccessHash, storage.TypeChat, storage.DefaultUsername)
 	}
 }
