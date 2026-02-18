@@ -44,7 +44,7 @@ func GetInputPeerClassFromID(p *storage.PeerStorage, ID int64) tg.InputPeerClass
 		return nil
 	}
 	peer := p.GetPeerByID(ID)
-	if peer.ID == 0 {
+	if peer == nil || peer.ID == 0 {
 		return nil
 	}
 	switch storage.EntityType(peer.Type) {

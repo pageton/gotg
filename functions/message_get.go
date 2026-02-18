@@ -21,7 +21,7 @@ import (
 // Returns list of messages or an error.
 func GetMessages(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, chatID int64, messageIDs []tg.InputMessageClass) (tg.MessageClassArray, error) {
 	peer := p.GetPeerByID(chatID)
-	if peer.ID == 0 {
+	if peer == nil || peer.ID == 0 {
 		return nil, errors.ErrPeerNotFound
 	}
 	switch storage.EntityType(peer.Type) {

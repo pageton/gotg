@@ -182,7 +182,7 @@ func (c *Chat) GetChatMembers(opts ...*functions.GetChatMembersOpts) ([]*Partici
 			continue
 		}
 		peer := c.PeerStorage.GetPeerByID(uid)
-		if peer.Type != int(storage.TypeUser) {
+		if peer == nil || peer.Type != int(storage.TypeUser) {
 			continue
 		}
 		u, err := functions.GetUser(c.Ctx, c.RawClient, c.PeerStorage, uid)

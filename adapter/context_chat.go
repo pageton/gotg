@@ -60,7 +60,7 @@ func (ctx *Context) GetChatMember(chatID, userID int64) (*types.Participant, err
 
 	var tgUser *tg.User
 	peer := ctx.PeerStorage.GetPeerByID(partUserID)
-	if peer.Type == int(storage.TypeUser) {
+	if peer != nil && peer.Type == int(storage.TypeUser) {
 		tgUser, err = functions.GetUser(ctx.Context, ctx.Raw, ctx.PeerStorage, partUserID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get user: %w", err)
@@ -95,7 +95,7 @@ func (ctx *Context) GetChatMembers(chatID int64, opts ...*functions.GetChatMembe
 
 		var tgUser *tg.User
 		peer := ctx.PeerStorage.GetPeerByID(partUserID)
-		if peer.Type == int(storage.TypeUser) {
+		if peer != nil && peer.Type == int(storage.TypeUser) {
 			tgUser, err = functions.GetUser(ctx.Context, ctx.Raw, ctx.PeerStorage, partUserID)
 			if err != nil {
 				continue
