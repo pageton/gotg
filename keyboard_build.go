@@ -34,7 +34,7 @@ import (
 func (k *KeyboardBuilder) Next() *KeyboardBuilder {
 	if len(k.row) > 0 {
 		k.rows = append(k.rows, k.row)
-		k.row = make([]tg.KeyboardButtonClass, 0)
+		k.row = make([]tg.KeyboardButtonClass, 0, 4)
 	}
 	return k
 }
@@ -92,6 +92,8 @@ func (k *KeyboardBuilder) buildRows() [][]tg.KeyboardButtonClass {
 // - URL() - Open a web link
 // - Switch() - Switch to inline mode
 // - Copy() - Copy text to clipboard
+// - Game() - Launch an HTML5 game
+// - Buy() - Payment button
 // - WebApp() - Open a Telegram Mini App
 // - Text() - Send text as a message (not recommended, use Button instead)
 //

@@ -62,7 +62,7 @@ func TestState_GetSet(t *testing.T) {
 		Payload: []byte(`{"name":"John","count":42}`),
 	}
 
-	ps := storage.NewPeerStorage(nil, true)
+	ps, _ := storage.NewPeerStorage(nil, true)
 	m := NewManager(ps, 30*time.Second)
 	state := newState(raw, m)
 
@@ -93,7 +93,7 @@ func TestState_Key(t *testing.T) {
 		Step:   "test",
 	}
 
-	ps := storage.NewPeerStorage(nil, true)
+	ps, _ := storage.NewPeerStorage(nil, true)
 	m := NewManager(ps, 30*time.Second)
 	state := newState(raw, m)
 

@@ -42,17 +42,28 @@ type Message struct {
 	Attrs    map[string]string
 }
 
-// LocaleConfig configures the translator
+// LocaleConfig configures the translator.
 type LocaleConfig struct {
-	DefaultLang    language.Tag
-	Session        *storage.PeerStorage
-	Format         LocaleFormat
-	EmbedFS        embed.FS
-	LocaleDir      string
+	DefaultLang language.Tag
+	Session     *storage.PeerStorage
+	Format      LocaleFormat
+	EmbedFS     embed.FS
+	// LocaleDir is the root directory inside EmbedFS that contains locale
+	// files or sub-directories. Both layouts are supported:
+	//
+	//   Directory-based:  locales/en/*.yaml   locales/ar/*.yaml
+	//   Flat-file:        locales/en.yaml     locales/ar.yaml
+	//
+	// The loader checks for a sub-directory first; if none exists it falls
+	// back to the flat-file layout.
+	LocaleDir string
+	// SupportedLangs explicitly lists the languages to load.
+	// When empty, languages are auto-discovered from LocaleDir by scanning
+	// for sub-directories and files whose names are valid BCP-47 tags.
 	SupportedLangs []language.Tag
 }
 
-// NewTranslator creates a new i18n translator
+// NewTranslator creates a new i18n translator.
 func NewTranslator(config *LocaleConfig) *Translator {
 	t := &Translator{
 		locales:       make(map[language.Tag]*Locale),
@@ -63,9 +74,7 @@ func NewTranslator(config *LocaleConfig) *Translator {
 		genderContext: make(map[int64]string),
 	}
 
-	if len(config.SupportedLangs) > 0 {
-		t.loadEmbeddedLocales(config.EmbedFS, config.LocaleDir, config.SupportedLangs)
-	}
+	t.loadEmbeddedLocales(config.EmbedFS, config.LocaleDir, config.SupportedLangs)
 
 	return t
 }

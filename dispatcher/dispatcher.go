@@ -3,6 +3,7 @@ package dispatcher
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 	"sync/atomic"
@@ -36,16 +37,22 @@ type Dispatcher interface {
 	AddHandlerToGroup(Handler, int)
 	AddHandlers(...Handler)
 	AddHandlersToGroup(int, ...Handler)
+	SetMaxConcurrentUpdates(int)
+	ConvManager() *conv.Manager
+	WaitPending()
+	CloseDCPools()
 }
 
 type NativeDispatcher struct {
 	cancel              context.CancelFunc
 	client              *tg.Client
+	telegramClient      *telegram.Client
 	self                *tg.User
 	sender              *message.Sender
 	setReply            bool
 	setEntireReplyChain bool
 	outgoing            bool
+	defaultParseMode    string
 	conv                *conv.Manager
 	logger              *gotglog.Logger
 	Panic               PanicHandler
@@ -58,6 +65,8 @@ type NativeDispatcher struct {
 	nextGroup           atomic.Int64
 	updateWg            sync.WaitGroup
 	pendingOutgoing     sync.Map
+	dcPools             sync.Map // dcID (int) -> tg.Invoker
+	dcPoolFailed        sync.Map // dcID (int) -> struct{}
 	updateSem           chan struct{}
 }
 
@@ -89,12 +98,12 @@ type (
 //	    nil,   // default panic handler
 //	    peerStorage,
 //	)
-func NewNativeDispatcher(setReply bool, setEntireReplyChain bool, eHandler ErrorHandler, pHandler PanicHandler, p *storage.PeerStorage, logger *gotglog.Logger, outgoing bool) *NativeDispatcher {
+func NewNativeDispatcher(setReply bool, setEntireReplyChain bool, eHandler ErrorHandler, pHandler PanicHandler, p *storage.PeerStorage, logger *gotglog.Logger, outgoing bool, defaultParseMode string) *NativeDispatcher {
 	if eHandler == nil {
 		eHandler = defaultErrorHandler
 	}
 	if logger == nil {
-		logger = gotglog.Default()
+		logger = gotglog.Nop()
 	}
 	nd := &NativeDispatcher{
 		pStorage:            p,
@@ -103,6 +112,7 @@ func NewNativeDispatcher(setReply bool, setEntireReplyChain bool, eHandler Error
 		setReply:            setReply,
 		setEntireReplyChain: setEntireReplyChain,
 		outgoing:            outgoing,
+		defaultParseMode:    defaultParseMode,
 		Error:               eHandler,
 		Panic:               pHandler,
 		logger:              logger,
@@ -136,11 +146,11 @@ func NewNativeDispatcher(setReply bool, setEntireReplyChain bool, eHandler Error
 //	dp, initWg := NewNativeDispatcherWithInit(...)
 //	dispatcher.Initialize(dp.initwg, ...)  // Waits for initwg
 //	dp.AddHandler(handler)  // Safe - initwg.Wait() is done
-func NewNativeDispatcherWithInit(setReply bool, setEntireReplyChain bool, eHandler ErrorHandler, pHandler PanicHandler, p *storage.PeerStorage, logger *gotglog.Logger, outgoing bool, initwg *sync.WaitGroup) *NativeDispatcher {
+func NewNativeDispatcherWithInit(setReply bool, setEntireReplyChain bool, eHandler ErrorHandler, pHandler PanicHandler, p *storage.PeerStorage, logger *gotglog.Logger, outgoing bool, defaultParseMode string, initwg *sync.WaitGroup) *NativeDispatcher {
 	if eHandler == nil {
 		eHandler = defaultErrorHandler
 	}
-	nd := NewNativeDispatcher(setReply, setEntireReplyChain, eHandler, pHandler, p, logger, outgoing)
+	nd := NewNativeDispatcher(setReply, setEntireReplyChain, eHandler, pHandler, p, logger, outgoing, defaultParseMode)
 	nd.initwg = initwg
 	nd.initwg.Add(1)
 	return nd
@@ -173,8 +183,56 @@ func (u *entities) short() {
 
 func (dp *NativeDispatcher) Initialize(ctx context.Context, cancel context.CancelFunc, client *telegram.Client, self *tg.User) {
 	dp.client = client.API()
+	dp.telegramClient = client
 	dp.sender = message.NewSender(dp.client)
 	dp.self = self
 	dp.cancel = cancel
+	go dp.detectHomeDC(ctx)
 	dp.initwg.Done()
+}
+
+func (dp *NativeDispatcher) detectHomeDC(ctx context.Context) {
+	nearest, err := dp.client.HelpGetNearestDC(ctx)
+	if err == nil {
+		dp.dcPoolFailed.Store(nearest.ThisDC, struct{}{})
+	}
+}
+
+func (dp *NativeDispatcher) getDCPool(ctx context.Context, dcID int) (tg.Invoker, error) {
+	if v, ok := dp.dcPools.Load(dcID); ok {
+		return v.(tg.Invoker), nil
+	}
+	if _, failed := dp.dcPoolFailed.Load(dcID); failed {
+		return nil, fmt.Errorf("DC %d unavailable", dcID)
+	}
+	if dp.telegramClient == nil {
+		return nil, fmt.Errorf("telegram client not initialized")
+	}
+	pool, err := dp.telegramClient.DC(ctx, dcID, 1)
+	if err != nil {
+		dp.dcPoolFailed.Store(dcID, struct{}{})
+		return nil, fmt.Errorf("connect to DC %d: %w", dcID, err)
+	}
+	actual, loaded := dp.dcPools.LoadOrStore(dcID, tg.Invoker(pool))
+	if loaded {
+		pool.Close()
+		return actual.(tg.Invoker), nil
+	}
+	return pool, nil
+}
+
+// WaitPending blocks until all in-flight update goroutines finish.
+func (dp *NativeDispatcher) WaitPending() {
+	dp.updateWg.Wait()
+}
+
+// CloseDCPools closes all DC connection pools that implement io.Closer.
+func (dp *NativeDispatcher) CloseDCPools() {
+	dp.dcPools.Range(func(key, value any) bool {
+		if closer, ok := value.(interface{ Close() error }); ok {
+			closer.Close()
+		}
+		dp.dcPools.Delete(key)
+		return true
+	})
 }

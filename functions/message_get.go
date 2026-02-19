@@ -21,8 +21,15 @@ import (
 // Returns list of messages or an error.
 func GetMessages(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, chatID int64, messageIDs []tg.InputMessageClass) (tg.MessageClassArray, error) {
 	peer := p.GetPeerByID(chatID)
-	if peer.ID == 0 {
-		return nil, errors.ErrPeerNotFound
+	if peer == nil || peer.ID == 0 {
+		// Try to resolve via API and retry
+		if _, err := ResolveInputPeerByID(ctx, raw, p, chatID); err != nil {
+			return nil, err
+		}
+		peer = p.GetPeerByID(chatID)
+		if peer == nil || peer.ID == 0 {
+			return nil, errors.ErrPeerNotFound
+		}
 	}
 	switch storage.EntityType(peer.Type) {
 	case storage.TypeChannel:
@@ -114,7 +121,11 @@ func PinMessage(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, cha
 
 	inputPeer := GetInputPeerClassFromID(p, chatID)
 	if inputPeer == nil {
-		return nil, errors.ErrPeerNotFound
+		var err error
+		inputPeer, err = ResolveInputPeerByID(ctx, raw, p, chatID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if _, isEmpty := inputPeer.(*tg.InputPeerEmpty); isEmpty {
@@ -147,7 +158,11 @@ func UnPinMessage(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, c
 
 	inputPeer := GetInputPeerClassFromID(p, chatID)
 	if inputPeer == nil {
-		return errors.ErrPeerNotFound
+		var err error
+		inputPeer, err = ResolveInputPeerByID(ctx, raw, p, chatID)
+		if err != nil {
+			return err
+		}
 	}
 
 	if _, isEmpty := inputPeer.(*tg.InputPeerEmpty); isEmpty {
@@ -170,7 +185,11 @@ func UnPinAllMessages(ctx context.Context, raw *tg.Client, p *storage.PeerStorag
 
 	inputPeer := GetInputPeerClassFromID(p, chatID)
 	if inputPeer == nil {
-		return errors.ErrPeerNotFound
+		var err error
+		inputPeer, err = ResolveInputPeerByID(ctx, raw, p, chatID)
+		if err != nil {
+			return err
+		}
 	}
 
 	if _, isEmpty := inputPeer.(*tg.InputPeerEmpty); isEmpty {
@@ -195,14 +214,14 @@ func UnPinAllMessages(ctx context.Context, raw *tg.Client, p *storage.PeerStorag
 //
 // Returns updates confirming the action or an error.
 func ForwardMessages(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, fromChatID, toChatID int64, request *tg.MessagesForwardMessagesRequest) (tg.UpdatesClass, error) {
-	fromPeer := GetInputPeerClassFromID(p, fromChatID)
-	if fromPeer == nil {
-		return nil, errors.ErrPeerNotFound
+	fromPeer, err := ResolveInputPeerByID(ctx, raw, p, fromChatID)
+	if err != nil {
+		return nil, err
 	}
 
-	toPeer := GetInputPeerClassFromID(p, toChatID)
-	if toPeer == nil {
-		return nil, errors.ErrPeerNotFound
+	toPeer, err := ResolveInputPeerByID(ctx, raw, p, toChatID)
+	if err != nil {
+		return nil, err
 	}
 
 	if request == nil {

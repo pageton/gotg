@@ -13,7 +13,8 @@ import (
 var helperFuncsCUTempl = template.Must(template.New("cuHelpers").Parse(helperFuncsCU))
 
 var hardCodedReplacements = map[string]string{
-	"EditAdminOpts": "adapter.EditAdminOpts",
+	"EditAdminOpts":                 "adapter.EditAdminOpts",
+	"*functions.GetChatMembersOpts": "*adapter.GetChatMembersOpts",
 }
 
 func readContextFiles() []byte {
@@ -128,9 +129,9 @@ const predefinedCU = `
 package generic
 
 import (
-	"github.com/pageton/gotg/adapter" 
-	"github.com/pageton/gotg/types"
 	"github.com/gotd/td/tg"
+	"github.com/pageton/gotg/adapter"
+	"github.com/pageton/gotg/types"
 )
 
 type ChatUnion interface {

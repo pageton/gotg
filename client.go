@@ -85,8 +85,10 @@ type Client struct {
 	cancel          context.CancelFunc
 	running         bool
 	*telegram.Client
-	apiID   int
-	apiHash string
+	apiID            int
+	apiHash          string
+	deviceParams     tg.JSONValueClass
+	defaultParseMode string
 }
 
 type ClientOpts struct {
@@ -191,6 +193,10 @@ type ClientOpts struct {
 	// MaxConcurrentUpdates limits parallel update handler goroutines.
 	// Default 1000 when 0.
 	MaxConcurrentUpdates int
+	// ParseMode sets the default parse mode for all message sending methods.
+	// If empty, no formatting is applied unless explicitly specified per-method.
+	// Supported values: "HTML", "Markdown", "MarkdownV2", or "" (none).
+	ParseMode string
 }
 
 // NewClient creates a new gotg client and logs in to telegram.
@@ -221,10 +227,10 @@ func NewClient(apiID int, apiHash string, clientType clientType, opts *ClientOpt
 	if opts.LogConfig != nil {
 		logger = gotglog.New(*opts.LogConfig)
 	} else {
-		logger = gotglog.Default()
+		logger = gotglog.Nop()
 	}
 
-	d := dispatcher.NewNativeDispatcher(opts.AutoFetchReply, opts.FetchEntireReplyChain, opts.ErrorHandler, opts.PanicHandler, peerStorage, logger, opts.SendOutgoing)
+	d := dispatcher.NewNativeDispatcher(opts.AutoFetchReply, opts.FetchEntireReplyChain, opts.ErrorHandler, opts.PanicHandler, peerStorage, logger, opts.SendOutgoing, opts.ParseMode)
 	if opts.MaxConcurrentUpdates > 0 {
 		d.SetMaxConcurrentUpdates(opts.MaxConcurrentUpdates)
 	}
@@ -264,6 +270,7 @@ func NewClient(apiID int, apiHash string, clientType clientType, opts *ClientOpt
 		cancel:            cancel,
 		apiID:             apiID,
 		apiHash:           apiHash,
+		defaultParseMode:  opts.ParseMode,
 	}
 
 	if opts.SendCodeOptions != nil {

@@ -57,8 +57,40 @@ func AddChatMembers(ctx context.Context, raw *tg.Client, chatPeer tg.InputPeerCl
 			Users: users,
 		})
 		return err == nil, err
+	default:
+		return false, nil
 	}
-	return false, nil
+}
+
+// LeaveChannel leaves the current user from a channel or chat.
+//
+// Example:
+//
+//	success, err := functions.LeaveChannel(ctx, client.Raw, chatPeer)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//
+// Parameters:
+//   - ctx: Context for API call
+//   - client: The raw Telegram client
+//   - chatPeer: The channel/chat peer to leave from
+//
+// Returns true if successful, or an error.
+func LeaveChannel(ctx context.Context, client *tg.Client, chatPeer tg.InputPeerClass) (tg.UpdatesClass, error) {
+	switch c := chatPeer.(type) {
+	case *tg.InputPeerChannel:
+		return client.ChannelsLeaveChannel(ctx, &tg.InputChannel{
+			ChannelID:  c.ChannelID,
+			AccessHash: c.AccessHash,
+		})
+	case *tg.InputPeerChat:
+		return client.MessagesDeleteChatUser(ctx, &tg.MessagesDeleteChatUserRequest{
+			ChatID: c.ChatID,
+		})
+	default:
+		return &tg.Updates{}, nil
+	}
 }
 
 // BanChatMember bans a user from a chat until the specified date.

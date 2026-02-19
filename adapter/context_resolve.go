@@ -16,19 +16,19 @@ func (ctx *Context) ResolveInputPeerByID(id int64) (tg.InputPeerClass, error) {
 func (ctx *Context) ResolvePeerByID(id int64) *storage.Peer {
 	_, _ = ctx.ResolveInputPeerByID(id)
 	peer := ctx.PeerStorage.GetPeerByID(id)
-	if peer.ID != 0 {
+	if peer != nil && peer.ID != 0 {
 		return peer
 	}
 	ID := constant.TDLibPeerID(id)
 	if ID.IsUser() {
 		ID.Channel(id)
 		peer = ctx.ResolvePeerByID(int64(ID))
-		if peer.ID != 0 {
+		if peer != nil && peer.ID != 0 {
 			return peer
 		}
 		ID.Chat(id)
 		peer = ctx.ResolvePeerByID(int64(ID))
-		if peer.ID != 0 {
+		if peer != nil && peer.ID != 0 {
 			return peer
 		}
 

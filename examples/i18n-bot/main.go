@@ -16,20 +16,19 @@ import (
 	"gorm.io/driver/sqlite"
 )
 
-//go:embed locales/*.yaml
+//go:embed locales/*
 var localeFS embed.FS
 
-// Global translator for debugging
 var translator *i18n.Translator
 
 func main() {
-	// Create translator with embedded locale files
+	// Directory-based layout: locales/en/*.yaml, locales/es/*.yaml
+	// Languages are auto-discovered from sub-directory names.
 	translator = i18n.NewTranslator(&i18n.LocaleConfig{
-		DefaultLang:    language.English,
-		Format:         i18n.FormatYAML,
-		EmbedFS:        localeFS,
-		LocaleDir:      "locales",
-		SupportedLangs: []language.Tag{language.English, language.Spanish},
+		DefaultLang: language.English,
+		Format:      i18n.FormatYAML,
+		EmbedFS:     localeFS,
+		LocaleDir:   "locales",
 	})
 
 	client, err := gotg.NewClient(

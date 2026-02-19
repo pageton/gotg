@@ -182,7 +182,11 @@ func SendMultiMedia(ctx context.Context, raw *tg.Client, peerStorage *storage.Pe
 func DeleteMessages(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, chatID int64, messageIDs []int) error {
 	inputPeer := GetInputPeerClassFromID(p, chatID)
 	if inputPeer == nil {
-		return errors.ErrPeerNotFound
+		var err error
+		inputPeer, err = ResolveInputPeerByID(ctx, raw, p, chatID)
+		if err != nil {
+			return err
+		}
 	}
 	switch peer := inputPeer.(type) {
 	case *tg.InputPeerChannel:

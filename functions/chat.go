@@ -34,7 +34,11 @@ import (
 func GetFullChat(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, chatID int64) (tg.ChatFullClass, error) {
 	inputPeer := GetInputPeerClassFromID(p, chatID)
 	if inputPeer == nil {
-		return nil, errors.ErrPeerNotFound
+		var err error
+		inputPeer, err = ResolveInputPeerByID(ctx, raw, p, chatID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	switch peer := inputPeer.(type) {
 	case *tg.InputPeerChannel:
@@ -78,7 +82,11 @@ func GetFullChat(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, ch
 func GetChat(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, chatID int64) (tg.ChatClass, error) {
 	inputPeer := GetInputPeerClassFromID(p, chatID)
 	if inputPeer == nil {
-		return nil, errors.ErrPeerNotFound
+		var err error
+		inputPeer, err = ResolveInputPeerByID(ctx, raw, p, chatID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	switch peer := inputPeer.(type) {
 	case *tg.InputPeerChannel:

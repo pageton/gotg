@@ -26,6 +26,12 @@ type sessionNameDialector struct {
 
 func (sessionNameDialector) getType() string { return "dialector" }
 
+type sessionNameAdapter struct {
+	adapter storage.Adapter
+}
+
+func (sessionNameAdapter) getType() string { return "adapter" }
+
 type SessionConstructor interface {
 	loadSession() (sessionName, []byte, error)
 }
@@ -39,6 +45,18 @@ func SimpleSession() *SimpleSessionConstructor {
 
 func (*SimpleSessionConstructor) loadSession() (sessionName, []byte, error) {
 	return sessionNameString("gotg_simple"), nil, nil
+}
+
+type AdapterSessionConstructor struct {
+	adapter storage.Adapter
+}
+
+func WithAdapter(adapter storage.Adapter) *AdapterSessionConstructor {
+	return &AdapterSessionConstructor{adapter: adapter}
+}
+
+func (s *AdapterSessionConstructor) loadSession() (sessionName, []byte, error) {
+	return sessionNameAdapter{adapter: s.adapter}, nil, nil
 }
 
 type SqlSessionConstructor struct {

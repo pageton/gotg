@@ -17,6 +17,190 @@ const (
 	Left       = "left"
 )
 
+// ChatMembersFilter specifies which types of members to return from GetChatMembers.
+type ChatMembersFilter int
+
+const (
+	// FilterSearch returns members matching a search query (default).
+	FilterSearch ChatMembersFilter = iota
+	// FilterRecent returns recently active members.
+	FilterRecent
+	// FilterAdmins returns only administrators.
+	FilterAdmins
+	// FilterBots returns only bots.
+	FilterBots
+	// FilterKicked returns only kicked (banned) members.
+	FilterKicked
+	// FilterBanned returns only restricted members.
+	FilterBanned
+	// FilterContacts returns only contacts.
+	FilterContacts
+)
+
+// toTL converts ChatMembersFilter to the corresponding tg.ChannelParticipantsFilterClass.
+func (f ChatMembersFilter) toTL(query string) tg.ChannelParticipantsFilterClass {
+	switch f {
+	case FilterRecent:
+		return &tg.ChannelParticipantsRecent{}
+	case FilterAdmins:
+		return &tg.ChannelParticipantsAdmins{}
+	case FilterBots:
+		return &tg.ChannelParticipantsBots{}
+	case FilterKicked:
+		return &tg.ChannelParticipantsKicked{Q: query}
+	case FilterBanned:
+		return &tg.ChannelParticipantsBanned{Q: query}
+	case FilterContacts:
+		return &tg.ChannelParticipantsContacts{Q: query}
+	default: // FilterSearch
+		return &tg.ChannelParticipantsSearch{Q: query}
+	}
+}
+
+// GetChatMembersOpts holds optional parameters for GetChatMembers.
+type GetChatMembersOpts struct {
+	// Query filters members by display name or username.
+	// Only applicable to FilterSearch, FilterKicked, and FilterBanned.
+	Query string
+
+	// Limit is the maximum number of members to return.
+	// Defaults to 200. Maximum per-request is 200.
+	Limit int
+
+	// Filter selects which type of members to retrieve.
+	// Defaults to FilterSearch.
+	Filter ChatMembersFilter
+}
+
+// GetChatMembers returns a list of members from a chat or channel.
+// For channels/supergroups, it calls channels.getParticipants with pagination.
+// For basic groups, it fetches all participants via messages.getFullChat.
+func GetChatMembers(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, chatID int64, opts ...*GetChatMembersOpts) ([]tg.ChannelParticipantClass, error) {
+	var opt GetChatMembersOpts
+	if len(opts) > 0 && opts[0] != nil {
+		opt = *opts[0]
+	}
+	if opt.Limit <= 0 {
+		opt.Limit = 200
+	}
+
+	inputPeer := GetInputPeerClassFromID(p, chatID)
+	if inputPeer == nil {
+		// Fallback: try to resolve the peer via API (e.g. after participant updates
+		// where the channel may not yet be in storage).
+		var err error
+		inputPeer, err = ResolveInputPeerByID(ctx, raw, p, chatID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	switch peer := inputPeer.(type) {
+	case *tg.InputPeerChannel:
+		return getChatMembersChannel(ctx, raw, p, peer, &opt)
+	case *tg.InputPeerChat:
+		return getChatMembersChat(ctx, raw, p, chatID)
+	default:
+		return nil, errors.ErrNotChat
+	}
+}
+
+func getChatMembersChannel(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, peer *tg.InputPeerChannel, opt *GetChatMembersOpts) ([]tg.ChannelParticipantClass, error) {
+	channel := &tg.InputChannel{
+		ChannelID:  peer.ChannelID,
+		AccessHash: peer.AccessHash,
+	}
+	filter := opt.Filter.toTL(opt.Query)
+
+	total := opt.Limit
+	maxPerRequest := 200
+	var all []tg.ChannelParticipantClass
+	offset := 0
+
+	for {
+		remaining := total - len(all)
+		if remaining <= 0 {
+			break
+		}
+		limit := min(remaining, maxPerRequest)
+
+		res, err := raw.ChannelsGetParticipants(ctx, &tg.ChannelsGetParticipantsRequest{
+			Channel: channel,
+			Filter:  filter,
+			Offset:  offset,
+			Limit:   limit,
+			Hash:    0,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		participants, ok := res.(*tg.ChannelsChannelParticipants)
+		if !ok {
+			break
+		}
+
+		SavePeersFromClassArray(p, participants.Chats, participants.Users)
+
+		if len(participants.Participants) == 0 {
+			break
+		}
+
+		all = append(all, participants.Participants...)
+		offset += len(participants.Participants)
+	}
+
+	return all, nil
+}
+
+func getChatMembersChat(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, chatID int64) ([]tg.ChannelParticipantClass, error) {
+	fullChat, err := raw.MessagesGetFullChat(ctx, chatID)
+	if err != nil {
+		return nil, err
+	}
+
+	SavePeersFromClassArray(p, fullChat.Chats, fullChat.Users)
+
+	chatFull, ok := fullChat.FullChat.(*tg.ChatFull)
+	if !ok {
+		return nil, fmt.Errorf("could not get full chat info")
+	}
+
+	cp, ok := chatFull.Participants.(*tg.ChatParticipants)
+	if !ok {
+		return nil, fmt.Errorf("participants info is forbidden")
+	}
+
+	result := make([]tg.ChannelParticipantClass, 0, len(cp.Participants))
+	for _, member := range cp.Participants {
+		result = append(result, chatParticipantToChannel(member))
+	}
+
+	return result, nil
+}
+
+func chatParticipantToChannel(p tg.ChatParticipantClass) tg.ChannelParticipantClass {
+	switch m := p.(type) {
+	case *tg.ChatParticipantCreator:
+		return &tg.ChannelParticipantCreator{
+			UserID: m.UserID,
+		}
+	case *tg.ChatParticipantAdmin:
+		return &tg.ChannelParticipantAdmin{
+			UserID:    m.UserID,
+			InviterID: m.InviterID,
+			Date:      m.Date,
+		}
+	case *tg.ChatParticipant:
+		return &tg.ChannelParticipant{
+			UserID: m.UserID,
+			Date:   m.Date,
+		}
+	default:
+		return &tg.ChannelParticipant{}
+	}
+}
+
 // GetChatMember fetches information about a chat member.
 // For channels, returns tg.ChannelParticipantClass with member details.
 // For regular chats, use GetChatMemberInChat instead.
@@ -32,7 +216,11 @@ const (
 func GetChatMember(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, chatID, userID int64) (tg.ChannelParticipantClass, error) {
 	inputPeer := GetInputPeerClassFromID(p, chatID)
 	if inputPeer == nil {
-		return nil, errors.ErrPeerNotFound
+		var err error
+		inputPeer, err = ResolveInputPeerByID(ctx, raw, p, chatID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	switch peer := inputPeer.(type) {

@@ -36,8 +36,14 @@ func New(cfg Config) *Logger {
 		writer: NewConsoleWriter(),
 	}
 	if cfg.LogFile != "" {
-		fw, err := NewFileWriter(cfg.LogFile)
-		if err == nil {
+		var fw Writer
+		var fwErr error
+		if cfg.RotateMaxSize > 0 {
+			fw, fwErr = NewRotatingFileWriter(cfg.LogFile, cfg.RotateMaxSize, cfg.RotateMaxBackups)
+		} else {
+			fw, fwErr = NewFileWriter(cfg.LogFile)
+		}
+		if fwErr == nil {
 			l.fileW = fw
 			l.fileFmt = &TextFormatter{
 				Color:      false,
@@ -62,6 +68,12 @@ func NewWithWriter(cfg Config, w Writer) *Logger {
 // Default returns a Logger with DefaultConfig().
 func Default() *Logger {
 	return New(DefaultConfig())
+}
+
+// Nop returns a Logger that discards all output.
+// Used when no LogConfig is provided.
+func Nop() *Logger {
+	return New(Config{MinLevel: LevelOff})
 }
 
 // WithModule returns a child Logger that tags every record with the

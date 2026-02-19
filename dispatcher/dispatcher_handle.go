@@ -8,6 +8,7 @@ import (
 	"runtime/debug"
 	"strings"
 
+	"github.com/gotd/td/constant"
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/adapter"
 	"github.com/pageton/gotg/storage"
@@ -93,7 +94,9 @@ func isControlError(err error) bool {
 }
 
 func (dp *NativeDispatcher) handleUpdate(ctx context.Context, e tg.Entities, update tg.UpdateClass) error {
-	c := adapter.NewContext(ctx, dp.client, dp.pStorage, dp.self, dp.sender, &e, dp.setReply, dp.conv, dp.logger)
+	c := adapter.NewContext(ctx, dp.client, dp.pStorage, dp.self, dp.sender, &e, dp.setReply, dp.conv, dp.logger, dp.telegramClient)
+	c.DefaultParseMode = dp.defaultParseMode
+	c.GetDCPool = dp.getDCPool
 	if dp.outgoing && !isSyntheticOutgoing(update) {
 		c.OnOutgoing = func(ou *adapter.FakeOutgoingUpdate) {
 			if ou.Message == nil || ou.Message.Message == nil {
@@ -217,14 +220,24 @@ func saveUsersPeers(u tg.UserClassArray, p *storage.PeerStorage) {
 func saveChatsPeers(u tg.ChatClassArray, p *storage.PeerStorage) {
 	for _, chat := range u {
 		channel, ok := chat.(*tg.Channel)
-		if ok && !channel.Min {
-			p.AddPeer(channel.ID, channel.AccessHash, storage.TypeChannel, channel.Username)
+		if ok {
+			if !channel.Min {
+				p.AddPeer(channel.ID, channel.AccessHash, storage.TypeChannel, channel.Username)
+			} else {
+				// Save min channels only when we have no existing entry,
+				// so we don't overwrite a full access hash with a min one.
+				var tdlibID constant.TDLibPeerID
+				tdlibID.Channel(channel.ID)
+				if existing := p.GetPeerByID(int64(tdlibID)); existing == nil {
+					p.AddPeer(channel.ID, channel.AccessHash, storage.TypeChannel, channel.Username)
+				}
+			}
 			continue
 		}
-		chat, ok := chat.(*tg.Chat)
+		c, ok := chat.(*tg.Chat)
 		if !ok {
 			continue
 		}
-		p.AddPeer(chat.ID, storage.DefaultAccessHash, storage.TypeChat, storage.DefaultUsername)
+		p.AddPeer(c.ID, storage.DefaultAccessHash, storage.TypeChat, storage.DefaultUsername)
 	}
 }

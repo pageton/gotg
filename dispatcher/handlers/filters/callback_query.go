@@ -2,6 +2,7 @@ package filters
 
 import (
 	"bytes"
+	"regexp"
 
 	"github.com/gotd/td/tg"
 )
@@ -58,5 +59,26 @@ func (*callbackQueryFilters) FromUserID(userID int64) CallbackQueryFilter {
 func (*callbackQueryFilters) GameName(name string) CallbackQueryFilter {
 	return func(cbq *tg.UpdateBotCallbackQuery) bool {
 		return cbq.GameShortName == name
+	}
+}
+
+// Regex returns true if the tg.UpdateBotCallbackQuery's Data field matches the provided regex pattern.
+func (*callbackQueryFilters) Regex(pattern string) CallbackQueryFilter {
+	r := regexp.MustCompile(pattern)
+	return func(cbq *tg.UpdateBotCallbackQuery) bool {
+		return r.Match(cbq.Data)
+	}
+}
+
+// Contains returns true if the tg.UpdateBotCallbackQuery's Data field contains the provided substring.
+// Optimized: Uses bytes.Contains instead of string conversion
+func (*callbackQueryFilters) Contains(substring string) CallbackQueryFilter {
+	if len(substring) == 0 {
+		return func(cbq *tg.UpdateBotCallbackQuery) bool {
+			return len(cbq.Data) > 0
+		}
+	}
+	return func(cbq *tg.UpdateBotCallbackQuery) bool {
+		return bytes.Contains(cbq.Data, []byte(substring))
 	}
 }

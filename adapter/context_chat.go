@@ -12,6 +12,20 @@ import (
 	"github.com/pageton/gotg/types"
 )
 
+type ChatMembersFilter = functions.ChatMembersFilter
+
+const (
+	FilterSearch   = functions.FilterSearch
+	FilterRecent   = functions.FilterRecent
+	FilterAdmins   = functions.FilterAdmins
+	FilterBots     = functions.FilterBots
+	FilterKicked   = functions.FilterKicked
+	FilterBanned   = functions.FilterBanned
+	FilterContacts = functions.FilterContacts
+)
+
+type GetChatMembersOpts = functions.GetChatMembersOpts
+
 // GetChat returns tg.ChatClass of the provided chat id.
 func (ctx *Context) GetChat(chatID int64) (tg.ChatClass, error) {
 	return functions.GetChat(ctx.Context, ctx.Raw, ctx.PeerStorage, chatID)
@@ -46,7 +60,7 @@ func (ctx *Context) GetChatMember(chatID, userID int64) (*types.Participant, err
 
 	var tgUser *tg.User
 	peer := ctx.PeerStorage.GetPeerByID(partUserID)
-	if peer.Type == int(storage.TypeUser) {
+	if peer != nil && peer.Type == int(storage.TypeUser) {
 		tgUser, err = functions.GetUser(ctx.Context, ctx.Raw, ctx.PeerStorage, partUserID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get user: %w", err)
@@ -64,6 +78,44 @@ func (ctx *Context) GetChatMember(chatID, userID int64) (*types.Participant, err
 		UserID:      partUserID,
 		ChatID:      chatID,
 	}, nil
+}
+
+func (ctx *Context) GetChatMembers(chatID int64, opts ...*functions.GetChatMembersOpts) ([]*types.Participant, error) {
+	participants, err := functions.GetChatMembers(ctx.Context, ctx.Raw, ctx.PeerStorage, chatID, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*types.Participant, 0, len(participants))
+	for _, participant := range participants {
+		partUserID := functions.ExtractParticipantUserID(participant)
+		if partUserID == 0 {
+			continue
+		}
+
+		var tgUser *tg.User
+		peer := ctx.PeerStorage.GetPeerByID(partUserID)
+		if peer != nil && peer.Type == int(storage.TypeUser) {
+			tgUser, err = functions.GetUser(ctx.Context, ctx.Raw, ctx.PeerStorage, partUserID)
+			if err != nil {
+				continue
+			}
+		} else {
+			continue
+		}
+
+		result = append(result, &types.Participant{
+			User:        &types.User{User: *tgUser, Ctx: ctx.Context, RawClient: ctx.Raw, PeerStorage: ctx.PeerStorage, SelfID: ctx.Self.ID},
+			Participant: participant,
+			Status:      functions.ExtractParticipantStatus(participant),
+			Rights:      functions.ExtractParticipantRights(participant),
+			Title:       functions.ExtractParticipantTitle(participant),
+			UserID:      partUserID,
+			ChatID:      chatID,
+		})
+	}
+
+	return result, nil
 }
 
 // GetMessages fetches messages from a chat by their IDs.
@@ -288,6 +340,21 @@ func (ctx *Context) DemoteChatMember(chatID, userID int64, opts *EditAdminOpts) 
 		opts = &EditAdminOpts{}
 	}
 	return functions.DemoteChatMember(ctx.Context, ctx.Raw, peerChat, peerUser, opts.AdminRights, opts.AdminTitle)
+}
+
+// Leave leaves the current user from a channel or chat.
+func (ctx *Context) Leave(chatID int64) (tg.UpdatesClass, error) {
+	inputPeerChat, err := ctx.ResolveInputPeerByID(chatID)
+	if err != nil {
+		return nil, err
+	}
+	switch inputPeerChat.(type) {
+	case *tg.InputPeerChannel:
+	case *tg.InputPeerChat:
+	default:
+		return nil, gotgErrors.ErrNotChat
+	}
+	return functions.LeaveChannel(ctx.Context, ctx.Raw, inputPeerChat)
 }
 
 // ResolveUsername resolves a @username to get peer information.

@@ -19,6 +19,10 @@ type Config struct {
 	// LogFile enables file logging. When set, logs go to both console and
 	// this file path. File output is always plain text (no ANSI colors).
 	LogFile string
+	// RotateMaxSize enables log rotation when > 0. Bytes per file before rotating.
+	RotateMaxSize int64
+	// RotateMaxBackups is the number of rotated files to keep (default 3).
+	RotateMaxBackups int
 }
 
 // DefaultConfig returns a Config suitable for development.

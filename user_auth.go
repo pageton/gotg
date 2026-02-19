@@ -22,7 +22,6 @@ func (noSignUp) AcceptTermsOfService(_ context.Context, tos tg.HelpTermsOfServic
 
 // termAuth implements authentication via terminal.
 type termAuth struct {
-	client      *auth.Client
 	conversator AuthConversator
 	noSignUp
 
