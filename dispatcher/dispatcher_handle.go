@@ -3,12 +3,10 @@ package dispatcher
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"runtime/debug"
 	"strings"
 
-	"github.com/gotd/td/constant"
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/adapter"
 	"github.com/pageton/gotg/storage"
@@ -43,10 +41,8 @@ func (dp *NativeDispatcher) Handle(ctx context.Context, updates tg.UpdatesClass)
 		upds = []tg.UpdateClass{u.Update}
 		e.short()
 	case *tg.UpdatesTooLong:
-		_, err := dp.client.UpdatesGetDifference(ctx, &tg.UpdatesGetDifferenceRequest{})
-		if err != nil {
-			return fmt.Errorf("failed to get difference after UpdatesTooLong: %w", err)
-		}
+		// Handled by the gap manager (updates.Manager) which tracks
+		// pts/qts/seq and calls getDifference with correct state values.
 		return nil
 	default:
 		return nil
@@ -223,14 +219,6 @@ func saveChatsPeers(u tg.ChatClassArray, p *storage.PeerStorage) {
 		if ok {
 			if !channel.Min {
 				p.AddPeer(channel.ID, channel.AccessHash, storage.TypeChannel, channel.Username)
-			} else {
-				// Save min channels only when we have no existing entry,
-				// so we don't overwrite a full access hash with a min one.
-				var tdlibID constant.TDLibPeerID
-				tdlibID.Channel(channel.ID)
-				if existing := p.GetPeerByID(int64(tdlibID)); existing == nil {
-					p.AddPeer(channel.ID, channel.AccessHash, storage.TypeChannel, channel.Username)
-				}
 			}
 			continue
 		}

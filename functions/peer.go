@@ -88,7 +88,9 @@ func SavePeersFromClassArray(p *storage.PeerStorage, cs []tg.ChatClass, us []tg.
 	for _, c := range cs {
 		switch c := c.(type) {
 		case *tg.Channel:
-			p.AddPeer(c.ID, c.AccessHash, storage.TypeChannel, c.Username)
+			if !c.Min {
+				p.AddPeer(c.ID, c.AccessHash, storage.TypeChannel, c.Username)
+			}
 		case *tg.Chat:
 			p.AddPeer(c.ID, storage.DefaultAccessHash, storage.TypeChat, storage.DefaultUsername)
 		}
@@ -115,23 +117,7 @@ func ResolveInputPeerByID(ctx context.Context, raw *tg.Client, peerStorage *stor
 
 	ID := constant.TDLibPeerID(id)
 	if ID.IsChannel() {
-		plainID := ID.ToPlain()
-		chatsClass, err := raw.ChannelsGetChannels(ctx, []tg.InputChannelClass{
-			&tg.InputChannel{
-				ChannelID:  plainID,
-				AccessHash: 0,
-			},
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch channel: %w", err)
-		}
-		chat, ok := chatsClass.MapChats().First()
-		if ok {
-			if ch, ok := chat.(*tg.Channel); ok {
-				peerStorage.AddPeer(plainID, ch.AccessHash, storage.TypeChannel, ch.Username)
-				return ch.AsInputPeer(), nil
-			}
-		}
+		return nil, errors.ErrPeerNotFound
 	} else if ID.IsChat() {
 		plainID := ID.ToPlain()
 		return &tg.InputPeerChat{
