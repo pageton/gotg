@@ -9,6 +9,8 @@ import (
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/auth"
 	"github.com/gotd/td/telegram/message"
+	"github.com/gotd/td/telegram/updates"
+	"github.com/gotd/td/telegram/updates/hook"
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/adapter"
 	intErrors "github.com/pageton/gotg/errors"
@@ -30,6 +32,24 @@ func (c *Client) initTelegramClient(
 		}
 	}
 	c.deviceParams = device.Params
+
+	// Create the gap manager that sits between gotd's raw update stream
+	// and gotg's dispatcher. It tracks pts/qts/seq, detects gaps, and
+	// automatically calls getDifference/getChannelDifference to recover
+	// missed updates (messages, callback queries, etc.).
+	c.gapManager = updates.New(updates.Config{
+		Handler: c.Dispatcher,
+		Logger:  c.Logger.ZapLogger(),
+	})
+
+	// The update hook middleware feeds API-response updates (e.g. from
+	// messages.sendMessage returning UpdatesClass) into the gap manager
+	// so their pts/seq values are tracked correctly.
+	gapMiddleware := hook.UpdateHook(func(ctx context.Context, u tg.UpdatesClass) error {
+		return c.gapManager.Handle(ctx, u)
+	})
+	middlewares = append(middlewares, gapMiddleware)
+
 	c.Client = telegram.NewClient(c.apiID, c.apiHash, telegram.Options{
 		DCList:            c.DCList,
 		Resolver:          c.Resolver,
@@ -43,7 +63,7 @@ func (c *Client) initTelegramClient(
 		ExchangeTimeout:   c.ExchangeTimeout,
 		DialTimeout:       c.DialTimeout,
 		CompressThreshold: c.CompressThreshold,
-		UpdateHandler:     c.Dispatcher,
+		UpdateHandler:     c.gapManager,
 		NoUpdates:         c.NoUpdates,
 		SessionStorage:    c.sessionStorage,
 		Logger:            c.Logger.ZapLogger(),
@@ -126,6 +146,14 @@ func (c *Client) initialize(wg *sync.WaitGroup) func(ctx context.Context) error 
 		c.PeerStorage.AddPeer(self.ID, self.AccessHash, storage.TypeUser, self.Username)
 		wg.Done()
 		c.running = true
+
+		if !c.NoUpdates {
+			return c.gapManager.Run(ctx, c.API(), self.ID, updates.AuthOptions{
+				IsBot:  self.Bot,
+				Forget: false,
+			})
+		}
+
 		<-c.ctx.Done()
 		return c.ctx.Err()
 	}

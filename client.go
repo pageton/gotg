@@ -10,6 +10,7 @@ import (
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/auth"
 	"github.com/gotd/td/telegram/dcs"
+	"github.com/gotd/td/telegram/updates"
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/conv"
 	"github.com/pageton/gotg/dispatcher"
@@ -85,6 +86,7 @@ type Client struct {
 	cancel          context.CancelFunc
 	running         bool
 	*telegram.Client
+	gapManager       *updates.Manager
 	apiID            int
 	apiHash          string
 	deviceParams     tg.JSONValueClass
