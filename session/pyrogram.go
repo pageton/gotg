@@ -4,6 +4,7 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"fmt"
+	"strings"
 
 	"github.com/gotd/td/session"
 )
@@ -37,7 +38,11 @@ func DecodePyrogramSession(hx string) (*session.Data, error) {
 		return nil, fmt.Errorf("given string too small: %d", len(hx))
 	}
 
-	data, err := base64.URLEncoding.DecodeString(hx + "==")
+	hx = strings.TrimRight(hx, "=")
+	if pad := len(hx) % 4; pad != 0 {
+		hx += strings.Repeat("=", 4-pad)
+	}
+	data, err := base64.URLEncoding.DecodeString(hx)
 	if err != nil {
 		return nil, fmt.Errorf("decode hex: %w", err)
 	}
