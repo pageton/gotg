@@ -1,7 +1,7 @@
 package session
 
 import (
-	"crypto/sha1"
+	"crypto/sha1" //nolint:gosec // required by Pyrogram session format (not a security context)
 	"encoding/base64"
 	"fmt"
 	"strings"

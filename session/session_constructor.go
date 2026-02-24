@@ -283,6 +283,45 @@ func (s *GramjsSessionConstructor) loadSession() (sessionName, []byte, error) {
 	return sessionNameString(s.name), data, err
 }
 
+type MtcuteSessionConstructor struct {
+	name, value string
+}
+
+// MtcuteSession creates a constructor for mtcute string session format.
+//
+// mtcute session strings use URL-safe base64 encoding with TL-style
+// binary serialization (version 3).
+//
+// Parameters:
+//   - value: The mtcute session string to decode
+//
+// Returns:
+//   - A constructor that implements SessionConstructor interface
+//
+// Example:
+//
+//	constructor := session.MtcuteSession("AwQAAAAXAgIA...")
+func MtcuteSession(value string) *MtcuteSessionConstructor {
+	return &MtcuteSessionConstructor{value: value}
+}
+
+func (s *MtcuteSessionConstructor) Name(name string) *MtcuteSessionConstructor {
+	s.name = name
+	return s
+}
+
+func (s *MtcuteSessionConstructor) loadSession() (sessionName, []byte, error) {
+	sd, err := DecodeMtcuteSession(s.value)
+	if err != nil {
+		return sessionNameString(s.name), nil, err
+	}
+	data, err := sonic.Marshal(jsonData{
+		Version: storage.LatestVersion,
+		Data:    *sd,
+	})
+	return sessionNameString(s.name), data, err
+}
+
 type JsonFileSessionConstructor struct {
 	name, filePath string
 }

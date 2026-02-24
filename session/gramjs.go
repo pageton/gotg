@@ -10,6 +10,7 @@ import (
 	"github.com/go-faster/errors"
 	"github.com/gotd/td/crypto"
 	"github.com/gotd/td/session"
+	gotgErrors "github.com/pageton/gotg/errors"
 )
 
 func DecodeGramjsSession(hx string) (*session.Data, error) {
@@ -28,7 +29,7 @@ func decodeGramjsSession(sessionStr string) (*session.Data, error) {
 	}{}
 
 	if len(sessionStr) < 2 || sessionStr[0] != '1' {
-		return nil, errors.New("invalid session string: too short or wrong version")
+		return nil, gotgErrors.ErrInvalidGramjsSession
 	}
 	strsession := sessionStr[1:]
 	decodedBytes, err := base64.StdEncoding.DecodeString(strsession)
@@ -68,7 +69,7 @@ func decodeGramjsSession(sessionStr string) (*session.Data, error) {
 	if err != nil {
 		return nil, err
 	}
-	data.Port = int16(binary.BigEndian.Uint16(portBuffer))
+	data.Port = int16(binary.BigEndian.Uint16(portBuffer)) //nolint:gosec // port values fit in int16
 
 	keyLength := len(decodedBytes) - (5 + addressLen) // DCID(1 byte), Address Length(2 bytes), Address, Port(2 bytes)
 	data.Key = make([]byte, keyLength)
