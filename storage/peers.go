@@ -58,8 +58,18 @@ func (p *PeerStorage) AddPeer(iD, accessHash int64, peerType EntityType, userNam
 		existingPeer.Username = userName
 		peer = existingPeer
 	} else {
-		// Create new peer
-		peer = &Peer{ID: iD, AccessHash: accessHash, Type: peerType.GetInt(), Username: userName}
+		if !p.inMemory {
+			if dbPeer, err := p.db.GetPeerByID(iD); err == nil && dbPeer != nil {
+				dbPeer.AccessHash = accessHash
+				dbPeer.Type = peerType.GetInt()
+				dbPeer.Username = userName
+				peer = dbPeer
+			} else {
+				peer = &Peer{ID: iD, AccessHash: accessHash, Type: peerType.GetInt(), Username: userName}
+			}
+		} else {
+			peer = &Peer{ID: iD, AccessHash: accessHash, Type: peerType.GetInt(), Username: userName}
+		}
 	}
 
 	p.peerCache.Set(iD, peer)
