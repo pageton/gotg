@@ -675,6 +675,7 @@ This fork adds production features (logging, i18n, business API, conversations, 
 - **Issue Tracker**: [GitHub Issues](https://github.com/pageton/gotg/issues)
 - **Telegram API Docs**: [core.telegram.org/api](https://core.telegram.org/api)
 - **MTProto Spec**: [core.telegram.org/mtproto](https://core.telegram.org/mtproto)
+- **Telegram Tools**: [pageton.github.io/telegram-tools](https://pageton.github.io/telegram-tools/) — Session string generator, converter & analyzer ([source](https://github.com/pageton/telegram-tools))
 
 ---
 
