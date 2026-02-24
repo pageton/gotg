@@ -2,11 +2,11 @@ package gotg
 
 import (
 	"context"
-	"errors"
 	"strings"
 
 	"github.com/gotd/td/telegram/auth"
 	"github.com/gotd/td/tg"
+	gotgErrors "github.com/pageton/gotg/errors"
 )
 
 type RecaptchaSolver interface {
@@ -95,7 +95,7 @@ func (c FlowClient) SendCode(ctx context.Context, phone string, opts auth.SendCo
 		return nil, err
 	}
 	if box.SentCode == nil {
-		return nil, errors.New("send code returned empty data")
+		return nil, gotgErrors.ErrSendCodeEmptyData
 	}
 	return box.SentCode, nil
 }

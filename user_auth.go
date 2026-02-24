@@ -2,18 +2,18 @@ package gotg
 
 import (
 	"context"
-	"errors"
 	"strings"
 
 	"github.com/gotd/td/telegram/auth"
 	"github.com/gotd/td/tg"
+	gotgErrors "github.com/pageton/gotg/errors"
 )
 
 // noSignUp can be embedded to prevent signing up.
 type noSignUp struct{}
 
 func (noSignUp) SignUp(_ context.Context) (auth.UserInfo, error) {
-	return auth.UserInfo{}, errors.New("not implemented")
+	return auth.UserInfo{}, gotgErrors.ErrNotImplemented
 }
 
 func (noSignUp) AcceptTermsOfService(_ context.Context, tos tg.HelpTermsOfService) error {

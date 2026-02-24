@@ -2,10 +2,10 @@ package session
 
 import (
 	"context"
-	"errors"
 	"sync"
 
 	"github.com/gotd/td/session"
+	gotgErrors "github.com/pageton/gotg/errors"
 	"github.com/pageton/gotg/storage"
 )
 
@@ -25,7 +25,7 @@ type jsonData struct {
 // LoadSession loads session from file.
 func (f *SessionStorage) LoadSession(_ context.Context) ([]byte, error) {
 	if f == nil {
-		return nil, errors.New("nil session storage is invalid")
+		return nil, gotgErrors.ErrNilSessionStorage
 	}
 
 	f.mux.Lock()
@@ -37,7 +37,7 @@ func (f *SessionStorage) LoadSession(_ context.Context) ([]byte, error) {
 // StoreSession stores session to sqlite storage.
 func (f *SessionStorage) StoreSession(_ context.Context, data []byte) error {
 	if f == nil {
-		return errors.New("nil session storage is invalid")
+		return gotgErrors.ErrNilSessionStorage
 	}
 	f.mux.Lock()
 	defer f.mux.Unlock()

@@ -2,7 +2,6 @@ package dispatcher
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -14,20 +13,21 @@ import (
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/adapter"
 	"github.com/pageton/gotg/conv"
+	gotgErrors "github.com/pageton/gotg/errors"
 	gotglog "github.com/pageton/gotg/log"
 	"github.com/pageton/gotg/storage"
 )
 
 var (
 	// StopClient cancels the context and stops the client if returned through handler callback function.
-	StopClient = errors.New("disconnect")
+	StopClient = gotgErrors.ErrStopClient
 
 	// EndGroups stops iterating over handlers groups if returned through handler callback function.
-	EndGroups = errors.New("stopped")
+	EndGroups = gotgErrors.ErrEndGroups
 	// ContinueGroups continues iterating over handlers groups if returned through handler callback function.
-	ContinueGroups = errors.New("continued")
+	ContinueGroups = gotgErrors.ErrContinueGroups
 	// SkipCurrentGroup skips current group and continues iterating over handlers groups if returned through handler callback function.
-	SkipCurrentGroup = errors.New("skipped")
+	SkipCurrentGroup = gotgErrors.ErrSkipCurrentGroup
 )
 
 type Dispatcher interface {

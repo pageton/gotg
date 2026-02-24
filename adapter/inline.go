@@ -1,9 +1,8 @@
 package adapter
 
 import (
-	"errors"
-
 	"github.com/gotd/td/tg"
+	gotgErrors "github.com/pageton/gotg/errors"
 	"github.com/pageton/gotg/storage"
 )
 
@@ -48,7 +47,7 @@ func (ctx *Context) GetInlineBotResults(chatID int64, botUsername string, reques
 				AccessHash: c.GetAccessHash(),
 			}
 		default:
-			return nil, errors.New("provided username was invalid for a bot")
+			return nil, gotgErrors.ErrInvalidBotUsername
 		}
 	}
 	var err error

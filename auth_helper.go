@@ -8,6 +8,7 @@ import (
 	"github.com/gotd/td/telegram/auth"
 	"github.com/gotd/td/tg"
 	"github.com/gotd/td/tgerr"
+	gotgErrors "github.com/pageton/gotg/errors"
 )
 
 // Flow wraps auth.Flow to add custom sign-up handling.
@@ -43,7 +44,7 @@ func authFlow(ctx context.Context, client auth.FlowClient, conversator AuthConve
 		sendOpts,
 	))
 	if f.Auth == nil {
-		return errors.New("no UserAuthenticator provided")
+		return gotgErrors.ErrNoAuthenticator
 	}
 
 	var (
