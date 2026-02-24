@@ -91,6 +91,7 @@ type Client struct {
 	apiHash          string
 	deviceParams     tg.JSONValueClass
 	defaultParseMode string
+	dialogsDone      chan struct{} // closed when AddPeersFromDialogs goroutine exits
 }
 
 type ClientOpts struct {

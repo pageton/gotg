@@ -97,23 +97,23 @@ func (p *PeerStorage) startWriter() {
 func (p *Peer) GetID() int64 {
 	switch EntityType(p.Type) {
 	case TypeChat, TypeChannel:
-		ID := constant.TDLibPeerID(p.ID)
-		return ID.ToPlain()
+		tdlibID := constant.TDLibPeerID(p.ID)
+		return tdlibID.ToPlain()
 	default:
 		return p.ID
 	}
 }
 
 // GetPeerByID finds the provided id in the peer storage and return it if found.
-func (p *PeerStorage) GetPeerByID(ID int64) *Peer {
-	peer, ok := p.peerCache.Get(ID)
+func (p *PeerStorage) GetPeerByID(peerID int64) *Peer {
+	peer, ok := p.peerCache.Get(peerID)
 	if p.inMemory {
 		if !ok {
 			return nil
 		}
 	} else {
 		if !ok {
-			peer = p.cachePeers(ID)
+			peer = p.cachePeers(peerID)
 			// Return nil if peer doesn't exist in DB (ID is 0)
 			if peer != nil && peer.ID == 0 {
 				return nil
@@ -218,8 +218,16 @@ func getInputPeerFromStoragePeer(peer *Peer) tg.InputPeerClass {
 	}
 }
 
-func AddPeersFromDialogs(ctx context.Context, raw *tg.Client, peerStorage *PeerStorage) {
-	_ = dialogs.NewQueryBuilder(raw).GetDialogs().ForEach(ctx, func(ctx context.Context, e dialogs.Elem) error {
+// AddPeersFromDialogs iterates all dialogs via the Telegram API and adds
+// every encountered user, chat and channel to peerStorage.
+// It returns any error from the underlying RPC pagination.
+func AddPeersFromDialogs(ctx context.Context, raw *tg.Client, peerStorage *PeerStorage) error {
+	return dialogs.NewQueryBuilder(raw).GetDialogs().BatchSize(100).ForEach(ctx, func(ctx context.Context, e dialogs.Elem) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		for cid, channel := range e.Entities.Channels() {
 			peerStorage.AddPeer(cid, channel.AccessHash, TypeChannel, channel.Username)
 		}

@@ -3,6 +3,7 @@ package gotg
 import (
 	"context"
 	"fmt"
+	"log"
 	"runtime"
 	"sync"
 
@@ -83,10 +84,10 @@ func (c *Client) login() error {
 	}
 	if c.clientType.getType() == clientTypeVPhone {
 		if c.NoAutoAuth {
-			return intErrors.ErrSessionUnauthorized
+			return fmt.Errorf("auto auth disabled: %w", intErrors.ErrSessionUnauthorized)
 		}
 		if c.clientType.getValue() == "" {
-			return intErrors.ErrSessionUnauthorized
+			return fmt.Errorf("phone number not provided: %w", intErrors.ErrSessionUnauthorized)
 		}
 		var flowClient auth.FlowClient = authClient
 		if solver, ok := c.authConversator.(RecaptchaSolver); ok {
@@ -108,11 +109,9 @@ func (c *Client) login() error {
 		if err != nil {
 			return fmt.Errorf("auth flow: %w", err)
 		}
-	} else {
-		if !status.Authorized && c.clientType.getValue() != "" {
-			if _, err := c.Auth().Bot(c.ctx, c.clientType.getValue()); err != nil {
-				return fmt.Errorf("login: %w", err)
-			}
+	} else if !status.Authorized && c.clientType.getValue() != "" {
+		if _, err := c.Auth().Bot(c.ctx, c.clientType.getValue()); err != nil {
+			return fmt.Errorf("login: %w", err)
 		}
 	}
 	return nil
@@ -213,18 +212,27 @@ func (c *Client) CreateContext() *adapter.Context {
 // 2.) You can call Client.Start() to start the client again
 // if it was stopped using this method.
 func (c *Client) Stop() {
-	// Drain pending DB writes before tearing down.
+	// 1. Cancel the client context so all in-flight operations (including
+	//    AddPeersFromDialogs) begin shutting down.
+	c.cancel()
+
+	// 2. Wait for the background dialog-fetching goroutine (if any) to exit
+	//    before closing the write channel it sends to.
+	if c.dialogsDone != nil {
+		<-c.dialogsDone
+	}
+
+	// 3. Now it is safe to drain pending DB writes and close the channel.
 	if c.PeerStorage != nil {
 		c.PeerStorage.Close()
 	}
 
-	// Wait for in-flight updates and close DC pools.
+	// 4. Wait for in-flight update handlers and close DC pools.
 	if c.Dispatcher != nil {
 		c.Dispatcher.WaitPending()
 		c.Dispatcher.CloseDCPools()
 	}
 
-	c.cancel()
 	c.running = false
 }
 
@@ -267,9 +275,17 @@ func (c *Client) Start(opts *ClientOpts) error {
 	if c.err == nil {
 		if !c.Self.Bot && opts.PeersFromDialogs {
 			if opts.WaitOnPeersFromDialogs {
-				storage.AddPeersFromDialogs(c.ctx, c.API(), c.PeerStorage)
+				if err := storage.AddPeersFromDialogs(c.ctx, c.API(), c.PeerStorage); err != nil {
+					log.Printf("gotg: peers from dialogs: %v", err)
+				}
 			} else {
-				go storage.AddPeersFromDialogs(c.ctx, c.API(), c.PeerStorage)
+				c.dialogsDone = make(chan struct{})
+				go func() {
+					defer close(c.dialogsDone)
+					if err := storage.AddPeersFromDialogs(c.ctx, c.API(), c.PeerStorage); err != nil {
+						log.Printf("gotg: peers from dialogs: %v", err)
+					}
+				}()
 			}
 		}
 	}
@@ -279,6 +295,6 @@ func (c *Client) Start(opts *ClientOpts) error {
 // RefreshContext casts the new context.Context and telegram session
 // to ext.Context (It may be used after doing Stop and Start calls respectively.)
 func (c *Client) RefreshContext(ctx *adapter.Context) {
-	(*ctx).Context = c.ctx
-	(*ctx).Raw = c.API()
+	ctx.Context = c.ctx
+	ctx.Raw = c.API()
 }
