@@ -153,12 +153,12 @@ func (w *RotatingFileWriter) rotate() error {
 			os.Remove(src)
 		} else {
 			dst := fmt.Sprintf("%s.%d.log", w.path, i+1)
-			os.Rename(src, dst)
+			_ = os.Rename(src, dst) //nolint:errcheck // best-effort rotation
 		}
 	}
 
 	// Current file -> .1
-	os.Rename(w.path, fmt.Sprintf("%s.%d.log", w.path, 1))
+	_ = os.Rename(w.path, fmt.Sprintf("%s.%d.log", w.path, 1)) //nolint:errcheck // best-effort rotation
 
 	f, err := os.OpenFile(w.path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {

@@ -414,14 +414,12 @@ func (u *User) GetChatMemberIn(chatID int64) (any, error) {
 			return nil, err
 		}
 
-		switch fc := fullChat.FullChat.(type) {
-		case *tg.ChatFull:
+		if fc, ok := fullChat.FullChat.(*tg.ChatFull); ok {
 			if fc.Participants == nil {
 				return nil, fmt.Errorf("chat participants not available")
 			}
 
-			switch pt := fc.Participants.(type) {
-			case *tg.ChatParticipants:
+			if pt, ok := fc.Participants.(*tg.ChatParticipants); ok {
 				for _, participant := range pt.Participants {
 					switch cp := participant.(type) {
 					case *tg.ChatParticipant, *tg.ChatParticipantCreator, *tg.ChatParticipantAdmin:

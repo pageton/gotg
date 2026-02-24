@@ -1,24 +1,15 @@
 package functions
 
 import (
-	"math/rand"
-	"sync"
-	"time"
+	"crypto/rand"
+	"encoding/binary"
 )
 
-// Package-level shared random source and mutex to prevent memory leaks.
-// This is initialized once when the package is loaded, preventing the creation
-// of a new random source for each Context instance (Issue #112).
-var (
-	RandSource = rand.NewSource(time.Now().UnixNano())
-	RandGen    = rand.New(RandSource)
-	RandMutex  sync.Mutex
-)
-
-// GenerateRandomID generates a random int64 using the shared random source.
-// This is thread-safe and prevents memory leaks (Issue #112).
+// GenerateRandomID generates a cryptographically random int64.
+// This is thread-safe (crypto/rand is safe for concurrent use) and
+// avoids the weak math/rand generator (Issue #112, gosec G404).
 func GenerateRandomID() int64 {
-	RandMutex.Lock()
-	defer RandMutex.Unlock()
-	return RandGen.Int63()
+	var buf [8]byte
+	_, _ = rand.Read(buf[:]) // crypto/rand.Read never returns error on supported platforms
+	return int64(binary.LittleEndian.Uint64(buf[:])) //nolint:gosec // G115: intentional uint64->int64 for random ID
 }

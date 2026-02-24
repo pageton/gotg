@@ -105,7 +105,7 @@ func (dp *NativeDispatcher) handleUpdate(ctx context.Context, e tg.Entities, upd
 				Message: msg,
 				Pts:     0,
 			}
-			dp.dispatch(ctx, e, synth)
+			_ = dp.dispatch(ctx, e, synth) //nolint:errcheck // synthetic outgoing dispatch errors are non-fatal
 		}
 	}
 	u := adapter.GetNewUpdate(c, update)
@@ -138,16 +138,17 @@ func (dp *NativeDispatcher) handleUpdate(ctx context.Context, e tg.Entities, upd
 		handlers := dp.handlerMap[group]
 		for _, handler := range handlers {
 			err = handler.CheckUpdate(c, u)
-			if err == nil || err == ContinueGroups {
+			switch {
+			case err == nil || err == ContinueGroups:
 				continue
-			} else if err == EndGroups {
+			case err == EndGroups:
 				return err
-			} else if err == SkipCurrentGroup {
+			case err == SkipCurrentGroup:
 				break
-			} else if err == StopClient {
+			case err == StopClient:
 				dp.cancel()
 				return nil
-			} else {
+			default:
 				err = dp.Error(c, u, err.Error())
 				switch err {
 				case ContinueGroups:

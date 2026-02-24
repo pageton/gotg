@@ -17,12 +17,12 @@ func UTF16RuneCountInString(s string) int32 {
 		}
 	}
 	if ascii {
-		return int32(len(s))
+		return int32(len(s)) //nolint:gosec // ASCII strings are always small enough for int32
 	}
 
 	// Convert to UTF-16 and count
 	runes := utf16.Encode([]rune(s))
-	return int32(len(runes))
+	return int32(len(runes)) //nolint:gosec // Telegram strings fit in int32
 }
 
 // UTF16OffsetToByteOffset converts a UTF-16 code unit offset to a byte offset.
@@ -82,13 +82,13 @@ func ByteOffsetToUTF16Offset(s string, byteOffset int) int32 {
 		}
 	}
 	if ascii {
-		return int32(byteOffset)
+		return int32(byteOffset) //nolint:gosec // Telegram offsets fit in int32
 	}
 
 	// Count UTF-16 units up to byte offset
 	runesBefore := []rune(s[:byteOffset])
 	utf16Units := utf16.Encode(runesBefore)
-	return int32(len(utf16Units))
+	return int32(len(utf16Units)) //nolint:gosec // G115: UTF-16 length fits int32
 }
 
 // SubstringByUTF16Offset extracts a substring using UTF-16 offsets.
@@ -101,7 +101,7 @@ func SubstringByUTF16Offset(s string, start, end int32) string {
 	// Convert to UTF-16 for easier indexing
 	utf16Units := utf16.Encode([]rune(s))
 	if int(end) > len(utf16Units) {
-		end = int32(len(utf16Units))
+		end = int32(len(utf16Units)) //nolint:gosec // G115: UTF-16 length fits int32
 	}
 
 	// Extract the slice and convert back to string

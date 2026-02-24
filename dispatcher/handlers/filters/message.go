@@ -313,8 +313,7 @@ func (*messageFilters) HasMediaSpoiler(m *types.Message) bool {
 		return false
 	}
 
-	switch media := m.Media.(type) {
-	case *tg.MessageMediaDocument:
+	if media, ok := m.Media.(*tg.MessageMediaDocument); ok {
 		return media.Spoiler
 	}
 

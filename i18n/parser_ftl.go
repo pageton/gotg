@@ -32,7 +32,7 @@ func (p *FTLParser) Parse(content string) (map[string]*Message, error) {
 		}
 
 		// Check for key definition
-		if strings.Contains(line, "=") && !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
+		if strings.Contains(line, "=") && !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") { //nolint:gocritic // ifElseChain: conditions are sequential checks with side effects
 			// Save previous message
 			if currentKey != "" {
 				messages[currentKey] = &Message{

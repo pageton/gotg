@@ -281,7 +281,7 @@ func (p *MarkdownParser) Format(input string) string {
 	}
 
 	for _, ch := range escapeChars {
-		result = strings.ReplaceAll(result, "\\"+ch, "\\"+ch)
+		result = strings.ReplaceAll(result, "\\\\"+ch, "\\"+ch)
 	}
 
 	return result

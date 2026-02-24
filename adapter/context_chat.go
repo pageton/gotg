@@ -1,7 +1,6 @@
 package adapter
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -55,7 +54,7 @@ func (ctx *Context) GetChatMember(chatID, userID int64) (*types.Participant, err
 
 	partUserID := functions.ExtractParticipantUserID(participant)
 	if partUserID == 0 {
-		return nil, fmt.Errorf("could not extract user ID from participant")
+		return nil, gotgErrors.ErrExtractParticipantUser
 	}
 
 	var tgUser *tg.User
@@ -66,7 +65,7 @@ func (ctx *Context) GetChatMember(chatID, userID int64) (*types.Participant, err
 			return nil, fmt.Errorf("failed to get user: %w", err)
 		}
 	} else {
-		return nil, fmt.Errorf("user not found in peer storage")
+		return nil, gotgErrors.ErrUserNotFoundInPeerStore
 	}
 
 	return &types.Participant{
@@ -294,6 +293,7 @@ func (ctx *Context) DeleteMessages(chatID int64, messageIDs []int) error {
 }
 
 // ForwardMessage forwards messages from one chat to another.
+//
 // Deprecated: use ForwardMessages instead.
 func (ctx *Context) ForwardMessage(fromChatID, toChatID int64, request *tg.MessagesForwardMessagesRequest) (tg.UpdatesClass, error) {
 	return ctx.ForwardMessages(fromChatID, toChatID, request)
@@ -380,7 +380,7 @@ func (ctx *Context) extractContactResolvedPeer(p *tg.ContactsResolvedPeer, err e
 	switch p.Peer.(type) {
 	case *tg.PeerChannel:
 		if len(p.Chats) == 0 {
-			return &types.EmptyUC{}, errors.New("peer info not found in the resolved Chats")
+			return &types.EmptyUC{}, gotgErrors.ErrPeerInfoNotFound
 		}
 		switch chat := p.Chats[0].(type) {
 		case *tg.Channel:
@@ -393,14 +393,13 @@ func (ctx *Context) extractContactResolvedPeer(p *tg.ContactsResolvedPeer, err e
 			}
 			return c, nil
 		case *tg.ChannelForbidden:
-			return &types.EmptyUC{}, errors.New("peer could not be resolved because Channel Forbidden")
+			return &types.EmptyUC{}, gotgErrors.ErrChannelForbidden
 		}
 	case *tg.PeerUser:
 		if len(p.Users) == 0 {
-			return &types.EmptyUC{}, errors.New("peer info not found in the resolved Chats")
+			return &types.EmptyUC{}, gotgErrors.ErrPeerInfoNotFound
 		}
-		switch user := p.Users[0].(type) {
-		case *tg.User:
+		if user, ok := p.Users[0].(*tg.User); ok {
 			c := &types.User{
 				User:        *user,
 				Ctx:         ctx.Context,
@@ -411,7 +410,7 @@ func (ctx *Context) extractContactResolvedPeer(p *tg.ContactsResolvedPeer, err e
 			return c, nil
 		}
 	}
-	return &types.EmptyUC{}, errors.New("contact not found")
+	return &types.EmptyUC{}, gotgErrors.ErrContactNotFound
 }
 
 // GetUserProfilePhotos retrieves profile photos for a user.

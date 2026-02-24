@@ -40,10 +40,9 @@ var (
 
 // Bold formats text as bold.
 func (h *FormatHelper) Bold(text string) FormattedText {
-	escapedText := text
 	switch h.mode {
 	case FormatterMarkdown:
-		escapedText = escapeMarkdownV2(text)
+		escapedText := escapeMarkdownV2(text)
 		return FormattedText{
 			Text: "*" + escapedText + "*",
 			Entities: []tg.MessageEntityClass{
@@ -51,7 +50,7 @@ func (h *FormatHelper) Bold(text string) FormattedText {
 			},
 		}
 	case FormatterHTML:
-		escapedText = escapeHTML(text)
+		escapedText := escapeHTML(text)
 		return FormattedText{
 			Text: "<b>" + escapedText + "</b>",
 			Entities: []tg.MessageEntityClass{

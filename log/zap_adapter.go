@@ -83,7 +83,7 @@ func zapFieldValue(f zapcore.Field) any {
 	case zapcore.Int64Type, zapcore.Int32Type, zapcore.Int16Type, zapcore.Int8Type:
 		return f.Integer
 	case zapcore.Uint64Type, zapcore.Uint32Type, zapcore.Uint16Type, zapcore.Uint8Type:
-		return uint64(f.Integer)
+		return uint64(f.Integer) //nolint:gosec // intentional; zapcore stores uint64 in int64 field
 	case zapcore.Float64Type:
 		return float64(f.Integer)
 	case zapcore.Float32Type:

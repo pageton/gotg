@@ -14,14 +14,14 @@ import (
 // Reply sends a reply to the current update's message.
 // Text can be a string or any type that can be formatted with %v.
 // Uses the client's default parse mode from ClientOpts.ParseMode.
-func (u *Update) Reply(Text any, Opts ...*SendOpts) (*types.Message, error) {
-	if Text == "" || Text == nil {
+func (u *Update) Reply(text any, opts ...*SendOpts) (*types.Message, error) {
+	if text == "" || text == nil {
 		return nil, gotgErrors.ErrTextEmpty
 	}
 
-	opts := functions.GetOptDef(&SendOpts{}, Opts...)
+	opt := functions.GetOptDef(&SendOpts{}, opts...)
 
-	parseMode := opts.ParseMode
+	parseMode := opt.ParseMode
 	if parseMode == "" {
 		parseMode = u.Ctx.DefaultParseMode
 	}
@@ -29,7 +29,7 @@ func (u *Update) Reply(Text any, Opts ...*SendOpts) (*types.Message, error) {
 	chatID := u.ChatID()
 
 	var message string
-	switch v := Text.(type) {
+	switch v := text.(type) {
 	case string:
 		message = v
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, bool:
@@ -38,7 +38,7 @@ func (u *Update) Reply(Text any, Opts ...*SendOpts) (*types.Message, error) {
 		message = fmt.Sprintf("%v", v)
 	}
 
-	var text string
+	var finalText string
 	var entities []tg.MessageEntityClass
 
 	if parseMode != "" && parseMode != ModeNone {
@@ -54,77 +54,77 @@ func (u *Update) Reply(Text any, Opts ...*SendOpts) (*types.Message, error) {
 
 		result, err := parsemode.Parse(message, mode)
 		if err == nil && result != nil {
-			text = result.Text
+			finalText = result.Text
 			entities = result.Entities
 		} else {
-			text = message
+			finalText = message
 		}
 	} else {
-		text = message
+		finalText = message
 	}
 
-	if len(opts.Entities) > 0 {
-		entities = opts.Entities
+	if len(opt.Entities) > 0 {
+		entities = opt.Entities
 	}
 
 	req := &tg.MessagesSendMessageRequest{
-		Message:                text,
+		Message:                finalText,
 		Entities:               entities,
-		NoWebpage:              opts.NoWebpage,
-		Silent:                 opts.Silent,
-		Background:             opts.Background,
-		ClearDraft:             opts.ClearDraft,
-		Noforwards:             opts.Noforwards,
-		UpdateStickersetsOrder: opts.UpdateStickersetsOrder,
-		InvertMedia:            opts.InvertMedia,
-		AllowPaidFloodskip:     opts.AllowPaidFloodskip,
+		NoWebpage:              opt.NoWebpage,
+		Silent:                 opt.Silent,
+		Background:             opt.Background,
+		ClearDraft:             opt.ClearDraft,
+		Noforwards:             opt.Noforwards,
+		UpdateStickersetsOrder: opt.UpdateStickersetsOrder,
+		InvertMedia:            opt.InvertMedia,
+		AllowPaidFloodskip:     opt.AllowPaidFloodskip,
 	}
 
-	if opts.ReplyMarkup != nil {
-		req.ReplyMarkup = opts.ReplyMarkup
+	if opt.ReplyMarkup != nil {
+		req.ReplyMarkup = opt.ReplyMarkup
 	}
-	if opts.Peer != nil {
-		req.Peer = opts.Peer
+	if opt.Peer != nil {
+		req.Peer = opt.Peer
 	}
-	if opts.ReplyTo != nil {
-		req.ReplyTo = opts.ReplyTo
+	if opt.ReplyTo != nil {
+		req.ReplyTo = opt.ReplyTo
 	}
-	if opts.RandomID != 0 {
-		req.RandomID = opts.RandomID
+	if opt.RandomID != 0 {
+		req.RandomID = opt.RandomID
 	}
-	if opts.ScheduleDate != 0 {
-		req.ScheduleDate = opts.ScheduleDate
+	if opt.ScheduleDate != 0 {
+		req.ScheduleDate = opt.ScheduleDate
 	}
-	if opts.ScheduleRepeatPeriod != 0 {
-		req.ScheduleRepeatPeriod = opts.ScheduleRepeatPeriod
+	if opt.ScheduleRepeatPeriod != 0 {
+		req.ScheduleRepeatPeriod = opt.ScheduleRepeatPeriod
 	}
-	if opts.SendAs != nil {
-		req.SendAs = opts.SendAs
+	if opt.SendAs != nil {
+		req.SendAs = opt.SendAs
 	}
-	if opts.QuickReplyShortcut != nil {
-		req.QuickReplyShortcut = opts.QuickReplyShortcut
+	if opt.QuickReplyShortcut != nil {
+		req.QuickReplyShortcut = opt.QuickReplyShortcut
 	}
-	if opts.Effect != 0 {
-		req.Effect = opts.Effect
+	if opt.Effect != 0 {
+		req.Effect = opt.Effect
 	}
-	if opts.AllowPaidStars != 0 {
-		req.AllowPaidStars = opts.AllowPaidStars
+	if opt.AllowPaidStars != 0 {
+		req.AllowPaidStars = opt.AllowPaidStars
 	}
-	if opts.SuggestedPost != (tg.SuggestedPost{}) {
-		req.SuggestedPost = opts.SuggestedPost
+	if opt.SuggestedPost != (tg.SuggestedPost{}) {
+		req.SuggestedPost = opt.SuggestedPost
 	}
 
-	if opts.ReplyMessageID != 0 {
+	if opt.ReplyMessageID != 0 {
 		req.ReplyTo = &tg.InputReplyToMessage{
-			ReplyToMsgID: opts.ReplyMessageID,
+			ReplyToMsgID: opt.ReplyMessageID,
 		}
-	} else if req.ReplyTo == nil && u.HasMessage() && !opts.WithoutReply {
+	} else if req.ReplyTo == nil && u.HasMessage() && !opt.WithoutReply {
 		req.ReplyTo = &tg.InputReplyToMessage{
 			ReplyToMsgID: u.EffectiveMessage.ID,
 		}
 	}
 
-	connID := opts.BusinessConnectionID
+	connID := opt.BusinessConnectionID
 	if connID == "" {
 		connID = u.ConnectionID()
 	}
@@ -144,14 +144,14 @@ func (u *Update) Reply(Text any, Opts ...*SendOpts) (*types.Message, error) {
 //	})
 //
 // For using fileID strings, see ReplyMediaWithFileID.
-func (u *Update) ReplyMedia(Media tg.InputMediaClass, Opts ...*SendMediaOpts) (*types.Message, error) {
-	if Media == nil {
+func (u *Update) ReplyMedia(media tg.InputMediaClass, opts ...*SendMediaOpts) (*types.Message, error) {
+	if media == nil {
 		return nil, fmt.Errorf("media cannot be nil")
 	}
 
-	opts := functions.GetOptDef(&SendMediaOpts{}, Opts...)
+	opt := functions.GetOptDef(&SendMediaOpts{}, opts...)
 
-	parseMode := opts.ParseMode
+	parseMode := opt.ParseMode
 	if parseMode == "" {
 		parseMode = u.Ctx.DefaultParseMode
 	}
@@ -161,7 +161,7 @@ func (u *Update) ReplyMedia(Media tg.InputMediaClass, Opts ...*SendMediaOpts) (*
 	var caption string
 	var entities []tg.MessageEntityClass
 
-	if opts.Caption != "" && parseMode != "" && parseMode != ModeNone {
+	if opt.Caption != "" && parseMode != "" && parseMode != ModeNone {
 		var mode parsemode.ParseMode
 		switch strings.ToUpper(strings.TrimSpace(parseMode)) {
 		case HTML:
@@ -172,76 +172,76 @@ func (u *Update) ReplyMedia(Media tg.InputMediaClass, Opts ...*SendMediaOpts) (*
 			mode = parsemode.ModeNone
 		}
 
-		result, err := parsemode.Parse(opts.Caption, mode)
+		result, err := parsemode.Parse(opt.Caption, mode)
 		if err == nil && result != nil {
 			caption = result.Text
 			entities = result.Entities
 		} else {
-			caption = opts.Caption
+			caption = opt.Caption
 		}
 	} else {
-		caption = opts.Caption
+		caption = opt.Caption
 	}
 
-	if len(opts.Entities) > 0 {
-		entities = opts.Entities
+	if len(opt.Entities) > 0 {
+		entities = opt.Entities
 	}
 
 	req := &tg.MessagesSendMediaRequest{
-		Media:                  Media,
+		Media:                  media,
 		Message:                caption,
 		Entities:               entities,
-		Silent:                 opts.Silent,
-		Background:             opts.Background,
-		ClearDraft:             opts.ClearDraft,
-		Noforwards:             opts.Noforwards,
-		UpdateStickersetsOrder: opts.UpdateStickersetsOrder,
-		InvertMedia:            opts.InvertMedia,
-		AllowPaidFloodskip:     opts.AllowPaidFloodskip,
+		Silent:                 opt.Silent,
+		Background:             opt.Background,
+		ClearDraft:             opt.ClearDraft,
+		Noforwards:             opt.Noforwards,
+		UpdateStickersetsOrder: opt.UpdateStickersetsOrder,
+		InvertMedia:            opt.InvertMedia,
+		AllowPaidFloodskip:     opt.AllowPaidFloodskip,
 	}
 
-	if opts.ReplyMarkup != nil {
-		req.ReplyMarkup = opts.ReplyMarkup
+	if opt.ReplyMarkup != nil {
+		req.ReplyMarkup = opt.ReplyMarkup
 	}
-	if opts.Peer != nil {
-		req.Peer = opts.Peer
+	if opt.Peer != nil {
+		req.Peer = opt.Peer
 	}
-	if opts.ReplyTo != nil {
-		req.ReplyTo = opts.ReplyTo
+	if opt.ReplyTo != nil {
+		req.ReplyTo = opt.ReplyTo
 	}
-	if opts.RandomID != 0 {
-		req.RandomID = opts.RandomID
+	if opt.RandomID != 0 {
+		req.RandomID = opt.RandomID
 	}
-	if opts.ScheduleDate != 0 {
-		req.ScheduleDate = opts.ScheduleDate
+	if opt.ScheduleDate != 0 {
+		req.ScheduleDate = opt.ScheduleDate
 	}
-	if opts.SendAs != nil {
-		req.SendAs = opts.SendAs
+	if opt.SendAs != nil {
+		req.SendAs = opt.SendAs
 	}
-	if opts.QuickReplyShortcut != nil {
-		req.QuickReplyShortcut = opts.QuickReplyShortcut
+	if opt.QuickReplyShortcut != nil {
+		req.QuickReplyShortcut = opt.QuickReplyShortcut
 	}
-	if opts.Effect != 0 {
-		req.Effect = opts.Effect
+	if opt.Effect != 0 {
+		req.Effect = opt.Effect
 	}
-	if opts.AllowPaidStars != 0 {
-		req.AllowPaidStars = opts.AllowPaidStars
+	if opt.AllowPaidStars != 0 {
+		req.AllowPaidStars = opt.AllowPaidStars
 	}
-	if opts.SuggestedPost != (tg.SuggestedPost{}) {
-		req.SuggestedPost = opts.SuggestedPost
+	if opt.SuggestedPost != (tg.SuggestedPost{}) {
+		req.SuggestedPost = opt.SuggestedPost
 	}
 
-	if opts.ReplyMessageID != 0 {
+	if opt.ReplyMessageID != 0 {
 		req.ReplyTo = &tg.InputReplyToMessage{
-			ReplyToMsgID: opts.ReplyMessageID,
+			ReplyToMsgID: opt.ReplyMessageID,
 		}
-	} else if req.ReplyTo == nil && u.HasMessage() && !opts.WithoutReply {
+	} else if req.ReplyTo == nil && u.HasMessage() && !opt.WithoutReply {
 		req.ReplyTo = &tg.InputReplyToMessage{
 			ReplyToMsgID: u.EffectiveMessage.ID,
 		}
 	}
 
-	connID := opts.BusinessConnectionID
+	connID := opt.BusinessConnectionID
 	if connID == "" {
 		connID = u.ConnectionID()
 	}
@@ -258,15 +258,15 @@ func (u *Update) ReplyMedia(Media tg.InputMediaClass, Opts ...*SendMediaOpts) (*
 //	newMsg, err := u.ReplyMediaWithFileID(fileID, &adapter.SendMediaOpts{
 //	    Caption: "Here's the media you requested",
 //	})
-func (u *Update) ReplyMediaWithFileID(fileID string, Opts ...*SendMediaOpts) (*types.Message, error) {
+func (u *Update) ReplyMediaWithFileID(fileID string, opts ...*SendMediaOpts) (*types.Message, error) {
 	var caption string
-	if len(Opts) > 0 && Opts[0] != nil {
-		caption = Opts[0].Caption
+	if len(opts) > 0 && opts[0] != nil {
+		caption = opts[0].Caption
 	}
 
 	media, err := types.InputMediaFromFileID(fileID, caption)
 	if err != nil {
 		return nil, fmt.Errorf("invalid fileID: %w", err)
 	}
-	return u.ReplyMedia(media, Opts...)
+	return u.ReplyMedia(media, opts...)
 }

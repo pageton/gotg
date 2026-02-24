@@ -146,20 +146,20 @@ func (u *Update) editInlineReplyMarkup(markup tg.ReplyMarkupClass) error {
 // Text can be a string or any type that can be formatted with %v.
 // Uses the client's default parse mode from ClientOpts.ParseMode.
 // For callback queries, edits the message that triggered the callback.
-func (u *Update) Edit(Text any, Opts ...*EditOpts) (*types.Message, error) {
-	if Text == "" || Text == nil {
+func (u *Update) Edit(text any, opts ...*EditOpts) (*types.Message, error) {
+	if text == "" || text == nil {
 		return nil, gotgErrors.ErrTextEmpty
 	}
 
-	opts := functions.GetOptDef(&EditOpts{}, Opts...)
+	opt := functions.GetOptDef(&EditOpts{}, opts...)
 
-	parseMode := opts.ParseMode
+	parseMode := opt.ParseMode
 	if parseMode == "" {
 		parseMode = u.Ctx.DefaultParseMode
 	}
 
 	var message string
-	switch v := Text.(type) {
+	switch v := text.(type) {
 	case string:
 		message = v
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, bool:
@@ -168,7 +168,7 @@ func (u *Update) Edit(Text any, Opts ...*EditOpts) (*types.Message, error) {
 		message = fmt.Sprintf("%v", v)
 	}
 
-	var text string
+	var parsedText string
 	var entities []tg.MessageEntityClass
 
 	if parseMode != "" && parseMode != ModeNone {
@@ -184,17 +184,17 @@ func (u *Update) Edit(Text any, Opts ...*EditOpts) (*types.Message, error) {
 
 		result, err := parsemode.Parse(message, mode)
 		if err == nil && result != nil {
-			text = result.Text
+			parsedText = result.Text
 			entities = result.Entities
 		} else {
-			text = message
+			parsedText = message
 		}
 	} else {
-		text = message
+		parsedText = message
 	}
 
 	if u.isInlineEdit() {
-		return u.editInlineText(text, entities, opts)
+		return u.editInlineText(parsedText, entities, opt)
 	}
 
 	msgID, err := u.getEditMessageID()
@@ -204,32 +204,32 @@ func (u *Update) Edit(Text any, Opts ...*EditOpts) (*types.Message, error) {
 
 	req := &tg.MessagesEditMessageRequest{
 		ID:                   msgID,
-		Message:              text,
+		Message:              parsedText,
 		Entities:             entities,
-		NoWebpage:            opts.NoWebpage,
-		InvertMedia:          opts.InvertMedia,
-		ScheduleDate:         opts.ScheduleDate,
-		ScheduleRepeatPeriod: opts.ScheduleRepeatPeriod,
-		QuickReplyShortcutID: opts.QuickReplyShortcutID,
+		NoWebpage:            opt.NoWebpage,
+		InvertMedia:          opt.InvertMedia,
+		ScheduleDate:         opt.ScheduleDate,
+		ScheduleRepeatPeriod: opt.ScheduleRepeatPeriod,
+		QuickReplyShortcutID: opt.QuickReplyShortcutID,
 	}
 
-	if opts.Peer != nil {
-		req.Peer = opts.Peer
+	if opt.Peer != nil {
+		req.Peer = opt.Peer
 	}
-	if opts.ID != 0 {
-		req.ID = opts.ID
+	if opt.ID != 0 {
+		req.ID = opt.ID
 	}
-	if opts.Media != nil {
-		req.Media = opts.Media
+	if opt.Media != nil {
+		req.Media = opt.Media
 	}
-	if opts.ReplyMarkup != nil {
-		req.ReplyMarkup = opts.ReplyMarkup
+	if opt.ReplyMarkup != nil {
+		req.ReplyMarkup = opt.ReplyMarkup
 	}
-	if len(opts.Entities) > 0 {
-		req.Entities = opts.Entities
+	if len(opt.Entities) > 0 {
+		req.Entities = opt.Entities
 	}
 
-	connID := opts.BusinessConnectionID
+	connID := opt.BusinessConnectionID
 	if connID == "" {
 		connID = u.ConnectionID()
 	}
@@ -248,14 +248,14 @@ func (u *Update) Edit(Text any, Opts ...*EditOpts) (*types.Message, error) {
 //	})
 //
 // For using fileID strings, see EditMediaWithFileID.
-func (u *Update) EditMedia(Media tg.InputMediaClass, Opts ...*EditMediaOpts) (*types.Message, error) {
-	if Media == nil {
+func (u *Update) EditMedia(media tg.InputMediaClass, opts ...*EditMediaOpts) (*types.Message, error) {
+	if media == nil {
 		return nil, fmt.Errorf("media cannot be nil")
 	}
 
-	opts := functions.GetOptDef(&EditMediaOpts{}, Opts...)
+	opt := functions.GetOptDef(&EditMediaOpts{}, opts...)
 
-	parseMode := opts.ParseMode
+	parseMode := opt.ParseMode
 	if parseMode == "" {
 		parseMode = u.Ctx.DefaultParseMode
 	}
@@ -263,7 +263,7 @@ func (u *Update) EditMedia(Media tg.InputMediaClass, Opts ...*EditMediaOpts) (*t
 	var caption string
 	var entities []tg.MessageEntityClass
 
-	if opts.Caption != "" && parseMode != "" && parseMode != ModeNone {
+	if opt.Caption != "" && parseMode != "" && parseMode != ModeNone {
 		var mode parsemode.ParseMode
 		switch strings.ToUpper(strings.TrimSpace(parseMode)) {
 		case HTML:
@@ -274,19 +274,19 @@ func (u *Update) EditMedia(Media tg.InputMediaClass, Opts ...*EditMediaOpts) (*t
 			mode = parsemode.ModeNone
 		}
 
-		result, err := parsemode.Parse(opts.Caption, mode)
+		result, err := parsemode.Parse(opt.Caption, mode)
 		if err == nil && result != nil {
 			caption = result.Text
 			entities = result.Entities
 		} else {
-			caption = opts.Caption
+			caption = opt.Caption
 		}
 	} else {
-		caption = opts.Caption
+		caption = opt.Caption
 	}
 
 	if u.isInlineEdit() {
-		return u.editInlineMedia(Media, caption, entities, opts)
+		return u.editInlineMedia(media, caption, entities, opt)
 	}
 
 	msgID, err := u.getEditMessageID()
@@ -296,33 +296,33 @@ func (u *Update) EditMedia(Media tg.InputMediaClass, Opts ...*EditMediaOpts) (*t
 
 	req := &tg.MessagesEditMessageRequest{
 		ID:                   msgID,
-		Media:                Media,
+		Media:                media,
 		Message:              caption,
 		Entities:             entities,
-		NoWebpage:            opts.NoWebpage,
-		InvertMedia:          opts.InvertMedia,
-		ScheduleDate:         opts.ScheduleDate,
-		ScheduleRepeatPeriod: opts.ScheduleRepeatPeriod,
-		QuickReplyShortcutID: opts.QuickReplyShortcutID,
+		NoWebpage:            opt.NoWebpage,
+		InvertMedia:          opt.InvertMedia,
+		ScheduleDate:         opt.ScheduleDate,
+		ScheduleRepeatPeriod: opt.ScheduleRepeatPeriod,
+		QuickReplyShortcutID: opt.QuickReplyShortcutID,
 	}
 
-	if opts.Peer != nil {
-		req.Peer = opts.Peer
+	if opt.Peer != nil {
+		req.Peer = opt.Peer
 	}
-	if opts.ID != 0 {
-		req.ID = opts.ID
+	if opt.ID != 0 {
+		req.ID = opt.ID
 	}
-	if opts.Media != nil {
-		req.Media = opts.Media
+	if opt.Media != nil {
+		req.Media = opt.Media
 	}
-	if opts.ReplyMarkup != nil {
-		req.ReplyMarkup = opts.ReplyMarkup
+	if opt.ReplyMarkup != nil {
+		req.ReplyMarkup = opt.ReplyMarkup
 	}
-	if len(opts.Entities) > 0 {
-		req.Entities = opts.Entities
+	if len(opt.Entities) > 0 {
+		req.Entities = opt.Entities
 	}
 
-	connID := opts.BusinessConnectionID
+	connID := opt.BusinessConnectionID
 	if connID == "" {
 		connID = u.ConnectionID()
 	}
@@ -338,36 +338,36 @@ func (u *Update) EditMedia(Media tg.InputMediaClass, Opts ...*EditMediaOpts) (*t
 //	editedMsg, err := u.EditMediaWithFileID(fileID, &adapter.EditMediaOpts{
 //	    Caption: "Updated media!",
 //	})
-func (u *Update) EditMediaWithFileID(fileID string, Opts ...*EditMediaOpts) (*types.Message, error) {
+func (u *Update) EditMediaWithFileID(fileID string, opts ...*EditMediaOpts) (*types.Message, error) {
 	var caption string
-	if len(Opts) > 0 && Opts[0] != nil {
-		caption = Opts[0].Caption
+	if len(opts) > 0 && opts[0] != nil {
+		caption = opts[0].Caption
 	}
 
 	media, err := types.InputMediaFromFileID(fileID, caption)
 	if err != nil {
 		return nil, fmt.Errorf("invalid fileID: %w", err)
 	}
-	return u.EditMedia(media, Opts...)
+	return u.EditMedia(media, opts...)
 }
 
 // EditCaption edits the caption of the current update's media message.
 // Text can be a string or any type that can be formatted with %v.
 // Uses the client's default parse mode from ClientOpts.ParseMode.
-func (u *Update) EditCaption(Text any, Opts ...*EditOpts) (*types.Message, error) {
-	if Text == "" || Text == nil {
+func (u *Update) EditCaption(text any, opts ...*EditOpts) (*types.Message, error) {
+	if text == "" || text == nil {
 		return nil, gotgErrors.ErrTextEmpty
 	}
 
-	opts := functions.GetOptDef(&EditOpts{}, Opts...)
+	opt := functions.GetOptDef(&EditOpts{}, opts...)
 
-	parseMode := opts.ParseMode
+	parseMode := opt.ParseMode
 	if parseMode == "" {
 		parseMode = u.Ctx.DefaultParseMode
 	}
 
 	var message string
-	switch v := Text.(type) {
+	switch v := text.(type) {
 	case string:
 		message = v
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, bool:
@@ -376,7 +376,7 @@ func (u *Update) EditCaption(Text any, Opts ...*EditOpts) (*types.Message, error
 		message = fmt.Sprintf("%v", v)
 	}
 
-	var text string
+	var parsedText string
 	var entities []tg.MessageEntityClass
 
 	if parseMode != "" && parseMode != ModeNone {
@@ -392,17 +392,17 @@ func (u *Update) EditCaption(Text any, Opts ...*EditOpts) (*types.Message, error
 
 		result, err := parsemode.Parse(message, mode)
 		if err == nil && result != nil {
-			text = result.Text
+			parsedText = result.Text
 			entities = result.Entities
 		} else {
-			text = message
+			parsedText = message
 		}
 	} else {
-		text = message
+		parsedText = message
 	}
 
 	if u.isInlineEdit() {
-		return u.editInlineText(text, entities, opts)
+		return u.editInlineText(parsedText, entities, opt)
 	}
 
 	msgID, err := u.getEditMessageID()
@@ -412,32 +412,32 @@ func (u *Update) EditCaption(Text any, Opts ...*EditOpts) (*types.Message, error
 
 	req := &tg.MessagesEditMessageRequest{
 		ID:                   msgID,
-		Message:              text,
+		Message:              parsedText,
 		Entities:             entities,
-		NoWebpage:            opts.NoWebpage,
-		InvertMedia:          opts.InvertMedia,
-		ScheduleDate:         opts.ScheduleDate,
-		ScheduleRepeatPeriod: opts.ScheduleRepeatPeriod,
-		QuickReplyShortcutID: opts.QuickReplyShortcutID,
+		NoWebpage:            opt.NoWebpage,
+		InvertMedia:          opt.InvertMedia,
+		ScheduleDate:         opt.ScheduleDate,
+		ScheduleRepeatPeriod: opt.ScheduleRepeatPeriod,
+		QuickReplyShortcutID: opt.QuickReplyShortcutID,
 	}
 
-	if opts.Peer != nil {
-		req.Peer = opts.Peer
+	if opt.Peer != nil {
+		req.Peer = opt.Peer
 	}
-	if opts.ID != 0 {
-		req.ID = opts.ID
+	if opt.ID != 0 {
+		req.ID = opt.ID
 	}
-	if opts.Media != nil {
-		req.Media = opts.Media
+	if opt.Media != nil {
+		req.Media = opt.Media
 	}
-	if opts.ReplyMarkup != nil {
-		req.ReplyMarkup = opts.ReplyMarkup
+	if opt.ReplyMarkup != nil {
+		req.ReplyMarkup = opt.ReplyMarkup
 	}
-	if len(opts.Entities) > 0 {
-		req.Entities = opts.Entities
+	if len(opt.Entities) > 0 {
+		req.Entities = opt.Entities
 	}
 
-	connID := opts.BusinessConnectionID
+	connID := opt.BusinessConnectionID
 	if connID == "" {
 		connID = u.ConnectionID()
 	}
@@ -446,9 +446,9 @@ func (u *Update) EditCaption(Text any, Opts ...*EditOpts) (*types.Message, error
 
 // EditReplyMarkup edits only the reply markup of the current update's message.
 // For callback queries, edits the message that triggered the callback.
-func (u *Update) EditReplyMarkup(Markup tg.ReplyMarkupClass) (*types.Message, error) {
+func (u *Update) EditReplyMarkup(markup tg.ReplyMarkupClass) (*types.Message, error) {
 	if u.isInlineEdit() {
-		return nil, u.editInlineReplyMarkup(Markup)
+		return nil, u.editInlineReplyMarkup(markup)
 	}
 
 	msgID, err := u.getEditMessageID()
@@ -458,7 +458,7 @@ func (u *Update) EditReplyMarkup(Markup tg.ReplyMarkupClass) (*types.Message, er
 
 	req := &tg.MessagesEditMessageRequest{
 		ID:          msgID,
-		ReplyMarkup: Markup,
+		ReplyMarkup: markup,
 	}
 
 	return u.Ctx.EditMessage(u.ChatID(), req, u.ConnectionID())

@@ -92,11 +92,12 @@ func (t *Translator) discoverLangs(efs embed.FS, dir, ext string) []language.Tag
 		name := entry.Name()
 
 		var tagStr string
-		if entry.IsDir() {
+		switch {
+		case entry.IsDir():
 			tagStr = name
-		} else if strings.HasSuffix(name, "."+ext) {
+		case strings.HasSuffix(name, "."+ext):
 			tagStr = strings.TrimSuffix(name, "."+ext)
-		} else {
+		default:
 			continue
 		}
 

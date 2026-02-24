@@ -39,11 +39,11 @@ func GetChatIDFromPeer(peer tg.PeerClass) int64 {
 //   - iD: The user/chat ID to look up
 //
 // Returns input peer class or nil if not found.
-func GetInputPeerClassFromID(p *storage.PeerStorage, ID int64) tg.InputPeerClass {
+func GetInputPeerClassFromID(p *storage.PeerStorage, id int64) tg.InputPeerClass {
 	if p == nil {
 		return nil
 	}
-	peer := p.GetPeerByID(ID)
+	peer := p.GetPeerByID(id)
 	if peer == nil || peer.ID == 0 {
 		return nil
 	}
@@ -116,7 +116,7 @@ func ResolveInputPeerByID(ctx context.Context, raw *tg.Client, peerStorage *stor
 	}
 
 	ID := constant.TDLibPeerID(id)
-	if ID.IsChannel() {
+	if ID.IsChannel() { //nolint:gocritic // ifElseChain: method-call conditions, not switchable
 		return nil, errors.ErrPeerNotFound
 	} else if ID.IsChat() {
 		plainID := ID.ToPlain()

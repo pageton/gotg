@@ -180,7 +180,7 @@ func (p *HTMLParser) parseHTMLToTags(htmlStr string) (string, []tag, error) {
 	var openTags []openTag
 
 	for _, token := range tokens {
-		if !token.isTag {
+		if !token.isTag { //nolint:gocritic // ifElseChain: conditions involve struct fields, not suitable for switch
 			textBuf.WriteString(htmlUnescape(token.text))
 		} else if !token.isClosing && supportedTag(token.tagName) {
 			currentOffset := utf16RuneCountInString(textBuf.String())

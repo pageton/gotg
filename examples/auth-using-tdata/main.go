@@ -40,7 +40,6 @@ func main() {
 	if err != nil {
 		log.Fatalln("failed to start client:", err)
 	}
-
 	fmt.Printf("client (@%s) has been started...\n", client.Self.Username)
 
 	client.Idle()
