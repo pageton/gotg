@@ -171,8 +171,8 @@ func (m *Message) IsOutgoing() bool {
 	}
 	// FromID nil in private chats means the message is from the session owner.
 	if m.FromID == nil {
-		if _, ok := m.PeerID.(*tg.PeerUser); ok {
-			return true
+		if peerUser, ok := m.PeerID.(*tg.PeerUser); ok {
+			return peerUser.UserID == m.SelfID
 		}
 	}
 	return false
