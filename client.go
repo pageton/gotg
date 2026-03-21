@@ -181,6 +181,9 @@ type ClientOpts struct {
 	// SendOutgoing enables synthetic outgoing updates for send/edit/delete.
 	// When true, sent messages are re-dispatched through handlers with Out=true.
 	SendOutgoing bool
+	// DisableAutoStart prevents NewClient from starting the client automatically.
+	// When true, call Client.Start(opts) manually.
+	DisableAutoStart bool
 	// LogConfig configures the built-in gotg logger attached to each Update.
 	// If nil, DefaultConfig() is used (info level, color, timestamps, no caller).
 	LogConfig *gotglog.Config
@@ -281,6 +284,10 @@ func NewClient(apiID int, apiHash string, clientType clientType, opts *ClientOpt
 	}
 
 	c.printCredit()
+
+	if opts.DisableAutoStart {
+		return &c, nil
+	}
 
 	return &c, c.Start(opts)
 }

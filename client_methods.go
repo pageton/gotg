@@ -147,7 +147,7 @@ func (c *Client) initialize(wg *sync.WaitGroup) func(ctx context.Context) error 
 		c.running = true
 
 		if !c.NoUpdates {
-			return c.gapManager.Run(ctx, c.API(), self.ID, updates.AuthOptions{
+			return c.gapManager.Run(ctx, newUpdatesRecoveryAPI(c.API(), c.Logger), self.ID, updates.AuthOptions{
 				IsBot:  self.Bot,
 				Forget: false,
 			})
@@ -290,6 +290,12 @@ func (c *Client) Start(opts *ClientOpts) error {
 		}
 	}
 	return c.err
+}
+
+// Connect is an alias of Start.
+// Use it when you want explicit "construct then connect" flow.
+func (c *Client) Connect(opts *ClientOpts) error {
+	return c.Start(opts)
 }
 
 // RefreshContext casts the new context.Context and telegram session
