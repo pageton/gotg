@@ -4,6 +4,8 @@
 package generic
 
 import (
+	"strings"
+
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/adapter"
 	"github.com/pageton/gotg/types"
@@ -16,9 +18,9 @@ type ChatUnion interface {
 func getIdByUnion[chatUnion ChatUnion](ctx *adapter.Context, chat chatUnion) (int64, error) {
 	switch val := any(chat).(type) {
 	case string:
-		username := val
+		username := strings.TrimPrefix(val, "@")
 		peer := ctx.PeerStorage.GetPeerByUsername(username)
-		if peer.ID != 0 {
+		if peer != nil && peer.ID != 0 {
 			return peer.ID, nil
 		}
 		chat, err := ctx.ResolveUsername(username)

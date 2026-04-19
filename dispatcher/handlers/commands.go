@@ -3,6 +3,7 @@ package handlers
 import (
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/pageton/gotg/adapter"
 	"github.com/pageton/gotg/dispatcher/handlers/filters"
@@ -87,8 +88,12 @@ func (c Command) CheckUpdate(ctx *adapter.Context, u *adapter.Update) error {
 
 	// Check each prefix
 	for _, prefix := range c.Prefix {
-		if len(arg) > 0 && arg[0] == byte(prefix) {
-			cmdPart := arg[1:]
+		if len(arg) == 0 {
+			continue
+		}
+		firstRune, width := utf8.DecodeRuneInString(arg)
+		if firstRune == prefix {
+			cmdPart := arg[width:]
 			if cmdPart == c.Name {
 				return c.Callback(ctx, u)
 			}

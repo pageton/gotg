@@ -394,3 +394,31 @@ func (u *Update) SendMultiMedia(media []tg.InputMediaClass, opts ...*SendMediaOp
 	}
 	return u.Ctx.SendMultiMedia(chatID, req, connID)
 }
+
+// ResolvePeerToID resolves a human-readable peer identifier to a TDLib-format
+// chat ID. Accepts "@username", phone numbers (e.g. "+1234567890"), or numeric
+// ID strings (e.g. "-1001234567890").
+//
+// The resolution uses a 3-tier strategy:
+//  1. In-memory cache (O(1) lookup by username/phone index)
+//  2. Persistent storage (database query)
+//  3. Telegram RPC fallback (contacts.ResolveUsername / contacts.ResolvePhone)
+//
+// Returns a chat ID suitable for SendMessage, SendMedia, etc.
+//
+// Example:
+//
+//	// Resolve by username, then send
+//	chatID, _ := u.ResolvePeerToID("@alice")
+//	u.SendMessage(chatID, "Hello Alice!")
+//
+//	// Resolve by phone
+//	chatID, _ := u.ResolvePeerToID("+1234567890")
+//	u.SendMessage(chatID, "Hello!")
+//
+//	// Resolve by channel ID string
+//	chatID, _ := u.ResolvePeerToID("-1001234567890")
+//	u.SendMessage(chatID, "Hello group!")
+func (u *Update) ResolvePeerToID(identifier string) (int64, error) {
+	return u.Ctx.ResolvePeerToID(identifier)
+}

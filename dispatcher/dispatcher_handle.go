@@ -210,7 +210,7 @@ func saveUsersPeers(u tg.UserClassArray, p *storage.PeerStorage) {
 		if !ok || c.Min {
 			continue
 		}
-		p.AddPeer(c.ID, c.AccessHash, storage.TypeUser, c.Username)
+		p.AddPeerWithUsernames(c.ID, c.AccessHash, storage.TypeUser, strings.ToLower(c.Username), storage.ConvertUsernames(c.Usernames), c.Phone, c.Bot, storage.ExtractPhotoID(c.Photo))
 	}
 }
 
@@ -219,7 +219,7 @@ func saveChatsPeers(u tg.ChatClassArray, p *storage.PeerStorage) {
 		channel, ok := chat.(*tg.Channel)
 		if ok {
 			if !channel.Min {
-				p.AddPeer(channel.ID, channel.AccessHash, storage.TypeChannel, channel.Username)
+				p.AddPeerWithUsernames(channel.ID, channel.AccessHash, storage.TypeChannel, strings.ToLower(channel.Username), storage.ConvertUsernames(channel.Usernames), storage.DefaultPhone, false, 0)
 			}
 			continue
 		}

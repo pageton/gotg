@@ -3,6 +3,7 @@ package functions
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/gotd/td/constant"
 	"github.com/gotd/td/tg"
@@ -80,16 +81,16 @@ func SavePeersFromClassArray(p *storage.PeerStorage, cs []tg.ChatClass, us []tg.
 	}
 	for _, u := range us {
 		u, ok := u.(*tg.User)
-		if !ok {
+		if !ok || u.Min {
 			continue
 		}
-		p.AddPeer(u.ID, u.AccessHash, storage.TypeUser, u.Username)
+		p.AddPeerWithUsernames(u.ID, u.AccessHash, storage.TypeUser, strings.ToLower(u.Username), storage.ConvertUsernames(u.Usernames), u.Phone, u.Bot, storage.ExtractPhotoID(u.Photo))
 	}
 	for _, c := range cs {
 		switch c := c.(type) {
 		case *tg.Channel:
 			if !c.Min {
-				p.AddPeer(c.ID, c.AccessHash, storage.TypeChannel, c.Username)
+				p.AddPeerWithUsernames(c.ID, c.AccessHash, storage.TypeChannel, strings.ToLower(c.Username), storage.ConvertUsernames(c.Usernames), storage.DefaultPhone, false, 0)
 			}
 		case *tg.Chat:
 			p.AddPeer(c.ID, storage.DefaultAccessHash, storage.TypeChat, storage.DefaultUsername)

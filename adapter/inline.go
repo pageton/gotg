@@ -1,6 +1,8 @@
 package adapter
 
 import (
+	"strings"
+
 	"github.com/gotd/td/tg"
 	gotgErrors "github.com/pageton/gotg/errors"
 	"github.com/pageton/gotg/storage"
@@ -34,9 +36,10 @@ func (ctx *Context) SetInlineBotResult(request *tg.MessagesSetInlineBotResultsRe
 //
 // Returns the bot results or an error.
 func (ctx *Context) GetInlineBotResults(chatID int64, botUsername string, request *tg.MessagesGetInlineBotResultsRequest) (*tg.MessagesBotResults, error) {
-	bot := ctx.PeerStorage.GetPeerByUsername(botUsername)
-	if bot.ID == 0 {
-		c, err := ctx.ResolveUsername(botUsername)
+	username := strings.TrimPrefix(botUsername, "@")
+	bot := ctx.PeerStorage.GetPeerByUsername(username)
+	if bot == nil || bot.ID == 0 {
+		c, err := ctx.ResolveUsername(username)
 		if err != nil {
 			return nil, err
 		}

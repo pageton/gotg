@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/gotd/td/telegram/auth"
 	"github.com/gotd/td/tg"
@@ -53,6 +54,9 @@ func authFlow(ctx context.Context, client auth.FlowClient, conversator AuthConve
 	)
 	SendAuthStatus(conversator, AuthStatusPhoneAsked)
 	for i := range 3 {
+		if i > 0 {
+			time.Sleep(time.Duration(i) * time.Second)
+		}
 		var err1 error
 		if i == 0 {
 			phone, err1 = f.Auth.Phone(ctx)
@@ -88,6 +92,9 @@ func authFlow(ctx context.Context, client auth.FlowClient, conversator AuthConve
 		hash := s.PhoneCodeHash
 		var signInErr error
 		for i := range 3 {
+			if i > 0 {
+				time.Sleep(time.Duration(i) * time.Second)
+			}
 			var code string
 			if i == 0 {
 				conversator.AuthStatus(AuthStatus{
@@ -119,6 +126,9 @@ func authFlow(ctx context.Context, client auth.FlowClient, conversator AuthConve
 			SendAuthStatus(conversator, AuthStatusPasswordAsked)
 			err = signInErr
 			for i := 0; err != nil && i < 3; i++ {
+				if i > 0 {
+					time.Sleep(time.Duration(i) * time.Second)
+				}
 				var password string
 				var err1 error
 				if i == 0 {

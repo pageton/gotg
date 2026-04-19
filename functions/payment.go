@@ -3,6 +3,7 @@ package functions
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/storage"
@@ -115,12 +116,13 @@ func resolvePeer(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, to
 	case int:
 		return resolvePeer(ctx, raw, p, int64(v))
 	case string:
+		username := strings.TrimPrefix(v, "@")
 		if p != nil {
-			if peer := p.GetPeerByUsername(v); peer.ID != 0 {
+			if peer := p.GetPeerByUsername(username); peer != nil && peer.ID != 0 {
 				return GetInputPeerClassFromID(p, peer.ID), nil
 			}
 		}
-		resolved, err := raw.ContactsResolveUsername(ctx, &tg.ContactsResolveUsernameRequest{Username: v})
+		resolved, err := raw.ContactsResolveUsername(ctx, &tg.ContactsResolveUsernameRequest{Username: username})
 		if err != nil {
 			return nil, err
 		}

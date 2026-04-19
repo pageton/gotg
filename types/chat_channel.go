@@ -133,8 +133,12 @@ func (c *Channel) GetChatMember(userID int64) (tg.ChannelParticipantClass, error
 	}
 
 	peer := c.PeerStorage.GetInputPeerByID(userID)
-	if peer == nil {
-		peer = &tg.InputPeerUser{UserID: userID}
+	if _, isEmpty := peer.(*tg.InputPeerEmpty); isEmpty {
+		var err error
+		peer, err = functions.ResolveInputPeerByID(c.Ctx, c.RawClient, c.PeerStorage, userID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	res, err := c.RawClient.ChannelsGetParticipant(c.Ctx, &tg.ChannelsGetParticipantRequest{

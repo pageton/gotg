@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/gotd/td/telegram"
@@ -142,7 +143,33 @@ func (c *Client) initialize(wg *sync.WaitGroup) func(ctx context.Context) error 
 
 		c.Dispatcher.Initialize(ctx, c.Stop, c.Client, self)
 
-		c.PeerStorage.AddPeer(self.ID, self.AccessHash, storage.TypeUser, self.Username)
+		// Wire RPC resolver so GetPeerByUsername can fall back to
+		// contacts.ResolveUsername on cache miss.
+		c.PeerStorage.SetResolver(func(resolveCtx context.Context, username string) ([]tg.UserClass, []tg.ChatClass, error) {
+			r, err := c.API().ContactsResolveUsername(resolveCtx, &tg.ContactsResolveUsernameRequest{
+				Username: username,
+			})
+			if err != nil {
+				return nil, nil, err
+			}
+			return r.Users, r.Chats, nil
+		})
+
+		// Wire phone resolver so GetPeerByPhoneNumber can fall back to
+		// contacts.ResolvePhone on cache miss.
+		c.PeerStorage.SetPhoneResolver(func(resolveCtx context.Context, phone string) ([]tg.UserClass, []tg.ChatClass, error) {
+			r, err := c.API().ContactsResolvePhone(resolveCtx, phone)
+			if err != nil {
+				return nil, nil, err
+			}
+			return r.Users, r.Chats, nil
+		})
+
+		var selfUsernames storage.Usernames
+		if self.Username != "" {
+			selfUsernames = storage.Usernames{{Username: strings.ToLower(self.Username), Active: true, Editable: true}}
+		}
+		c.PeerStorage.AddPeerWithUsernames(self.ID, self.AccessHash, storage.TypeUser, strings.ToLower(self.Username), selfUsernames, self.Phone, self.Bot, storage.ExtractPhotoID(self.Photo))
 		wg.Done()
 		c.running = true
 
@@ -160,7 +187,9 @@ func (c *Client) initialize(wg *sync.WaitGroup) func(ctx context.Context) error 
 
 // ExportStringSession EncodeSessionToString encodes the client session to a string in base64.
 //
-// Note: You must not share this string with anyone, it contains auth details for your logged in account.
+// WARNING: The returned string contains the full MTProto auth key. Anyone with this string
+// can impersonate the logged-in Telegram account. Ensure callers enforce their own access
+// controls before invoking this method.
 func (c *Client) ExportStringSession() (string, error) {
 	loadedSessionData, err := c.sessionStorage.LoadSession(c.ctx)
 	if err == nil {
@@ -222,7 +251,8 @@ func (c *Client) Stop() {
 		<-c.dialogsDone
 	}
 
-	// 3. Now it is safe to drain pending DB writes and close the channel.
+	// 3. Now it is safe to drain pending DB writes, close the channel,
+	//    and release the adapter connection.
 	if c.PeerStorage != nil {
 		c.PeerStorage.Close()
 	}
@@ -238,7 +268,15 @@ func (c *Client) Stop() {
 
 // Start connects the client to telegram servers and logins.
 // It will return error if the client is already running.
+// If opts is nil, it reuses the opts preserved from NewClient.
 func (c *Client) Start(opts *ClientOpts) error {
+	if opts == nil {
+		opts = c.startOpts
+		if opts == nil {
+			opts = &ClientOpts{}
+		}
+	}
+
 	if c.running {
 		return intErrors.ErrClientAlreadyRunning
 	}

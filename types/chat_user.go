@@ -422,8 +422,16 @@ func (u *User) GetChatMemberIn(chatID int64) (any, error) {
 			if pt, ok := fc.Participants.(*tg.ChatParticipants); ok {
 				for _, participant := range pt.Participants {
 					switch cp := participant.(type) {
-					case *tg.ChatParticipant, *tg.ChatParticipantCreator, *tg.ChatParticipantAdmin:
-						if cp.(*tg.ChatParticipant).UserID == u.ID {
+					case *tg.ChatParticipant:
+						if cp.UserID == u.ID {
+							return cp, nil
+						}
+					case *tg.ChatParticipantCreator:
+						if cp.UserID == u.ID {
+							return cp, nil
+						}
+					case *tg.ChatParticipantAdmin:
+						if cp.UserID == u.ID {
 							return cp, nil
 						}
 					}

@@ -19,7 +19,7 @@ import (
 	"github.com/pageton/gotg/storage"
 )
 
-const VERSION = "v1.0.0-beta23"
+const VERSION = "v1.0.0-beta25"
 
 type Client struct {
 	// Dispatcher handlers the incoming updates and execute mapped handlers. It is recommended to use dispatcher.MakeDispatcher function for this field.
@@ -90,8 +90,10 @@ type Client struct {
 	apiID            int
 	apiHash          string
 	deviceParams     tg.JSONValueClass
-	defaultParseMode string
-	dialogsDone      chan struct{} // closed when AddPeersFromDialogs goroutine exits
+	defaultParseMode  string
+	autoReconnect     *ReconnectConfig
+	dialogsDone       chan struct{} // closed when AddPeersFromDialogs goroutine exits
+	startOpts         *ClientOpts  // preserved from first Start() for reconnection
 }
 
 type ClientOpts struct {
@@ -203,6 +205,10 @@ type ClientOpts struct {
 	// If empty, no formatting is applied unless explicitly specified per-method.
 	// Supported values: "HTML", "Markdown", "MarkdownV2", or "" (none).
 	ParseMode string
+	// AutoReconnect enables automatic reconnection on disconnection.
+	// When set, call Client.RunForever() instead of Client.Idle() to use
+	// the reconnection loop. See ReconnectConfig for configuration options.
+	AutoReconnect *ReconnectConfig
 }
 
 // NewClient creates a new gotg client and logs in to telegram.
@@ -277,6 +283,7 @@ func NewClient(apiID int, apiHash string, clientType clientType, opts *ClientOpt
 		apiID:             apiID,
 		apiHash:           apiHash,
 		defaultParseMode:  opts.ParseMode,
+		autoReconnect:     opts.AutoReconnect,
 	}
 
 	if opts.SendCodeOptions != nil {
@@ -284,6 +291,9 @@ func NewClient(apiID int, apiHash string, clientType clientType, opts *ClientOpt
 	}
 
 	c.printCredit()
+
+	// Preserve opts for RunForever reconnection (Device, Middlewares, RunMiddleware, etc).
+	c.startOpts = opts
 
 	if opts.DisableAutoStart {
 		return &c, nil

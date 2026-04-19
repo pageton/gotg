@@ -8,7 +8,7 @@ func (h *FormatHelper) AddBold(text string) string {
 	case FormatterMarkdown:
 		return fmt.Sprintf("*%s*", text)
 	case FormatterHTML:
-		return fmt.Sprintf("<b>%s</b>", text)
+		return fmt.Sprintf("<b>%s</b>", htmlEscape(text))
 	default:
 		return text
 	}
@@ -20,7 +20,7 @@ func (h *FormatHelper) AddItalic(text string) string {
 	case FormatterMarkdown:
 		return fmt.Sprintf("_%s_", text)
 	case FormatterHTML:
-		return fmt.Sprintf("<i>%s</i>", text)
+		return fmt.Sprintf("<i>%s</i>", htmlEscape(text))
 	default:
 		return text
 	}
@@ -32,7 +32,7 @@ func (h *FormatHelper) AddUnderline(text string) string {
 	case FormatterMarkdown:
 		return fmt.Sprintf("__%s__", text)
 	case FormatterHTML:
-		return fmt.Sprintf("<u>%s</u>", text)
+		return fmt.Sprintf("<u>%s</u>", htmlEscape(text))
 	default:
 		return text
 	}
@@ -44,7 +44,7 @@ func (h *FormatHelper) AddStrikethrough(text string) string {
 	case FormatterMarkdown:
 		return fmt.Sprintf("~%s~", text)
 	case FormatterHTML:
-		return fmt.Sprintf("<s>%s</s>", text)
+		return fmt.Sprintf("<s>%s</s>", htmlEscape(text))
 	default:
 		return text
 	}
@@ -56,7 +56,7 @@ func (h *FormatHelper) AddSpoiler(text string) string {
 	case FormatterMarkdown:
 		return fmt.Sprintf("||%s||", text)
 	case FormatterHTML:
-		return fmt.Sprintf("<tg-spoiler>%s</tg-spoiler>", text)
+		return fmt.Sprintf("<tg-spoiler>%s</tg-spoiler>", htmlEscape(text))
 	default:
 		return text
 	}
@@ -68,7 +68,7 @@ func (h *FormatHelper) AddCode(text string) string {
 	case FormatterMarkdown:
 		return fmt.Sprintf("`%s`", text)
 	case FormatterHTML:
-		return fmt.Sprintf("<code>%s</code>", text)
+		return fmt.Sprintf("<code>%s</code>", htmlEscape(text))
 	default:
 		return text
 	}
@@ -84,9 +84,9 @@ func (h *FormatHelper) AddPre(text, language string) string {
 		return fmt.Sprintf("```\n%s\n```", text)
 	case FormatterHTML:
 		if language != "" {
-			return fmt.Sprintf("<pre><code class=\"language-%s\">%s</code></pre>", language, text)
+			return fmt.Sprintf("<pre><code class=\"language-%s\">%s</code></pre>", htmlEscape(language), htmlEscape(text))
 		}
-		return fmt.Sprintf("<pre>%s</pre>", text)
+		return fmt.Sprintf("<pre>%s</pre>", htmlEscape(text))
 	default:
 		return text
 	}
@@ -100,7 +100,7 @@ func (h *FormatHelper) CreateEmbedLink(text, link string) string {
 	case FormatterMarkdown:
 		return fmt.Sprintf("[%s](%s)", text, link)
 	case FormatterHTML:
-		return fmt.Sprintf("<a href='%s'>%s</a>", link, text)
+		return fmt.Sprintf(`<a href="%s">%s</a>`, htmlEscape(link), htmlEscape(text))
 	default:
 		return text
 	}
@@ -126,7 +126,7 @@ func (h *FormatHelper) CreateCustomEmoji(emoji string, emojiID int64) string {
 	case FormatterMarkdown:
 		return fmt.Sprintf("[%s](%s)", emoji, link)
 	case FormatterHTML:
-		return fmt.Sprintf("<tg-emoji emoji-id=\"%d\">%s</tg-emoji>", emojiID, emoji)
+		return fmt.Sprintf(`<tg-emoji emoji-id="%d">%s</tg-emoji>`, emojiID, htmlEscape(emoji))
 	default:
 		return emoji
 	}
@@ -138,7 +138,7 @@ func (h *FormatHelper) AddBlockquote(text string) string {
 	case FormatterMarkdown:
 		return fmt.Sprintf(">%s", text)
 	case FormatterHTML:
-		return fmt.Sprintf("<blockquote>%s</blockquote>", text)
+		return fmt.Sprintf("<blockquote>%s</blockquote>", htmlEscape(text))
 	default:
 		return text
 	}
@@ -150,7 +150,7 @@ func (h *FormatHelper) AddExpandableBlockquote(text string) string {
 	case FormatterMarkdown:
 		return fmt.Sprintf(">%s||", text)
 	case FormatterHTML:
-		return fmt.Sprintf("<blockquote expandable>%s</blockquote>", text)
+		return fmt.Sprintf("<blockquote expandable>%s</blockquote>", htmlEscape(text))
 	default:
 		return text
 	}

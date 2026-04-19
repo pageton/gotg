@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/gotd/td/tg"
+	"golang.org/x/term"
 )
 
 type (
@@ -123,7 +124,13 @@ func (b *basicConservator) AskPassword() (string, error) {
 		fmt.Println("Please try again....")
 	}
 	fmt.Print("Enter 2FA password: ")
-	return bufio.NewReader(os.Stdin).ReadString('\n')
+	fd := os.Stdin.Fd()
+	if fd > ^uintptr(0)>>1 {
+		return "", fmt.Errorf("file descriptor too large: %d", fd)
+	}
+	pw, err := term.ReadPassword(int(fd))
+	fmt.Println()
+	return string(pw), err
 }
 
 func (b *basicConservator) AskCode() (string, error) {

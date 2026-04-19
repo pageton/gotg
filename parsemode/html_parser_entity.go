@@ -201,42 +201,43 @@ func (p *HTMLParser) Format(input string) string {
 
 // FormatEntity formats a single entity as HTML.
 func FormatEntity(entityType string, content string, attrs map[string]string) string {
+	escaped := htmlEscape(content)
 	switch entityType {
 	case string(EntityTypeBold):
-		return fmt.Sprintf("<b>%s</b>", content)
+		return fmt.Sprintf("<b>%s</b>", escaped)
 	case string(EntityTypeItalic):
-		return fmt.Sprintf("<i>%s</i>", content)
+		return fmt.Sprintf("<i>%s</i>", escaped)
 	case string(EntityTypeUnderline):
-		return fmt.Sprintf("<u>%s</u>", content)
+		return fmt.Sprintf("<u>%s</u>", escaped)
 	case string(EntityTypeStrike):
-		return fmt.Sprintf("<s>%s</s>", content)
+		return fmt.Sprintf("<s>%s</s>", escaped)
 	case string(EntityTypeSpoiler):
-		return fmt.Sprintf("<spoiler>%s</spoiler>", content)
+		return fmt.Sprintf("<spoiler>%s</spoiler>", escaped)
 	case string(EntityTypeCode):
-		return fmt.Sprintf("<code>%s</code>", content)
+		return fmt.Sprintf("<code>%s</code>", escaped)
 	case string(EntityTypePre):
 		lang := ""
 		if l, ok := attrs["language"]; ok && l != "" {
-			lang = fmt.Sprintf(` class="language-%s"`, l)
+			lang = fmt.Sprintf(` class="language-%s"`, htmlEscape(l))
 		}
-		return fmt.Sprintf("<pre%s>%s</pre>", lang, content)
+		return fmt.Sprintf("<pre%s>%s</pre>", lang, escaped)
 	case string(EntityTypeBlockquote):
 		collapsed := ""
 		if c, ok := attrs["collapsed"]; ok && c == "true" {
 			collapsed = ` collapsed="true"`
 		}
-		return fmt.Sprintf("<blockquote%s>%s</blockquote>", collapsed, content)
+		return fmt.Sprintf("<blockquote%s>%s</blockquote>", collapsed, escaped)
 	case string(EntityTypeTextURL):
 		url := attrs["url"]
 		if url == "" {
 			url = content
 		}
-		return fmt.Sprintf(`<a href="%s">%s</a>`, htmlEscape(url), content)
+		return fmt.Sprintf(`<a href="%s">%s</a>`, htmlEscape(url), escaped)
 	case string(EntityTypeMention):
-		return fmt.Sprintf(`<mention>%s</mention>`, content)
+		return fmt.Sprintf(`<mention>%s</mention>`, escaped)
 	case string(EntityTypeCustomEmoji):
 		emojiID := attrs["emoji_id"]
-		return fmt.Sprintf(`<emoji id="%s">%s</emoji>`, emojiID, content)
+		return fmt.Sprintf(`<emoji id="%s">%s</emoji>`, htmlEscape(emojiID), escaped)
 	default:
 		return content
 	}
