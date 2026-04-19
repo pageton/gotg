@@ -130,6 +130,18 @@ func (j *JsonAdapter) GetPeerByUsername(username string) (*storage.Peer, error) 
 	return nil, nil
 }
 
+func (j *JsonAdapter) GetPeerByPhoneNumber(phone string) (*storage.Peer, error) {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+	for _, p := range j.db.Peers {
+		if p.PhoneNumber == phone {
+			cp := *p
+			return &cp, nil
+		}
+	}
+	return nil, nil
+}
+
 // --- Conversation State ---
 
 func (j *JsonAdapter) SaveConvState(state *storage.ConvState) error {
@@ -175,6 +187,22 @@ func (j *JsonAdapter) ListConvStates() ([]storage.ConvState, error) {
 // --- Lifecycle ---
 
 func (j *JsonAdapter) AutoMigrate() error { return nil }
+
+func (j *JsonAdapter) DeleteStalePeers(olderThan int64) (int64, error) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	var count int64
+	for id, p := range j.db.Peers {
+		if p.LastUpdated > 0 && p.LastUpdated < olderThan {
+			delete(j.db.Peers, id)
+			count++
+		}
+	}
+	if count > 0 {
+		return count, j.flush()
+	}
+	return 0, nil
+}
 
 func (j *JsonAdapter) Close() error {
 	j.mu.Lock()

@@ -18,12 +18,13 @@ import (
 //   MongoDB, BoltDB, BadgerDB, DynamoDB, etc.
 //
 // Built-in adapters:
-//   session.SqlSession(sqlite.Open("bot.db"))    — SQLite via GORM (modernc or mattn)
-//   session.SqlSession(postgres.Open(dsn))        — PostgreSQL via GORM
-//   session.SqlSession(mysql.Open(dsn))           — MySQL via GORM
-//   session.WithAdapter(redisdb.New(redisClient)) — Redis
-//   session.WithAdapter(sqlcdb.New(sqlDB))        — raw SQL (sqlc-style)
-//   session.WithAdapter(myAdapter)                — any custom adapter
+//   session.Adapter(gormdb.New(sqlite.Open("bot.db")))    — SQLite via GORM (modernc or mattn)
+//   session.Adapter(sqlitedb.New(db))                      — SQLite via database/sql
+//   session.Adapter(gormdb.New(postgres.Open(dsn)))        — PostgreSQL via GORM
+//   session.Adapter(gormdb.New(mysql.Open(dsn)))           — MySQL via GORM
+//   session.Adapter(redisdb.New(redisClient))              — Redis
+//   session.Adapter(sqlcdb.New(sqlDB))                     — raw SQL (sqlc-style)
+//   session.Adapter(myAdapter)                             — any custom adapter
 
 func main() {
 	jsonAdapter, err := NewJsonAdapter("bot_session.json")
@@ -36,7 +37,7 @@ func main() {
 		"API_HASH_HERE",
 		gotg.AsBot("BOT_TOKEN_HERE"),
 		&gotg.ClientOpts{
-			Session: session.WithAdapter(jsonAdapter),
+			Session: session.Adapter(jsonAdapter),
 		},
 	)
 	if err != nil {

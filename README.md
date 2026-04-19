@@ -681,7 +681,7 @@ This fork adds production features (logging, i18n, business API, conversations, 
 
 ## Project Status
 
-**Current Version:** `v1.0.0-beta23`
+**Current Version:** `v1.0.0-beta25`
 
 - **Stable Core**: Battle-tested session management and update handling
 - **Production Ready**: Used in production bots
