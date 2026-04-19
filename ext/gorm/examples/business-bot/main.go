@@ -7,11 +7,16 @@ import (
 	"github.com/pageton/gotg/adapter"
 	"github.com/pageton/gotg/dispatcher/handlers"
 	"github.com/pageton/gotg/dispatcher/handlers/filters"
+	gorm "github.com/pageton/gotg/ext/gorm"
 	"github.com/pageton/gotg/session"
 	"gorm.io/driver/sqlite"
 )
 
 func main() {
+	adapter, err := gorm.New(sqlite.Open("business-bot.db"))
+	if err != nil {
+		log.Fatalln("failed to create adapter:", err)
+	}
 	client, err := gotg.NewClient(
 		// Get AppID from https://my.telegram.org/apps
 		123456,
@@ -20,7 +25,7 @@ func main() {
 		// Bot token from @BotFather
 		gotg.AsBot("BOT_TOKEN_HERE"),
 		&gotg.ClientOpts{
-			Session: session.SqlSession(sqlite.Open("business-bot.db")),
+			Session: session.WithAdapter(adapter),
 		},
 	)
 	if err != nil {

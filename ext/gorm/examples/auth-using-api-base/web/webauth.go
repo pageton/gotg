@@ -7,17 +7,23 @@ import (
 )
 
 type webAuth struct {
-	phoneChan  chan string
-	codeChan   chan string
-	passwdChan chan string
-	authStatus gotg.AuthStatus
+	phoneChan     chan string
+	codeChan      chan string
+	passwdChan    chan string
+	phoneWritten  chan struct{}
+	codeWritten   chan struct{}
+	passwdWritten chan struct{}
+	authStatus    gotg.AuthStatus
 }
 
 func GetWebAuth() *webAuth {
 	return &webAuth{
-		phoneChan:  make(chan string),
-		codeChan:   make(chan string),
-		passwdChan: make(chan string),
+		phoneChan:     make(chan string),
+		codeChan:      make(chan string),
+		passwdChan:    make(chan string),
+		phoneWritten:  make(chan struct{}, 1),
+		codeWritten:   make(chan struct{}, 1),
+		passwdWritten: make(chan struct{}, 1),
 	}
 }
 
@@ -56,6 +62,29 @@ func (w *webAuth) AskPassword() (string, error) {
 
 func (w *webAuth) AuthStatus(authStatusIp gotg.AuthStatus) {
 	w.authStatus = authStatusIp
+	// Signal the HTTP handler that the auth status has been updated.
+	switch authStatusIp.Event {
+	case gotg.AuthStatusPhoneAsked, gotg.AuthStatusPhoneRetrial, gotg.AuthStatusPhoneFailed,
+		gotg.AuthStatusPhoneCodeAsked, gotg.AuthStatusPhoneCodeVerified, gotg.AuthStatusPhoneCodeRetrial, gotg.AuthStatusPhoneCodeFailed,
+		gotg.AuthStatusPasswordAsked, gotg.AuthStatusPasswordRetrial, gotg.AuthStatusPasswordFailed,
+		gotg.AuthStatusSuccess:
+		// Drain previous signal if any, then send new one
+		select {
+		case <-w.phoneWritten:
+		default:
+		}
+		select {
+		case <-w.codeWritten:
+		default:
+		}
+		select {
+		case <-w.passwdWritten:
+		default:
+		}
+		w.phoneWritten <- struct{}{}
+		w.codeWritten <- struct{}{}
+		w.passwdWritten <- struct{}{}
+	}
 }
 
 func (w *webAuth) ReceivePhone(phone string) {

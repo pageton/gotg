@@ -11,17 +11,22 @@ import (
 	"github.com/pageton/gotg/dispatcher"
 	"github.com/pageton/gotg/dispatcher/handlers"
 	"github.com/pageton/gotg/dispatcher/handlers/filters"
+	gorm "github.com/pageton/gotg/ext/gorm"
 	"github.com/pageton/gotg/session"
 	"gorm.io/driver/sqlite"
 )
 
 func main() {
+	adapter, err := gorm.New(sqlite.Open("conv_bot"))
+	if err != nil {
+		log.Fatalln("failed to create adapter:", err)
+	}
 	client, err := gotg.NewClient(
 		0,                            // APP_ID from https://my.telegram.org/apps
 		"",                           // API_HASH from https://my.telegram.org/apps
 		gotg.AsBot("BOT_TOKEN_HERE"), // Bot token from @BotFather
 		&gotg.ClientOpts{
-			Session: session.SqlSession(sqlite.Open("conv_bot")),
+			Session: session.WithAdapter(adapter),
 		},
 	)
 	if err != nil {

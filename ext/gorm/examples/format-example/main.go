@@ -9,17 +9,22 @@ import (
 	"github.com/pageton/gotg/adapter"
 	"github.com/pageton/gotg/dispatcher/handlers"
 	"github.com/pageton/gotg/dispatcher/handlers/filters"
+	gorm "github.com/pageton/gotg/ext/gorm"
 	"github.com/pageton/gotg/session"
 	"gorm.io/driver/sqlite"
 )
 
 func main() {
+	adapter, err := gorm.New(sqlite.Open("formatexample"))
+	if err != nil {
+		log.Fatalln("failed to create adapter:", err)
+	}
 	client, err := gotg.NewClient(
 		0,              // APP_ID - Replace with your Telegram App ID from https://my.telegram.org
 		"",             // APP_HASH - Replace with your Telegram App Hash from https://my.telegram.org
 		gotg.AsBot(""), // BOT_TOKEN - Replace with your bot token from @BotFather
 		&gotg.ClientOpts{
-			Session: session.SqlSession(sqlite.Open("formatexample")),
+			Session: session.WithAdapter(adapter),
 		},
 	)
 	if err != nil {

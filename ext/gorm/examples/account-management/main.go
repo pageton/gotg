@@ -9,18 +9,23 @@ import (
 	"github.com/pageton/gotg/dispatcher"
 	"github.com/pageton/gotg/dispatcher/handlers"
 	"github.com/pageton/gotg/dispatcher/handlers/filters"
+	gorm "github.com/pageton/gotg/ext/gorm"
 	"github.com/pageton/gotg/functions"
 	"github.com/pageton/gotg/session"
 	"gorm.io/driver/sqlite"
 )
 
 func main() {
+	adapter, err := gorm.New(sqlite.Open("account"))
+	if err != nil {
+		log.Fatalln("failed to create adapter:", err)
+	}
 	client, err := gotg.NewClient(
 		123456,
 		"API_HASH_HERE",
 		gotg.ClientTypePhone("PHONE_NUMBER_HERE"),
 		&gotg.ClientOpts{
-			Session: session.SqlSession(sqlite.Open("account")),
+			Session: session.WithAdapter(adapter),
 		},
 	)
 	if err != nil {
@@ -44,7 +49,7 @@ func main() {
 }
 
 func enable2fa(u *adapter.Update) error {
-	err := u.Ctx.Enable2FA("my_secure_password", &functions.PasswordOpts{
+	err := u.Ctx.Enable2FA("example_password_123", &functions.PasswordOpts{
 		Hint:  "the usual one",
 		Email: "recovery@example.com",
 	})
@@ -57,7 +62,7 @@ func enable2fa(u *adapter.Update) error {
 }
 
 func update2fa(u *adapter.Update) error {
-	err := u.Ctx.Update2FA("my_secure_password", "my_new_password", &functions.PasswordOpts{
+	err := u.Ctx.Update2FA("example_password_123", "example_new_password_456", &functions.PasswordOpts{
 		Hint: "the new one",
 	})
 	if err != nil {
@@ -69,7 +74,7 @@ func update2fa(u *adapter.Update) error {
 }
 
 func disable2fa(u *adapter.Update) error {
-	err := u.Ctx.Disable2FA("my_new_password")
+	err := u.Ctx.Disable2FA("example_new_password_456")
 	if err != nil {
 		_, _ = u.Reply(fmt.Sprintf("Failed to disable 2FA: %s", err))
 		return dispatcher.EndGroups

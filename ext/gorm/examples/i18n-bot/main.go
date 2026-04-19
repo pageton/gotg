@@ -10,6 +10,7 @@ import (
 	"github.com/pageton/gotg/dispatcher"
 	"github.com/pageton/gotg/dispatcher/handlers"
 	"github.com/pageton/gotg/dispatcher/handlers/filters"
+	gorm "github.com/pageton/gotg/ext/gorm"
 	"github.com/pageton/gotg/i18n"
 	"github.com/pageton/gotg/session"
 	"golang.org/x/text/language"
@@ -31,12 +32,17 @@ func main() {
 		LocaleDir:   "locales",
 	})
 
+	adapter, err := gorm.New(sqlite.Open("testbot"))
+	if err != nil {
+		log.Fatalln("failed to create adapter:", err)
+	}
+
 	client, err := gotg.NewClient(
 		123456,                       // APP_ID - Replace with your Telegram App ID
 		"API_HASH_HERE",              // APP_HASH - Replace with your Telegram App Hash
 		gotg.AsBot("BOT_TOKEN_HERE"), // BOT_TOKEN - Replace with your bot token
 		&gotg.ClientOpts{
-			Session: session.SqlSession(sqlite.Open("testbot")),
+			Session: session.WithAdapter(adapter),
 			DispatcherMiddlewares: []dispatcher.Handler{
 				dispatcher.I18nMiddleware(&dispatcher.I18nConfig{
 					Translator:         translator,
