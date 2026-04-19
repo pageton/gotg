@@ -6,12 +6,12 @@ import (
 )
 
 type ConvState struct {
-	Key       string `gorm:"primaryKey"`
-	ChatID    int64  `gorm:"index"`
-	UserID    int64  `gorm:"index"`
+	Key       string
+	ChatID    int64
+	UserID    int64
 	Step      string
 	Payload   []byte
-	ExpiresAt time.Time `gorm:"index"`
+	ExpiresAt time.Time
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

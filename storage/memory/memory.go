@@ -7,6 +7,7 @@
 package memory
 
 import (
+	"slices"
 	"sync"
 
 	"github.com/pageton/gotg/storage"
@@ -54,6 +55,7 @@ func (m *MemoryAdapter) SavePeer(p *storage.Peer) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	cp := *p
+	cp.Usernames = slices.Clone(p.Usernames)
 	m.peers[p.ID] = &cp
 	return nil
 }
@@ -66,6 +68,7 @@ func (m *MemoryAdapter) GetPeerByID(id int64) (*storage.Peer, error) {
 		return nil, nil
 	}
 	cp := *p
+	cp.Usernames = slices.Clone(p.Usernames)
 	return &cp, nil
 }
 
@@ -73,7 +76,19 @@ func (m *MemoryAdapter) GetPeerByUsername(username string) (*storage.Peer, error
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	for _, p := range m.peers {
-		if p.Username == username {
+		if p.Username == username || containsUsername(p.Usernames, username) {
+			cp := *p
+			return &cp, nil
+		}
+	}
+	return nil, nil
+}
+
+func (m *MemoryAdapter) GetPeerByPhoneNumber(phone string) (*storage.Peer, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, p := range m.peers {
+		if p.PhoneNumber == phone {
 			cp := *p
 			return &cp, nil
 		}
@@ -122,6 +137,29 @@ func (m *MemoryAdapter) ListConvStates() ([]storage.ConvState, error) {
 }
 
 func (m *MemoryAdapter) AutoMigrate() error { return nil }
+
+func (m *MemoryAdapter) DeleteStalePeers(olderThan int64) (int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var count int64
+	for id, p := range m.peers {
+		if p.LastUpdated > 0 && p.LastUpdated < olderThan {
+			delete(m.peers, id)
+			count++
+		}
+	}
+	return count, nil
+}
+
+// containsUsername checks if a username string exists in the Usernames slice.
+func containsUsername(usernames storage.Usernames, target string) bool {
+	for _, u := range usernames {
+		if u.Username == target {
+			return true
+		}
+	}
+	return false
+}
 
 func (m *MemoryAdapter) Close() error {
 	m.mu.Lock()

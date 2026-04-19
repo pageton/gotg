@@ -9,7 +9,6 @@ import (
 	"github.com/gotd/td/session/tdesktop"
 	"github.com/pageton/gotg/functions"
 	"github.com/pageton/gotg/storage"
-	"gorm.io/gorm"
 )
 
 type sessionName interface {
@@ -20,17 +19,45 @@ type sessionNameString string
 
 func (sessionNameString) getType() string { return "str" }
 
-type sessionNameDialector struct {
-	dialector gorm.Dialector
-}
-
-func (sessionNameDialector) getType() string { return "dialector" }
-
 type sessionNameAdapter struct {
 	adapter storage.Adapter
 }
 
 func (sessionNameAdapter) getType() string { return "adapter" }
+
+type sessionNameAdapterWithData struct {
+	adapter storage.Adapter
+	data    []byte
+}
+
+func (sessionNameAdapterWithData) getType() string { return "adapter" }
+
+// sessionBase is embedded in all session constructors to support WithAdapter.
+type sessionBase struct {
+	adapter storage.Adapter
+}
+
+// Adapter sets a custom storage adapter for this session constructor.
+// The decoded session data will be persisted through the adapter.
+func (b *sessionBase) Adapter(adapter storage.Adapter) {
+	b.adapter = adapter
+}
+
+// WithAdapter sets a custom storage adapter for this session constructor.
+// Deprecated: use Adapter instead.
+func (b *sessionBase) WithAdapter(adapter storage.Adapter) {
+	b.Adapter(adapter)
+}
+
+// adapterResult returns the session name type based on whether an adapter is set.
+// If adapter is set, it returns sessionNameAdapterWithData so the session maker
+// persists the decoded data through the adapter.
+func (b *sessionBase) adapterResult(name string, data []byte) sessionName {
+	if b.adapter != nil {
+		return sessionNameAdapterWithData{adapter: b.adapter, data: data}
+	}
+	return sessionNameString(name)
+}
 
 type SessionConstructor interface {
 	loadSession() (sessionName, []byte, error)
@@ -43,7 +70,7 @@ func SimpleSession() *SimpleSessionConstructor {
 	return &s
 }
 
-func (*SimpleSessionConstructor) loadSession() (sessionName, []byte, error) {
+func (s *SimpleSessionConstructor) loadSession() (sessionName, []byte, error) {
 	return sessionNameString("gotg_simple"), nil, nil
 }
 
@@ -51,41 +78,22 @@ type AdapterSessionConstructor struct {
 	adapter storage.Adapter
 }
 
-func WithAdapter(adapter storage.Adapter) *AdapterSessionConstructor {
+func Adapter(adapter storage.Adapter) *AdapterSessionConstructor {
 	return &AdapterSessionConstructor{adapter: adapter}
+}
+
+// WithAdapter constructs a session constructor backed by a custom adapter.
+// Deprecated: use Adapter instead.
+func WithAdapter(adapter storage.Adapter) *AdapterSessionConstructor {
+	return Adapter(adapter)
 }
 
 func (s *AdapterSessionConstructor) loadSession() (sessionName, []byte, error) {
 	return sessionNameAdapter{adapter: s.adapter}, nil, nil
 }
 
-type SqlSessionConstructor struct {
-	dialector gorm.Dialector
-}
-
-// SqlSession creates a constructor for SQLite-based session storage.
-//
-// This allows loading and saving sessions from a SQLite database file.
-//
-// Parameters:
-//   - dialector: The GORM dialector for database connection
-//
-// Returns:
-//   - A constructor that implements SessionConstructor interface
-//
-// Example:
-//
-//	dialector := sqlite.Open("telegram.db")
-//	constructor := session.SqlSession(dialector)
-func SqlSession(dialector gorm.Dialector) *SqlSessionConstructor {
-	return &SqlSessionConstructor{dialector: dialector}
-}
-
-func (s *SqlSessionConstructor) loadSession() (sessionName, []byte, error) {
-	return &sessionNameDialector{s.dialector}, nil, nil
-}
-
 type PyrogramSessionConstructor struct {
+	sessionBase
 	name, value string
 }
 
@@ -115,16 +123,20 @@ func (s *PyrogramSessionConstructor) Name(name string) *PyrogramSessionConstruct
 func (s *PyrogramSessionConstructor) loadSession() (sessionName, []byte, error) {
 	sd, err := DecodePyrogramSession(s.value)
 	if err != nil {
-		return sessionNameString(s.name), nil, err
+		return nil, nil, err
 	}
 	data, err := sonic.Marshal(jsonData{
 		Version: storage.LatestVersion,
 		Data:    *sd,
 	})
-	return sessionNameString(s.name), data, err
+	if err != nil {
+		return nil, nil, err
+	}
+	return s.adapterResult(s.name, data), data, nil
 }
 
 type TelethonSessionConstructor struct {
+	sessionBase
 	name, value string
 }
 
@@ -154,16 +166,20 @@ func (s *TelethonSessionConstructor) Name(name string) *TelethonSessionConstruct
 func (s *TelethonSessionConstructor) loadSession() (sessionName, []byte, error) {
 	sd, err := session.TelethonSession(s.value)
 	if err != nil {
-		return sessionNameString(s.name), nil, err
+		return nil, nil, err
 	}
 	data, err := sonic.Marshal(jsonData{
 		Version: storage.LatestVersion,
 		Data:    *sd,
 	})
-	return sessionNameString(s.name), data, err
+	if err != nil {
+		return nil, nil, err
+	}
+	return s.adapterResult(s.name, data), data, nil
 }
 
 type StringSessionConstructor struct {
+	sessionBase
 	name, value string
 }
 
@@ -192,12 +208,13 @@ func (s *StringSessionConstructor) Name(name string) *StringSessionConstructor {
 func (s *StringSessionConstructor) loadSession() (sessionName, []byte, error) {
 	sd, err := functions.DecodeStringToSession(s.value)
 	if err != nil {
-		return sessionNameString(s.name), nil, err
+		return nil, nil, err
 	}
-	return sessionNameString(s.name), sd.Data, err
+	return s.adapterResult(s.name, sd.Data), sd.Data, nil
 }
 
 type TdataSessionConstructor struct {
+	sessionBase
 	Account tdesktop.Account
 	name    string
 }
@@ -227,7 +244,7 @@ func (s *TdataSessionConstructor) Name(name string) *TdataSessionConstructor {
 func (s *TdataSessionConstructor) loadSession() (sessionName, []byte, error) {
 	sd, err := session.TDesktopSession(s.Account)
 	if err != nil {
-		return sessionNameString(s.name), nil, err
+		return nil, nil, err
 	}
 	ctx := context.Background()
 	var (
@@ -236,16 +253,20 @@ func (s *TdataSessionConstructor) loadSession() (sessionName, []byte, error) {
 	)
 	// Save decoded Telegram Desktop session as gotd session.
 	if err := loader.Save(ctx, sd); err != nil {
-		return sessionNameString(s.name), nil, err
+		return nil, nil, err
 	}
 	data, err := sonic.Marshal(jsonData{
 		Version: storage.LatestVersion,
 		Data:    *sd,
 	})
-	return sessionNameString(s.name), data, err
+	if err != nil {
+		return nil, nil, err
+	}
+	return s.adapterResult(s.name, data), data, nil
 }
 
 type GramjsSessionConstructor struct {
+	sessionBase
 	name, value string
 }
 
@@ -254,7 +275,7 @@ type GramjsSessionConstructor struct {
 // Gram.js session strings use a specific hex encoding format.
 //
 // Parameters:
-//   - value: The Gram.js session string to encode
+//   - value: The Gram.js session string
 //
 // Returns:
 //   - A constructor that implements SessionConstructor interface
@@ -274,16 +295,20 @@ func (s *GramjsSessionConstructor) Name(name string) *GramjsSessionConstructor {
 func (s *GramjsSessionConstructor) loadSession() (sessionName, []byte, error) {
 	sd, err := DecodeGramjsSession(s.value)
 	if err != nil {
-		return sessionNameString(s.name), nil, err
+		return nil, nil, err
 	}
 	data, err := sonic.Marshal(jsonData{
 		Version: storage.LatestVersion,
 		Data:    *sd,
 	})
-	return sessionNameString(s.name), data, err
+	if err != nil {
+		return nil, nil, err
+	}
+	return s.adapterResult(s.name, data), data, nil
 }
 
 type MtcuteSessionConstructor struct {
+	sessionBase
 	name, value string
 }
 
@@ -313,16 +338,20 @@ func (s *MtcuteSessionConstructor) Name(name string) *MtcuteSessionConstructor {
 func (s *MtcuteSessionConstructor) loadSession() (sessionName, []byte, error) {
 	sd, err := DecodeMtcuteSession(s.value)
 	if err != nil {
-		return sessionNameString(s.name), nil, err
+		return nil, nil, err
 	}
 	data, err := sonic.Marshal(jsonData{
 		Version: storage.LatestVersion,
 		Data:    *sd,
 	})
-	return sessionNameString(s.name), data, err
+	if err != nil {
+		return nil, nil, err
+	}
+	return s.adapterResult(s.name, data), data, nil
 }
 
 type JsonFileSessionConstructor struct {
+	sessionBase
 	name, filePath string
 }
 
@@ -350,5 +379,8 @@ func (s *JsonFileSessionConstructor) Name(name string) *JsonFileSessionConstruct
 
 func (s *JsonFileSessionConstructor) loadSession() (sessionName, []byte, error) {
 	buf, err := os.ReadFile(s.filePath)
-	return sessionNameString(s.name), buf, err
+	if err != nil {
+		return nil, nil, err
+	}
+	return s.adapterResult(s.name, buf), buf, nil
 }

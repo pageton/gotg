@@ -2,8 +2,12 @@ package storage
 
 import "log"
 
+// Session stores the MTProto session data (auth key and related state).
+// The Data field contains the raw 256-byte auth key.
+// Anyone with database access can use this key to impersonate the Telegram session.
+// Consider encrypting Data at the application layer before persisting.
 type Session struct {
-	Version int `gorm:"primary_key"`
+	Version int
 	Data    []byte
 }
 

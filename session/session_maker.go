@@ -2,12 +2,11 @@ package session
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/glebarez/sqlite"
 	"github.com/gotd/td/session"
 	"github.com/gotd/td/telegram"
 	"github.com/pageton/gotg/storage"
+	"github.com/pageton/gotg/storage/memory"
 )
 
 // NewSessionStorage creates a session storage for Telegram client authentication.
@@ -17,37 +16,22 @@ import (
 //
 // Parameters:
 //   - ctx: Context for session operations
-//   - sessionType: Session type to load (SqlSession, MemorySession, StringSession)
+//   - sessionType: Session type to load (WithAdapter, SimpleSession, StringSession)
 //   - inMemory: If true, only in-memory storage is used (no database persistence)
 //
 // Returns:
 //   - PeerStorage: For caching peers (users, chats, channels)
 //   - SessionStorage: For storing Telegram session data
 //   - error: If session loading fails
-//
-// Example:
-//
-//	// Create session with SQLite database
-//	peerStorage, sessionStorage, err := session.NewSessionStorage(
-//	    ctx,
-//	    session.SqlSession(sqlite.Open("telegram.db")),
-//	    false,
-//	)
-//
-//	// Create in-memory only session
-//	peerStorage, sessionStorage, err := session.NewSessionStorage(
-//	    ctx,
-//	    session.MemorySession(),
-//	    true,
-//	)
 func NewSessionStorage(ctx context.Context, sessionType SessionConstructor, inMemory bool) (*storage.PeerStorage, telegram.SessionStorage, error) {
 	name, data, err := sessionType.loadSession()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if sessAdapter, ok := name.(sessionNameAdapter); ok {
-		peerStorage, err := storage.NewPeerStorageWithAdapter(sessAdapter.adapter, false)
+	switch n := name.(type) {
+	case sessionNameAdapter:
+		peerStorage, err := storage.NewPeerStorageWithAdapter(n.adapter, false)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -55,36 +39,41 @@ func NewSessionStorage(ctx context.Context, sessionType SessionConstructor, inMe
 			data:        peerStorage.GetSession().Data,
 			peerStorage: peerStorage,
 		}, nil
-	}
 
-	if sessDialect, ok := name.(*sessionNameDialector); ok {
-		peerStorage, err := storage.NewPeerStorage(sessDialect.dialector, false)
+	case sessionNameAdapterWithData:
+		// String session + adapter: adapter handles peers and conv state.
+		// If the adapter already has a session (from a previous run),
+		// prefer it over the string — the string may be stale.
+		peerStorage, err := storage.NewPeerStorageWithAdapter(n.adapter, false)
 		if err != nil {
 			return nil, nil, err
 		}
+		data := n.data
+		if existing := peerStorage.GetSession(); existing != nil && len(existing.Data) > 0 {
+			data = existing.Data
+		}
 		return peerStorage, &SessionStorage{
-			data:        peerStorage.GetSession().Data,
+			data:        data,
+			peerStorage: peerStorage,
+		}, nil
+
+	default:
+		// All string-based sessions without adapter use in-memory storage.
+		adapter := memory.New()
+		peerStorage, err := storage.NewPeerStorageWithAdapter(adapter, inMemory)
+		if err != nil {
+			return nil, nil, err
+		}
+		if inMemory {
+			s := session.StorageMemory{}
+			if err := s.StoreSession(ctx, data); err != nil {
+				return nil, nil, err
+			}
+			return peerStorage, &s, nil
+		}
+		return peerStorage, &SessionStorage{
+			data:        data,
 			peerStorage: peerStorage,
 		}, nil
 	}
-
-	if name.(sessionNameString) == "" {
-		name = sessionNameString("gotg")
-	}
-	peerStorage, err := storage.NewPeerStorage(sqlite.Open(fmt.Sprintf("%s.session", name)), inMemory)
-	if err != nil {
-		return nil, nil, err
-	}
-	if inMemory {
-		s := session.StorageMemory{}
-		err := s.StoreSession(ctx, data)
-		if err != nil {
-			return nil, nil, err
-		}
-		return peerStorage, &s, nil
-	}
-	return peerStorage, &SessionStorage{
-		data:        data,
-		peerStorage: peerStorage,
-	}, nil
 }

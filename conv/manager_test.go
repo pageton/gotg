@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/pageton/gotg/storage"
+	"github.com/pageton/gotg/storage/memory"
 )
 
 func TestManager_RegisterStep(t *testing.T) {
@@ -62,7 +63,7 @@ func TestState_GetSet(t *testing.T) {
 		Payload: []byte(`{"name":"John","count":42}`),
 	}
 
-	ps, _ := storage.NewPeerStorage(nil, true)
+	ps, _ := storage.NewPeerStorageWithAdapter(memory.New(), true)
 	m := NewManager(ps, 30*time.Second)
 	state := newState(raw, m)
 
@@ -93,7 +94,7 @@ func TestState_Key(t *testing.T) {
 		Step:   "test",
 	}
 
-	ps, _ := storage.NewPeerStorage(nil, true)
+	ps, _ := storage.NewPeerStorageWithAdapter(memory.New(), true)
 	m := NewManager(ps, 30*time.Second)
 	state := newState(raw, m)
 

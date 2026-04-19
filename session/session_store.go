@@ -34,7 +34,7 @@ func (f *SessionStorage) LoadSession(_ context.Context) ([]byte, error) {
 	return append([]byte(nil), f.data...), nil
 }
 
-// StoreSession stores session to sqlite storage.
+// StoreSession stores session to adapter storage.
 func (f *SessionStorage) StoreSession(_ context.Context, data []byte) error {
 	if f == nil {
 		return gotgErrors.ErrNilSessionStorage
