@@ -253,8 +253,14 @@ func (c *Client) Stop() {
 
 	// 3. Now it is safe to drain pending DB writes, close the channel,
 	//    and release the adapter connection.
+	//    When autoReconnect is enabled, use Drain instead of Close so the
+	//    adapter stays open for the next Start() call.
 	if c.PeerStorage != nil {
-		c.PeerStorage.Close()
+		if c.autoReconnect != nil {
+			c.PeerStorage.Drain()
+		} else {
+			c.PeerStorage.Close()
+		}
 	}
 
 	// 4. Wait for in-flight update handlers and close DC pools.
@@ -264,6 +270,45 @@ func (c *Client) Stop() {
 	}
 
 	c.running = false
+}
+
+// Shutdown performs a graceful shutdown: stops accepting updates, waits for
+// in-flight handlers to complete (bounded by ctx), then fully stops the client.
+// If ctx expires before handlers finish, it forces a Stop().
+//
+// Use this with a signal handler for clean SIGTERM handling:
+//
+//	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM)
+//	defer cancel()
+//	opts.Context = ctx
+func (c *Client) Shutdown(ctx context.Context) error {
+	c.running = false
+
+	if c.Dispatcher != nil {
+		done := make(chan struct{})
+		go func() {
+			c.Dispatcher.WaitPending()
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-ctx.Done():
+		}
+	}
+
+	// Full teardown — always Close (not Drain) since Shutdown is terminal.
+	c.cancel()
+	if c.dialogsDone != nil {
+		<-c.dialogsDone
+	}
+	if c.PeerStorage != nil {
+		c.PeerStorage.Close()
+	}
+	if c.Dispatcher != nil {
+		c.Dispatcher.CloseDCPools()
+	}
+
+	return ctx.Err()
 }
 
 // Start connects the client to telegram servers and logins.
@@ -282,6 +327,15 @@ func (c *Client) Start(opts *ClientOpts) error {
 	}
 	if c.ctx.Err() == context.Canceled {
 		c.ctx, c.cancel = context.WithCancel(context.Background())
+	}
+
+	// Reopen PeerStorage if it was drained during a previous Stop() and the
+	// adapter is still alive. This prevents the deadlock where writeCh is nil
+	// and AddPeerWithUsernames blocks forever on a nil channel send.
+	if c.PeerStorage != nil && c.PeerStorage.IsDrained() {
+		if err := c.PeerStorage.Reopen(); err != nil {
+			return fmt.Errorf("reopen peer storage: %w", err)
+		}
 	}
 
 	c.initTelegramClient(opts.Device, opts.Middlewares)

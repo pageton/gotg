@@ -61,6 +61,28 @@ type ReconnectConfig struct {
 	// data or prompting the user). Return nil to continue with reconnection,
 	// or an error to abort.
 	OnAuthLost func(err error) error
+
+	// HealthCheck is called after a successful Start() to verify the session
+	// is fully functional. If it returns an error, the connection is treated
+	// as failed and a reconnection attempt is made. Use this to confirm the
+	// auth key is valid beyond login (e.g., call users.GetFullUser).
+	// Default: nil (no health check).
+	HealthCheck func(ctx context.Context) error
+
+	// OnBackoff is called before each backoff sleep. Receives the attempt
+	// number (1-based), the calculated backoff duration, and the error that
+	// caused the disconnect. Useful for metrics, alerting, or structured
+	// logging. The callback must not block for significant time.
+	OnBackoff func(attempt int, backoff time.Duration, err error)
+
+	// GracefulShutdown controls whether RunForever calls Client.Shutdown
+	// (which drains in-flight handlers) instead of Client.Stop (immediate
+	// cancel) when the parent context is cancelled. Default: false.
+	GracefulShutdown bool
+
+	// ShutdownTimeout is the maximum time to wait for in-flight handlers
+	// during a graceful shutdown. Default: 30 seconds.
+	ShutdownTimeout time.Duration
 }
 
 // DefaultReconnectConfig returns a ReconnectConfig with sensible defaults.
@@ -220,6 +242,21 @@ func (c *Client) RunForever() error {
 		startErr := c.Start(reconnectOpts)
 
 		if startErr == nil {
+			// Run health check if configured.
+			if cfg.HealthCheck != nil {
+				if hcErr := cfg.HealthCheck(c.ctx); hcErr != nil {
+					if c.Logger != nil {
+						c.Logger.Warn("health check failed after reconnect",
+							"error", hcErr,
+						)
+					}
+					// Treat as a failed start — fall through to backoff.
+					startErr = hcErr
+				}
+			}
+		}
+
+		if startErr == nil {
 			// Client started successfully; reset backoff.
 			if attempt > 0 {
 				b.Reset()
@@ -277,6 +314,9 @@ func (c *Client) RunForever() error {
 
 		// Calculate backoff duration.
 		nextBackoff := b.NextBackOff()
+		if cfg.OnBackoff != nil {
+			cfg.OnBackoff(attempt, nextBackoff, runErr)
+		}
 		if c.Logger != nil {
 			c.Logger.Warn("client disconnected, reconnecting",
 				"attempt", attempt,
@@ -291,6 +331,15 @@ func (c *Client) RunForever() error {
 		// Wait for backoff, respecting context cancellation.
 		select {
 		case <-c.ctx.Done():
+			if cfg.GracefulShutdown {
+				timeout := cfg.ShutdownTimeout
+				if timeout == 0 {
+					timeout = 30 * time.Second
+				}
+				sctx, scancel := context.WithTimeout(context.Background(), timeout)
+				defer scancel()
+				_ = c.Shutdown(sctx)
+			}
 			return c.ctx.Err()
 		case <-time.After(nextBackoff):
 		}

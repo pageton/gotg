@@ -270,3 +270,178 @@ func TestReconnectConfig_OnDisconnect_AbortReconnect(t *testing.T) {
 		t.Fatal("expected callback to return abort error")
 	}
 }
+
+// --- HealthCheck callback tests ---
+
+func TestReconnectConfig_HealthCheckCallback(t *testing.T) {
+	cfg := DefaultReconnectConfig()
+	called := false
+	cfg.HealthCheck = func(ctx context.Context) error {
+		called = true
+		return nil
+	}
+
+	// Simulate a successful health check call.
+	if err := cfg.HealthCheck(context.Background()); err != nil {
+		t.Fatalf("HealthCheck returned unexpected error: %v", err)
+	}
+	if !called {
+		t.Fatal("HealthCheck was not called")
+	}
+}
+
+func TestReconnectConfig_HealthCheckFailure(t *testing.T) {
+	cfg := DefaultReconnectConfig()
+	hcErr := errors.New("health check failed: auth key expired")
+	cfg.HealthCheck = func(ctx context.Context) error {
+		return hcErr
+	}
+
+	// Simulate the check RunForever performs — non-nil means reconnect.
+	if err := cfg.HealthCheck(context.Background()); err == nil {
+		t.Fatal("expected HealthCheck to return error")
+	}
+}
+
+func TestReconnectConfig_HealthCheckDefaultNil(t *testing.T) {
+	cfg := DefaultReconnectConfig()
+	if cfg.HealthCheck != nil {
+		t.Fatal("HealthCheck should be nil by default")
+	}
+}
+
+// --- OnBackoff callback tests ---
+
+func TestReconnectConfig_OnBackoffCallback(t *testing.T) {
+	cfg := DefaultReconnectConfig()
+
+	var capturedAttempt int
+	var capturedBackoff time.Duration
+	var capturedErr error
+
+	cfg.OnBackoff = func(attempt int, backoff time.Duration, err error) {
+		capturedAttempt = attempt
+		capturedBackoff = backoff
+		capturedErr = err
+	}
+
+	testErr := fmt.Errorf("connection refused")
+	cfg.OnBackoff(3, 10*time.Second, testErr)
+
+	if capturedAttempt != 3 {
+		t.Fatalf("expected attempt=3, got %d", capturedAttempt)
+	}
+	if capturedBackoff != 10*time.Second {
+		t.Fatalf("expected backoff=10s, got %v", capturedBackoff)
+	}
+	if capturedErr.Error() != "connection refused" {
+		t.Fatalf("expected 'connection refused', got %v", capturedErr)
+	}
+}
+
+func TestReconnectConfig_OnBackoffDefaultNil(t *testing.T) {
+	cfg := DefaultReconnectConfig()
+	if cfg.OnBackoff != nil {
+		t.Fatal("OnBackoff should be nil by default")
+	}
+}
+
+// --- GracefulShutdown / ShutdownTimeout tests ---
+
+func TestReconnectConfig_GracefulShutdownDefaults(t *testing.T) {
+	cfg := DefaultReconnectConfig()
+	if cfg.GracefulShutdown {
+		t.Fatal("GracefulShutdown should be false by default")
+	}
+	if cfg.ShutdownTimeout != 0 {
+		t.Fatalf("ShutdownTimeout should be 0 by default, got %v", cfg.ShutdownTimeout)
+	}
+}
+
+func TestReconnectConfig_GracefulShutdownEnabled(t *testing.T) {
+	cfg := DefaultReconnectConfig()
+	cfg.GracefulShutdown = true
+	cfg.ShutdownTimeout = 15 * time.Second
+
+	if !cfg.GracefulShutdown {
+		t.Fatal("GracefulShutdown should be true")
+	}
+	if cfg.ShutdownTimeout != 15*time.Second {
+		t.Fatalf("expected ShutdownTimeout=15s, got %v", cfg.ShutdownTimeout)
+	}
+}
+
+func TestShutdown_GracefulWaitsForHandlers(t *testing.T) {
+	client, err := NewClient(1, "test", AsBot("tok"), &ClientOpts{
+		InMemory:         true,
+		Session:          session.SimpleSession(),
+		DisableAutoStart: true,
+	})
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+
+	// Shutdown with a short timeout on a non-started client should complete
+	// immediately since there are no pending handlers. ctx.Err() is nil
+	// because the context didn't expire.
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err = client.Shutdown(ctx)
+	// Client was never started — no pending handlers, so Shutdown finishes
+	// before the context expires. ctx.Err() == nil.
+	if err != nil {
+		t.Fatalf("expected nil (no pending work), got: %v", err)
+	}
+}
+
+func TestShutdown_FullTeardown(t *testing.T) {
+	client, err := NewClient(1, "test", AsBot("tok"), &ClientOpts{
+		InMemory:         true,
+		Session:          session.SimpleSession(),
+		DisableAutoStart: true,
+	})
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Shutdown on a client that was never started should succeed.
+	err = client.Shutdown(ctx)
+	if err != nil {
+		t.Fatalf("Shutdown on non-started client should not error, got: %v", err)
+	}
+}
+
+// --- Integration: callbacks fire together ---
+
+func TestReconnectConfig_AllNewCallbacksNotNil(t *testing.T) {
+	cfg := DefaultReconnectConfig()
+
+	// Set all new callbacks.
+	healthCalled := false
+	backoffCalled := false
+
+	cfg.HealthCheck = func(ctx context.Context) error {
+		healthCalled = true
+		return nil
+	}
+	cfg.OnBackoff = func(attempt int, backoff time.Duration, err error) {
+		backoffCalled = true
+	}
+	cfg.GracefulShutdown = true
+	cfg.ShutdownTimeout = 10 * time.Second
+
+	// Invoke them.
+	cfg.HealthCheck(context.Background())
+	cfg.OnBackoff(1, 5*time.Second, fmt.Errorf("test"))
+
+	if !healthCalled {
+		t.Fatal("HealthCheck not called")
+	}
+	if !backoffCalled {
+		t.Fatal("OnBackoff not called")
+	}
+}
