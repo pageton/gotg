@@ -24,6 +24,7 @@ type PeerStorage struct {
 	writerDone        chan struct{}
 	stopPrune         chan struct{}
 	pruneDone         chan struct{}
+	encryptor         *SessionEncryptor
 	resolveUsernameFn func(ctx context.Context, username string) ([]tg.UserClass, []tg.ChatClass, error)
 	resolvePhoneFn    func(ctx context.Context, phone string) ([]tg.UserClass, []tg.ChatClass, error)
 }
@@ -71,6 +72,13 @@ func (p *PeerStorage) GetAdapter() Adapter {
 	return p.db
 }
 
+// SetEncryptor enables AES-256-GCM encryption for session data at rest.
+// When set, session Data is encrypted before writing to the adapter and
+// decrypted on read. The key must be exactly 32 bytes.
+func (p *PeerStorage) SetEncryptor(e *SessionEncryptor) {
+	p.encryptor = e
+}
+
 // SetResolver injects a callback that resolves a username via the Telegram API
 // (contacts.ResolveUsername RPC). Called automatically by GetPeerByUsername on cache miss.
 func (p *PeerStorage) SetResolver(fn func(ctx context.Context, username string) ([]tg.UserClass, []tg.ChatClass, error)) {
@@ -106,10 +114,12 @@ func (p *PeerStorage) startPruner() {
 	}
 }
 
-// Close closes the write channel, waits for the writer and pruner goroutines to drain,
-// and closes the adapter to release database connections.
-// Safe to call multiple times (idempotent).
-func (p *PeerStorage) Close() {
+// Drain stops the background writer and pruner goroutines and drains pending
+// writes without closing the database adapter. Call Reopen to restart
+// background processing, or Close to fully shut down.
+//
+// Drain is idempotent — calling it multiple times is safe.
+func (p *PeerStorage) Drain() {
 	if p.stopPrune != nil {
 		close(p.stopPrune)
 		<-p.pruneDone
@@ -120,8 +130,49 @@ func (p *PeerStorage) Close() {
 		<-p.writerDone
 		p.writeCh = nil
 	}
+}
+
+// Close drains background goroutines and then closes the database adapter.
+// After Close, the PeerStorage cannot be reused — use Drain + Reopen for
+// reconnect scenarios.
+//
+// Close is idempotent — calling it multiple times is safe.
+func (p *PeerStorage) Close() {
+	p.Drain()
 	if p.db != nil {
 		p.db.Close()
 		p.db = nil
 	}
+}
+
+// IsDrained returns true if PeerStorage has been drained (or closed) and
+// its background goroutines are not running. For non-in-memory storage,
+// this means writeCh is nil and no peer writes will be persisted until
+// Reopen is called.
+func (p *PeerStorage) IsDrained() bool {
+	return !p.inMemory && p.writeCh == nil
+}
+
+// Reopen restarts the background writer and pruner goroutines after a
+// previous Drain call. The database adapter must still be alive (Close must
+// not have been called).
+//
+// Returns an error if the adapter is nil (Close was called instead of Drain)
+// or if the storage is in-memory (no background goroutines needed).
+func (p *PeerStorage) Reopen() error {
+	if p.inMemory {
+		return nil
+	}
+	if p.db == nil {
+		return fmt.Errorf("storage: cannot reopen PeerStorage — adapter is nil (Close was called instead of Drain?)")
+	}
+	// Re-create channels and restart goroutines.
+	p.writeCh = make(chan *Peer, 256)
+	p.writerDone = make(chan struct{})
+	go p.startWriter()
+
+	p.stopPrune = make(chan struct{})
+	p.pruneDone = make(chan struct{})
+	go p.startPruner()
+	return nil
 }

@@ -4,6 +4,7 @@ package gotg
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	tdSession "github.com/gotd/td/session"
@@ -209,6 +210,14 @@ type ClientOpts struct {
 	// When set, call Client.RunForever() instead of Client.Idle() to use
 	// the reconnection loop. See ReconnectConfig for configuration options.
 	AutoReconnect *ReconnectConfig
+	// SessionEncryptionKey enables AES-256-GCM encryption of session data
+	// (the 256-byte MTProto auth key) before persisting to storage. Must be
+	// exactly 32 bytes. Source from a secure secret store (env var,
+	// /run/secrets, KMS, etc.).
+	//
+	// WARNING: Once enabled, the database cannot be read without the same
+	// key. Back up your plaintext session before enabling.
+	SessionEncryptionKey []byte
 }
 
 // NewClient creates a new gotg client and logs in to telegram.
@@ -229,6 +238,16 @@ func NewClient(apiID int, apiHash string, clientType clientType, opts *ClientOpt
 	if err != nil {
 		cancel()
 		return nil, err
+	}
+
+	// Enable session encryption if a key is provided.
+	if len(opts.SessionEncryptionKey) > 0 {
+		enc, encErr := storage.NewSessionEncryptor(opts.SessionEncryptionKey)
+		if encErr != nil {
+			cancel()
+			return nil, fmt.Errorf("session encryption: %w", encErr)
+		}
+		peerStorage.SetEncryptor(enc)
 	}
 
 	if opts.AuthConversator == nil {
