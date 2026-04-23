@@ -40,8 +40,8 @@ func SessionName(name string) Option {
 
 func New(db *sql.DB, opts ...Option) *SQLiteAdapter {
 	a := &SQLiteAdapter{
-		db:  db,
-		ctx: context.Background(),
+		db:   db,
+		ctx:  context.Background(),
 		name: "default",
 	}
 	for _, o := range opts {
@@ -277,6 +277,8 @@ func (s *SQLiteAdapter) Close() error {
 		return nil
 	}
 	s.closed = true
+	// Checkpoint WAL so .wal/.shm files are removed on close.
+	s.db.ExecContext(s.ctx, "PRAGMA wal_checkpoint(TRUNCATE)")
 	return s.db.Close()
 }
 
