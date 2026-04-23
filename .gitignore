@@ -6,4 +6,4 @@ test/
 vendor/
 go.work
 go.work.sum
-/peer-resolution
+/peer-resolutionexamples/broadcast/broadcast
