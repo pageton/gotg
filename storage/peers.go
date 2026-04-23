@@ -354,17 +354,12 @@ func saveResolvedPeers(p *PeerStorage, users []tg.UserClass, chats []tg.ChatClas
 		if !ok {
 			continue
 		}
-		if u.Min {
-			continue
-		}
 		p.AddPeerWithUsernames(u.ID, u.AccessHash, TypeUser, strings.ToLower(u.Username), ConvertUsernames(u.Usernames), u.Phone, u.Bot, ExtractPhotoID(u.Photo))
 	}
 	for _, chat := range chats {
 		channel, ok := chat.(*tg.Channel)
 		if ok {
-			if !channel.Min {
-				p.AddPeerWithUsernames(channel.ID, channel.AccessHash, TypeChannel, strings.ToLower(channel.Username), ConvertUsernames(channel.Usernames), DefaultPhone, false, 0)
-			}
+			p.AddPeerWithUsernames(channel.ID, channel.AccessHash, TypeChannel, strings.ToLower(channel.Username), ConvertUsernames(channel.Usernames), DefaultPhone, false, 0)
 			continue
 		}
 		c, ok := chat.(*tg.Chat)
@@ -482,15 +477,9 @@ func AddPeersFromDialogs(ctx context.Context, raw *tg.Client, peerStorage *PeerS
 		default:
 		}
 		for cid, channel := range e.Entities.Channels() {
-			if channel.Min {
-				continue
-			}
 			peerStorage.AddPeerWithUsernames(cid, channel.AccessHash, TypeChannel, strings.ToLower(channel.Username), ConvertUsernames(channel.Usernames), DefaultPhone, false, 0)
 		}
 		for uid, user := range e.Entities.Users() {
-			if user.Min {
-				continue
-			}
 			peerStorage.AddPeerWithUsernames(uid, user.AccessHash, TypeUser, strings.ToLower(user.Username), ConvertUsernames(user.Usernames), user.Phone, user.Bot, ExtractPhotoID(user.Photo))
 		}
 		for gid, chat := range e.Entities.Chats() {

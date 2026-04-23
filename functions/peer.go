@@ -81,7 +81,7 @@ func SavePeersFromClassArray(p *storage.PeerStorage, cs []tg.ChatClass, us []tg.
 	}
 	for _, u := range us {
 		u, ok := u.(*tg.User)
-		if !ok || u.Min {
+		if !ok {
 			continue
 		}
 		p.AddPeerWithUsernames(u.ID, u.AccessHash, storage.TypeUser, strings.ToLower(u.Username), storage.ConvertUsernames(u.Usernames), u.Phone, u.Bot, storage.ExtractPhotoID(u.Photo))
@@ -89,9 +89,7 @@ func SavePeersFromClassArray(p *storage.PeerStorage, cs []tg.ChatClass, us []tg.
 	for _, c := range cs {
 		switch c := c.(type) {
 		case *tg.Channel:
-			if !c.Min {
-				p.AddPeerWithUsernames(c.ID, c.AccessHash, storage.TypeChannel, strings.ToLower(c.Username), storage.ConvertUsernames(c.Usernames), storage.DefaultPhone, false, 0)
-			}
+			p.AddPeerWithUsernames(c.ID, c.AccessHash, storage.TypeChannel, strings.ToLower(c.Username), storage.ConvertUsernames(c.Usernames), storage.DefaultPhone, false, 0)
 		case *tg.Chat:
 			p.AddPeer(c.ID, storage.DefaultAccessHash, storage.TypeChat, storage.DefaultUsername)
 		}
@@ -137,7 +135,7 @@ func ResolveInputPeerByID(ctx context.Context, raw *tg.Client, peerStorage *stor
 		}
 		user, ok := tg.UserClassArray(users).FirstAsNotEmpty()
 		if ok {
-			peerStorage.AddPeer(plainID, user.AccessHash, storage.TypeUser, user.Username)
+			peerStorage.AddPeerWithUsernames(user.ID, user.AccessHash, storage.TypeUser, strings.ToLower(user.Username), storage.ConvertUsernames(user.Usernames), user.Phone, user.Bot, storage.ExtractPhotoID(user.Photo))
 			return user.AsInputPeer(), nil
 		}
 		// Try to get from storage again, but this time with bot-api compatible ids

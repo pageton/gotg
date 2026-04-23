@@ -9,7 +9,7 @@ import (
 
 	"github.com/gotd/td/tg"
 	"github.com/pageton/gotg/adapter"
-	"github.com/pageton/gotg/storage"
+	"github.com/pageton/gotg/functions"
 	"go.uber.org/multierr"
 )
 
@@ -27,16 +27,14 @@ func (dp *NativeDispatcher) Handle(ctx context.Context, updates tg.UpdatesClass)
 		chats := u.MapChats()
 		e.Chats = chats.ChatToMap()
 		e.Channels = chats.ChannelToMap()
-		saveUsersPeers(u.Users, dp.pStorage)
-		saveChatsPeers(u.Chats, dp.pStorage)
+		functions.SavePeersFromClassArray(dp.pStorage, u.Chats, u.Users)
 	case *tg.UpdatesCombined:
 		upds = u.Updates
 		e.Users = u.MapUsers().NotEmptyToMap()
 		chats := u.MapChats()
 		e.Chats = chats.ChatToMap()
 		e.Channels = chats.ChannelToMap()
-		saveUsersPeers(u.Users, dp.pStorage)
-		saveChatsPeers(u.Chats, dp.pStorage)
+		functions.SavePeersFromClassArray(dp.pStorage, u.Chats, u.Users)
 	case *tg.UpdateShort:
 		upds = []tg.UpdateClass{u.Update}
 		e.short()
@@ -201,32 +199,5 @@ func (dp *NativeDispatcher) handleUpdateRepliedToMessage(u *adapter.Update, ctx 
 			return
 		}
 		msg = msg.ReplyToMessage
-	}
-}
-
-func saveUsersPeers(u tg.UserClassArray, p *storage.PeerStorage) {
-	for _, user := range u {
-		c, ok := user.AsNotEmpty()
-		if !ok || c.Min {
-			continue
-		}
-		p.AddPeerWithUsernames(c.ID, c.AccessHash, storage.TypeUser, strings.ToLower(c.Username), storage.ConvertUsernames(c.Usernames), c.Phone, c.Bot, storage.ExtractPhotoID(c.Photo))
-	}
-}
-
-func saveChatsPeers(u tg.ChatClassArray, p *storage.PeerStorage) {
-	for _, chat := range u {
-		channel, ok := chat.(*tg.Channel)
-		if ok {
-			if !channel.Min {
-				p.AddPeerWithUsernames(channel.ID, channel.AccessHash, storage.TypeChannel, strings.ToLower(channel.Username), storage.ConvertUsernames(channel.Usernames), storage.DefaultPhone, false, 0)
-			}
-			continue
-		}
-		c, ok := chat.(*tg.Chat)
-		if !ok {
-			continue
-		}
-		p.AddPeer(c.ID, storage.DefaultAccessHash, storage.TypeChat, storage.DefaultUsername)
 	}
 }
