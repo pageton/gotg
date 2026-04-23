@@ -38,6 +38,7 @@ func GetUser(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, userID
 		if err != nil {
 			return nil, err
 		}
+		SavePeersFromClassArray(p, nil, users)
 		if len(users) == 0 {
 			return nil, errors.ErrPeerNotFound
 		}
@@ -79,6 +80,7 @@ func GetFullUser(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, us
 		if err != nil {
 			return nil, err
 		}
+		SavePeersFromClassArray(p, user.Chats, user.Users)
 		return &user.FullUser, nil
 	default:
 		return nil, errors.ErrNotUser

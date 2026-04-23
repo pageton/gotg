@@ -59,8 +59,13 @@ func GetStarGifts(ctx context.Context, raw *tg.Client, hash int) (tg.PaymentsSta
 //   - req: The request parameters (sort, filter, pagination)
 //
 // Returns the resale star gifts response or an error.
-func GetResaleStarGifts(ctx context.Context, raw *tg.Client, req *tg.PaymentsGetResaleStarGiftsRequest) (*tg.PaymentsResaleStarGifts, error) {
-	return raw.PaymentsGetResaleStarGifts(ctx, req)
+func GetResaleStarGifts(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, req *tg.PaymentsGetResaleStarGiftsRequest) (*tg.PaymentsResaleStarGifts, error) {
+	result, err := raw.PaymentsGetResaleStarGifts(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	SavePeersFromClassArray(p, result.Chats, result.Users)
+	return result, nil
 }
 
 // BuyResaleStarGift purchases a resale star gift by slug for a recipient.
@@ -87,6 +92,9 @@ func BuyResaleStarGift(ctx context.Context, raw *tg.Client, p *storage.PeerStora
 	form, err := raw.PaymentsGetPaymentForm(ctx, &tg.PaymentsGetPaymentFormRequest{Invoice: inv})
 	if err != nil {
 		return nil, fmt.Errorf("get payment form: %w", err)
+	}
+	if f, ok := form.(*tg.PaymentsPaymentForm); ok {
+		SavePeersFromClassArray(p, nil, f.Users)
 	}
 	if form.GetFormID() == 0 {
 		return nil, fmt.Errorf("get payment form: empty form ID")

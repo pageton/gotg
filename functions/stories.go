@@ -38,7 +38,12 @@ func GetPeerStories(ctx context.Context, raw *tg.Client, p *storage.PeerStorage,
 			return nil, err
 		}
 	}
-	return raw.StoriesGetPeerStories(ctx, inputPeer)
+	result, err := raw.StoriesGetPeerStories(ctx, inputPeer)
+	if err != nil {
+		return nil, err
+	}
+	SavePeersFromClassArray(p, result.Chats, result.Users)
+	return result, nil
 }
 
 // GetPeerStoriesByInputPeer fetches all active stories for a given input peer directly.
@@ -87,10 +92,15 @@ func GetStoriesByID(ctx context.Context, raw *tg.Client, p *storage.PeerStorage,
 			return nil, err
 		}
 	}
-	return raw.StoriesGetStoriesByID(ctx, &tg.StoriesGetStoriesByIDRequest{
+	result, err := raw.StoriesGetStoriesByID(ctx, &tg.StoriesGetStoriesByIDRequest{
 		Peer: inputPeer,
 		ID:   ids,
 	})
+	if err != nil {
+		return nil, err
+	}
+	SavePeersFromClassArray(p, result.Chats, result.Users)
+	return result, nil
 }
 
 // GetStoriesByIDWithInputPeer fetches specific stories by their IDs using a pre-resolved input peer.

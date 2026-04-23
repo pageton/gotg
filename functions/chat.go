@@ -49,12 +49,14 @@ func GetFullChat(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, ch
 		if err != nil {
 			return nil, err
 		}
+		SavePeersFromClassArray(p, channel.Chats, channel.Users)
 		return channel.FullChat, nil
 	case *tg.InputPeerChat:
 		chat, err := raw.MessagesGetFullChat(ctx, chatID)
 		if err != nil {
 			return nil, err
 		}
+		SavePeersFromClassArray(p, chat.Chats, chat.Users)
 		return chat.FullChat, nil
 	default:
 		return nil, errors.ErrNotChat
@@ -99,6 +101,7 @@ func GetChat(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, chatID
 		if err != nil {
 			return nil, err
 		}
+		SavePeersFromClassArray(p, chatsClass.MapChats(), nil)
 		chat, ok := chatsClass.MapChats().First()
 		if !ok {
 			return nil, errors.ErrPeerNotFound
@@ -109,6 +112,7 @@ func GetChat(ctx context.Context, raw *tg.Client, p *storage.PeerStorage, chatID
 		if err != nil {
 			return nil, err
 		}
+		SavePeersFromClassArray(p, chatsClass.MapChats(), nil)
 		chat, ok := chatsClass.MapChats().First()
 		if !ok {
 			return nil, errors.ErrPeerNotFound

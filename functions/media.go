@@ -213,5 +213,12 @@ func TransferStarGift(ctx context.Context, raw *tg.Client, p *storage.PeerStorag
 		return nil, err
 	}
 
+	switch u := upd.(type) {
+	case *tg.Updates:
+		SavePeersFromClassArray(p, u.Chats, u.Users)
+	case *tg.UpdatesCombined:
+		SavePeersFromClassArray(p, u.Chats, u.Users)
+	}
+
 	return upd, nil
 }

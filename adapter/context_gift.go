@@ -12,7 +12,7 @@ func (ctx *Context) GetStarGifts(hash int) (tg.PaymentsStarGiftsClass, error) {
 
 // GetResaleStarGifts retrieves the list of resale star gifts.
 func (ctx *Context) GetResaleStarGifts(req *tg.PaymentsGetResaleStarGiftsRequest) (*tg.PaymentsResaleStarGifts, error) {
-	return functions.GetResaleStarGifts(ctx.Context, ctx.Raw, req)
+	return functions.GetResaleStarGifts(ctx.Context, ctx.Raw, ctx.PeerStorage, req)
 }
 
 // BuyResaleStarGift purchases a resale star gift by slug for a recipient.

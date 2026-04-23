@@ -235,7 +235,7 @@ func ForwardMessages(ctx context.Context, raw *tg.Client, p *storage.PeerStorage
 		}
 	}
 
-	return raw.MessagesForwardMessages(ctx, &tg.MessagesForwardMessagesRequest{
+	upd, err := raw.MessagesForwardMessages(ctx, &tg.MessagesForwardMessagesRequest{
 		RandomID:           request.RandomID,
 		ID:                 request.ID,
 		FromPeer:           fromPeer,
@@ -251,6 +251,16 @@ func ForwardMessages(ctx context.Context, raw *tg.Client, p *storage.PeerStorage
 		SendAs:             request.SendAs,
 		QuickReplyShortcut: request.QuickReplyShortcut,
 	})
+	if err != nil {
+		return nil, err
+	}
+	switch u := upd.(type) {
+	case *tg.Updates:
+		SavePeersFromClassArray(p, u.Chats, u.Users)
+	case *tg.UpdatesCombined:
+		SavePeersFromClassArray(p, u.Chats, u.Users)
+	}
+	return upd, nil
 }
 
 // EditMessage edits a message in a chat.
