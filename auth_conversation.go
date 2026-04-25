@@ -100,14 +100,14 @@ type AuthConversator interface {
 //
 //	conversator := gotg.BasicConversator()
 func BasicConversator() AuthConversator {
-	return &basicConservator{}
+	return &basicConversator{}
 }
 
-type basicConservator struct {
+type basicConversator struct {
 	authStatus AuthStatus
 }
 
-func (b *basicConservator) AskPhoneNumber() (string, error) {
+func (b *basicConversator) AskPhoneNumber() (string, error) {
 	if b.authStatus.Event == AuthStatusPhoneRetrial {
 		fmt.Println("The phone number you just entered seems to be incorrect,")
 		fmt.Println("Attempts Left:", b.authStatus.AttemptsLeft)
@@ -117,7 +117,7 @@ func (b *basicConservator) AskPhoneNumber() (string, error) {
 	return bufio.NewReader(os.Stdin).ReadString('\n')
 }
 
-func (b *basicConservator) AskPassword() (string, error) {
+func (b *basicConversator) AskPassword() (string, error) {
 	if b.authStatus.Event == AuthStatusPasswordRetrial {
 		fmt.Println("The 2FA password you just entered seems to be incorrect,")
 		fmt.Println("Attempts Left:", b.authStatus.AttemptsLeft)
@@ -133,7 +133,7 @@ func (b *basicConservator) AskPassword() (string, error) {
 	return string(pw), err
 }
 
-func (b *basicConservator) AskCode() (string, error) {
+func (b *basicConversator) AskCode() (string, error) {
 	if b.authStatus.Event == AuthStatusPhoneCodeRetrial {
 		fmt.Println("The OTP you just entered seems to be incorrect,")
 		fmt.Println("Attempts Left:", b.authStatus.AttemptsLeft)
@@ -143,6 +143,6 @@ func (b *basicConservator) AskCode() (string, error) {
 	return bufio.NewReader(os.Stdin).ReadString('\n')
 }
 
-func (b *basicConservator) AuthStatus(authStatus AuthStatus) {
+func (b *basicConversator) AuthStatus(authStatus AuthStatus) {
 	b.authStatus = authStatus
 }
