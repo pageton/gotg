@@ -1,3 +1,6 @@
+// Package session provides session management for gotg clients.
+// Supports SQLite, in-memory, and string sessions with import from Pyrogram/Telethon/Gramjs.
+
 package session
 
 import (
@@ -44,6 +47,7 @@ func (b *sessionBase) Adapter(adapter storage.Adapter) {
 }
 
 // WithAdapter sets a custom storage adapter for this session constructor.
+//
 // Deprecated: use Adapter instead.
 func (b *sessionBase) WithAdapter(adapter storage.Adapter) {
 	b.Adapter(adapter)
@@ -83,6 +87,7 @@ func Adapter(adapter storage.Adapter) *AdapterSessionConstructor {
 }
 
 // WithAdapter constructs a session constructor backed by a custom adapter.
+//
 // Deprecated: use Adapter instead.
 func WithAdapter(adapter storage.Adapter) *AdapterSessionConstructor {
 	return Adapter(adapter)

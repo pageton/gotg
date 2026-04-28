@@ -1,3 +1,6 @@
+// Package conv provides a state machine for multi-step user conversations.
+// It supports state persistence, timeouts, type filters, and cross-session state storage.
+
 package conv
 
 import (

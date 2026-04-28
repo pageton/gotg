@@ -1,0 +1,96 @@
+# GoTG - llms.txt
+
+> Structured overview of the GoTG Telegram framework for AI agents and LLMs.
+
+## Project Metadata
+- **Name**: GoTG (Go Telegram)
+- **Module**: github.com/pageton/gotg
+- **Version**: v1.0.0-beta25
+- **Type**: Go library (MTProto Telegram framework)
+- **License**: GPL v3.0
+- **Go Version**: 1.25.0+
+- **Upstream**: Fork of celestix/gotgproto (v1.0.0-beta22)
+
+## Description
+High-level Telegram bot and userbot framework built on gotd/td. Provides intuitive APIs for session management, update handling, media operations, conversations, i18n, and Telegram Business API support.
+
+## Project Structure
+```
+gotg/
+├── adapter/          # Update handling, context, message operations, conversations
+├── dispatcher/       # Handler dispatching, filters, middleware
+├── session/          # Session management (SQLite, in-memory, string sessions)
+├── storage/          # Peer storage, crypto, backends (memory, GORM, Redis)
+├── parsemode/        # MarkdownV2/HTML parsing and formatting
+├── log/              # Structured logging (zap-based, per-update loggers)
+├── i18n/             # Internationalization (Fluent/YAML, 142 languages)
+├── conv/             # Conversation state machine
+├── ext/              # Extensions (GORM, Redis storage adapters)
+├── functions/         # Utility functions (dump, peer resolution)
+├── examples/         # 13+ example bots and use cases
+└── root package      # Client constructor, core types, session encryption
+```
+
+## Key Packages
+### Root Package (`gotg`)
+- `NewClient(apiID, apiHash, clientType, opts)` - Primary client constructor
+- `ClientOpts` - Configuration for sessions, logging, middlewares, reconnection
+- `AsBot(token)` / `AsUser(phone)` - Client type constructors
+- `Client` - Main client with Dispatcher, ConvManager, Self user info
+
+### `adapter` Package
+- `Update` - Wraps all Telegram update types with helper methods
+- `Context` - Request context with Raw client, Sender, Entities, Logger
+- `CommandRegistry` - Fluent API for registering bot commands
+- `Update` methods: `Reply()`, `SendMessage()`, `StartConv()`, `Dump()`
+
+### `dispatcher` Package
+- `NativeDispatcher` - Default update dispatcher
+- `handlers` - 19 handler types (OnMessage, OnCommand, OnBusiness*, etc.)
+- `filters` - Message, chat, entity, and business filters
+
+### `session` Package
+- `SqlSession()`, `InMemorySession()`, `StringSession()` - Session constructors
+- `NewSessionStorage()` - Creates peer + session storage from config
+
+### `storage` Package
+- `PeerStorage` - Caches user/chat/channel access hashes
+- `Backend` interface - Pluggable storage (memory, GORM, Redis)
+
+## API Highlights
+### Quick Start (Bot)
+```go
+client, err := gotg.NewClient(apiID, apiHash, gotg.AsBot(token), &gotg.ClientOpts{
+    InMemory: true,
+})
+dp := client.Dispatcher
+dp.AddHandler(handlers.OnCommand("start", func(u *adapter.Update) error {
+    u.Reply("Hello!")
+    return nil
+}))
+client.Idle()
+```
+
+### Key Features
+1. **Session Management**: Import from Pyrogram/Telethon/Gramjs, SQLite/in-memory/string sessions
+2. **19 Update Handlers**: Messages, edits, deletions, reactions, boosts, business API
+3. **Conversation System**: Multi-step state machine with timeouts and filters
+4. **Structured Logging**: Per-update loggers, dual console+file output
+5. **i18n**: 142 languages, Fluent/YAML formats, CLDR plural rules
+6. **Outgoing Tracking**: Synthetic updates for sent/edited/deleted messages
+7. **Performance**: Optimized string operations, bounded goroutines, DB write fan-in
+
+## Links
+- Repository: https://github.com/pageton/gotg
+- Documentation: https://pkg.go.dev/github.com/pageton/gotg
+- Examples: https://github.com/pageton/gotg/tree/main/examples
+- Telegram Chat: https://t.me/gotg_community
+- Changelog: ./CHANGELOG.md
+- Contributing: ./CONTRIBUTING.md
+
+## AI Agent Notes
+- All exported types/functions have godoc comments (run `go doc github.com/pageton/gotg` to preview)
+- Example tests (`ExampleXxx`) are in `*_test.go` files
+- Session encryption uses AES-256-GCM when `ClientOpts.SessionEncryptionKey` is set
+- Default parse mode can be set via `ClientOpts.ParseMode` ("HTML", "MarkdownV2")
+- Reconnection requires `ClientOpts.AutoReconnect` + `client.RunForever()` instead of `Idle()`

@@ -1,4 +1,8 @@
-// Package adapter provides the CommandRegistry for registering Telegram bot commands.
+// Package adapter provides update handling, context management, message operations,
+// conversation support, and command registry for gotg Telegram bots and userbots.
+// It wraps gotd/td types into developer-friendly abstractions with built-in
+// logging, i18n, and outgoing message tracking.
+
 package adapter
 
 import (

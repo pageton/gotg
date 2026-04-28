@@ -1,3 +1,6 @@
+// Package functions provides utility functions for gotg.
+// Includes peer resolution, dump utilities, message helpers, and optional parameter patterns.
+
 package functions
 
 import (

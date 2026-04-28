@@ -13,6 +13,10 @@ import (
 )
 
 // Flow wraps auth.Flow to add custom sign-up handling.
+//
+// It extends the standard Telegram authentication flow with support for
+// interactive sign-up prompts when required by Telegram's API.
+// Flow wraps auth.Flow to add custom sign-up handling.
 // It extends the standard Telegram authentication flow with support for
 // interactive sign-up prompts when required.
 type Flow auth.Flow

@@ -1,3 +1,6 @@
+// Package dispatcher routes Telegram updates to registered handlers.
+// It supports middleware, handler groups, concurrency limits, and conversation integration.
+
 package dispatcher
 
 import (

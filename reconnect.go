@@ -350,7 +350,35 @@ func (c *Client) RunForever() error {
 // DisableAutoStart, then calls RunForever. It accepts the same parameters as
 // NewClient but requires that opts.AutoReconnect is set.
 //
-// This is the recommended entry point for long-running userbots.
+// RunForeverWithSession creates a client and runs it with automatic reconnection.
+// It is a convenience wrapper around NewClient + RunForever.
+//
+// Parameters:
+//   - apiID: Telegram API ID from https://my.telegram.org/apps
+//   - apiHash: Telegram API Hash from https://my.telegram.org/apps
+//   - clientType: Authentication type (AsBot/AsUser/Simple)
+//   - opts: Client options (must include non-nil AutoReconnect)
+//
+// Returns:
+//   - error: Nil on clean shutdown, or the fatal error that caused exit
+//
+// Errors:
+//   - AutoReconnect not set in opts
+//   - Session initialization or authentication failure
+//   - Fatal errors (auth revoked, context cancelled)
+//
+// Example:
+//
+//	if err := gotg.RunForeverWithSession(
+//	    123456, "your_api_hash",
+//	    gotg.AsUser("+1234567890"),
+//	    &gotg.ClientOpts{
+//	        Session:       session.SqlSession(sqlite.Open("user.db")),
+//	        AutoReconnect: gotg.DefaultReconnectConfig(),
+//	    },
+//	); err != nil {
+//	    log.Fatalf("fatal: %v", err)
+//	}
 func RunForeverWithSession(
 	apiID int, apiHash string,
 	clientType clientType,

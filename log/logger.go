@@ -1,3 +1,6 @@
+// Package log provides structured logging for gotg with per-update loggers.
+// It supports multiple levels, ANSI colors, file output, and zap adapter compatibility.
+
 package log
 
 import (

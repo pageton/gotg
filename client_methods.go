@@ -313,6 +313,22 @@ func (c *Client) Shutdown(ctx context.Context) error {
 
 // Start connects the client to telegram servers and logins.
 // It will return error if the client is already running.
+// Start initializes and starts the client when DisableAutoStart is set.
+//
+// When NewClient has DisableAutoStart=true, call this method explicitly to
+// begin authentication, dispatcher initialization, and update handling.
+//
+// Parameters:
+//   - opts: Optional ClientOpts to override the original opts.
+//           If nil, reuses the opts preserved from NewClient.
+//
+// Returns:
+//   - error: Nil on successful start, or error during init/auth
+//
+// Errors:
+//   - Session initialization failure
+//   - Authentication failure (invalid credentials)
+//   - Dispatcher initialization failure
 // If opts is nil, it reuses the opts preserved from NewClient.
 func (c *Client) Start(opts *ClientOpts) error {
 	if opts == nil {

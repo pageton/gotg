@@ -1,3 +1,7 @@
+// Package gotg provides a high-level Telegram MTProto framework for building bots and userbots.
+// Built on top of gotd/td, it offers intuitive APIs for session management, update handling,
+// media operations, conversations, i18n, and Telegram Business API support.
+
 package gotg
 
 //go:generate go run ./generator
@@ -220,7 +224,35 @@ type ClientOpts struct {
 	SessionEncryptionKey []byte
 }
 
-// NewClient creates a new gotg client and logs in to telegram.
+// NewClient creates a new gotg client and authenticates with Telegram.
+// It initializes the MTProto client, sets up session storage, peers, dispatcher,
+// and conversation manager. For bots, use AsBot(token); for users, use AsUser(phone).
+//
+// Parameters:
+//   - apiID: Telegram API ID from https://my.telegram.org/apps
+//   - apiHash: Telegram API Hash from https://my.telegram.org/apps
+//   - clientType: Authentication type (AsBot/AsUser/Simple)
+//   - opts: Optional client configuration (sessions, logging, middlewares)
+//
+// Returns:
+//   - *Client: Authenticated client ready to start receiving updates
+//   - error: Nil on success, or error during session initialization/auth
+//
+// Errors:
+//   - Session initialization failure (invalid storage, encryption error)
+//   - Authentication failure (invalid API credentials, network issues)
+//   - Dispatcher setup failure
+//
+// Example:
+//
+//	client, err := gotg.NewClient(
+//	    123456, "your_api_hash",
+//	    gotg.AsBot("123456:ABC-DEF..."),
+//	    &gotg.ClientOpts{InMemory: true},
+//	)
+//	if err != nil {
+//	    log.Fatalf("client creation failed: %v", err)
+//	}
 func NewClient(apiID int, apiHash string, clientType clientType, opts *ClientOpts) (*Client, error) {
 	if opts == nil {
 		opts = &ClientOpts{

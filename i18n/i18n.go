@@ -1,3 +1,6 @@
+// Package i18n provides internationalization support for gotg.
+// Supports Fluent (.ftl) and YAML formats with 142 CLDR plural rules.
+
 package i18n
 
 import (

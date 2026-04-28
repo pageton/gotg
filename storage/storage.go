@@ -1,3 +1,6 @@
+// Package storage provides peer storage and session persistence for gotg.
+// Supports in-memory, GORM, Redis backends with optional AES-256-GCM encryption.
+
 package storage
 
 import (

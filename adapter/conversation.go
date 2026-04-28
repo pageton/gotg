@@ -1,6 +1,3 @@
-// Package adapter provides conversation management functionality for the gotg framework.
-// It enables handling multi-step conversations with users through state tracking
-// and message filtering capabilities.
 package adapter
 
 import (

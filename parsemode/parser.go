@@ -1,5 +1,3 @@
-// Package parsemode provides robust parsing for Telegram message formatting.
-// It supports HTML, MarkdownV2, and None parse modes with thread-safe operations.
 //
 // Basic usage:
 //
