@@ -132,10 +132,12 @@ func (c *Client) initialize(wg *sync.WaitGroup) func(ctx context.Context) error 
 	return func(ctx context.Context) error {
 		err := c.login()
 		if err != nil {
+			wg.Done()
 			return err
 		}
 		self, err := c.Client.Self(ctx)
 		if err != nil {
+			wg.Done()
 			return err
 		}
 
@@ -361,7 +363,6 @@ func (c *Client) Start(opts *ClientOpts) error {
 		defer func() {
 			if r := recover(); r != nil {
 				c.err = fmt.Errorf("panic in client: %v", r)
-				wg.Done()
 			}
 		}()
 		if opts.RunMiddleware == nil {
@@ -372,10 +373,6 @@ func (c *Client) Start(opts *ClientOpts) error {
 				c.ctx,
 				c.initialize(&wg),
 			)
-		}
-
-		if c.err != nil {
-			wg.Done()
 		}
 	}(c)
 
