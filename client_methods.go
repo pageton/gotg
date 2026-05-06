@@ -377,7 +377,7 @@ func (c *Client) Start(opts *ClientOpts) error {
 	}(c)
 
 	wg.Wait()
-	if c.err == nil {
+	if c.err == nil && c.Self != nil {
 		if !c.Self.Bot && opts.PeersFromDialogs {
 			if opts.WaitOnPeersFromDialogs {
 				if err := storage.AddPeersFromDialogs(c.ctx, c.API(), c.PeerStorage); err != nil {
